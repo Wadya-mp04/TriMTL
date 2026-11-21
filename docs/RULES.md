@@ -5,7 +5,7 @@ Owner: Waddah. This file is the **only** source of bins in TriMTL. Gemini picks 
 when the server starts and on every `npm run check`, so a typo stops the server instead of teaching a
 wrong answer.
 
-Current state: **version 4**, 50 rules, 19 boroughs, every rule and override verified, checked on montreal.ca and Recyc-Québec on 2026-11-21.
+Current state: **version 7**, 50 rules, 19 boroughs, every rule and override verified, checked on montreal.ca, Recyc-Québec and Consignaction on 2026-11-21.
 
 ## Top-level fields
 
@@ -39,7 +39,7 @@ Current state: **version 4**, 50 rules, 19 boroughs, every rule and override ver
 | `links` | yes | Keys into top-level `links`. The dropoff's links are added after them, without duplicates. |
 | `overrides` | no | Context-dependent answers. See below. |
 | `verified` | yes | `false` until someone has checked it on montreal.ca. See the verification policy. |
-| `sourceUrl` | yes | The official page that states the rule: montreal.ca or recyc-quebec.gouv.qc.ca. A test fails on any other host. |
+| `sourceUrl` | yes | The official page that states the rule: montreal.ca, recyc-quebec.gouv.qc.ca or consignaction.ca. A test fails on any other host. |
 
 ## How to add an item
 
@@ -48,7 +48,7 @@ Current state: **version 4**, 50 rules, 19 boroughs, every rule and override ver
 3. Set `category`, `bin` and `dropoff` (non-null only for `special`).
 4. Fill `name`, `explanation` and `specialInstruction` in **French and English**.
 5. Add plenty of `names` in both languages, e.g. `["canette", "canettes", "can", "cans", "Red Bull"]`. These matter both for typed corrections and for Gemini's matching.
-6. Set `sourceUrl` (montreal.ca or Recyc-Québec). Set `verified: true` only if the page you read states this exact rule.
+6. Set `sourceUrl` (montreal.ca, Recyc-Québec or Consignaction). Set `verified: true` only if the page you read states this exact rule.
 7. Bump `version`.
 8. Add a case to the "typed names" test in `server/src/tests/rules.test.ts`.
 9. Run `npm run check`, then `npm run sync-shared` so the app's offline copy matches.
@@ -115,9 +115,10 @@ These were checked on montreal.ca on 2026-11-21. They look surprising, and that'
 |---|---|---|
 | Recycling rules are the same in all 19 boroughs (uniform across Québec). | No recycling overrides. | [Recycling bin](https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068) |
 | 5 boroughs collect food **and** yard waste in the brown bin: Lachine, Le Plateau-Mont-Royal, L'Île-Bizard–Sainte-Geneviève, Pierrefonds-Roxboro, Saint-Laurent. The other 14 have a separate seasonal yard-waste collection. | `boroughs.*.organics`; `yard_waste` defaults to `special` + `yard_collection`, with an `organics: "combined"` override to `compost`. | [Organics collection](https://montreal.ca/collectes/collecte-des-matieres-organiques) |
-| Upholstered furniture, mattresses and box springs go in household **garbage**. Only the Saint-Laurent écocentre recycles mattresses (pilot). | `upholstered_furniture` → `garbage` | [Garbage collection](https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres) |
+| Mattresses, sofas and upholstered chairs go to an **écocentre**. (Changed in v7: was `garbage`.) | `upholstered_furniture` → `special` + `ecocentre` | [Écocentres](https://montreal.ca/deposer-des-objets-lecocentre) |
 | Non-upholstered furniture → bulky-item collection or écocentre. | `furniture` → `special` + `bulky_collection` | [Bulky items](https://montreal.ca/sujets/encombrants-et-materiaux-de-construction) |
-| Drink cans and plastic drink bottles (100 mL–2 L) go back for the deposit, not into recycling. | `drink_can`, `drink_bottle` → `special` + `deposit` | [Recycling bin](https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068) |
+| Drink cans and plastic drink bottles (100 mL–2 L) are **recyclable**, and also carry a 10¢ deposit: returning them is even better. (Changed in v7: was `special` + `deposit`.) | `drink_can`, `drink_bottle` → `recycling` | [Consignaction](https://consignaction.ca/wp-content/uploads/2025/05/bilan-citoyens-15-mai-2025.pdf) |
+| Smoke detectors and regular (LED, halogen, incandescent) bulbs go to an **écocentre**. Protective foam that crumbles into beads goes in the **garbage**. (Changed in v7.) | `smoke_detector`, `bulb_regular` → `special` + `ecocentre`; `foam_protective` → `garbage` | [Écocentres](https://montreal.ca/deposer-des-objets-lecocentre), [Garbage](https://montreal.ca/sujets/ordures-menageres) |
 | Since 2025, all packaging goes in recycling: coffee cups, chip bags, wrappers, film, foam food trays. | `coffee_cup`, `chip_bag`, `plastic_bags`, `foam_food` → `recycling` | [Recycling bin](https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068) |
 | Without a brown bin, food scraps, eggshells and coffee grounds go in the **garbage**, as a last resort. Soiled paper towels and tissues too: they are refused in the recycling. (Verified in v4.) | No-brown-bin overrides on `food_scraps`, `eggshells`, `coffee_grounds`, `paper_towel` → `garbage` | [Brown bin](https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580) |
 | Compostable and biodegradable plastics go in the **garbage** in every context. They aren't recyclable, and some boroughs refuse them in the brown bin. (Changed in v4: was `compost`.) | `compostable_plastic` → `garbage`, no override | [Garbage](https://montreal.ca/sujets/ordures-menageres) |

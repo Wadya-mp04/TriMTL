@@ -1,7 +1,7 @@
 # TriMTL
 
-**Mission.** Montrealers sort waste wrong because the rules are surprising (drink cans go back for the
-deposit, chip bags go in the recycling since 2025, yard waste depends on your borough). TriMTL turns a
+**Mission.** Montrealers sort waste wrong because the rules are surprising (smoke detectors and mattresses
+go to the écocentre, chip bags go in the recycling since 2025, yard waste depends on your borough). TriMTL turns a
 photo of your trash into a short sorting game. Gemini recognises the objects, and a rules engine built
 from montreal.ca decides each bin. Every answer links to its official source, and anything we're not
 sure about is labelled "Needs verification" instead of guessed. Built in 24 h for the App|ETS Mobile

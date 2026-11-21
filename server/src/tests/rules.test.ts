@@ -9,7 +9,8 @@ import { pointsPerItem, score } from "../services/scoring.js";
 import { totalOf } from "../services/gemini.js";
 
 // Sources must be official: the city or Recyc-Québec.
-const OFFICIAL = ["https://montreal.ca/", "https://www.recyc-quebec.gouv.qc.ca/"];
+// Consignaction runs Québec's official deposit-return system.
+const OFFICIAL = ["https://montreal.ca/", "https://www.recyc-quebec.gouv.qc.ca/", "https://consignaction.ca/"];
 
 test("rules file loads and every item has a bin, icon and an official source", () => {
   assert.ok(RULES.length >= 40);
@@ -29,8 +30,8 @@ test("typed names find the right rule", () => {
 });
 
 test("Montréal-specific answers the game must get right", () => {
-  assert.equal(getRule("drink_can")?.bin, "special");      // deposit return, not recycling
-  assert.equal(getRule("drink_can")?.dropoff, "deposit");
+  assert.equal(getRule("drink_can")?.bin, "recycling");    // since v7: recyclable, deposit is a bonus
+  assert.equal(getRule("drink_can")?.dropoff, null);
   assert.equal(getRule("coffee_cup")?.bin, "recycling");   // all paper containers since 2025
   assert.equal(getRule("chip_bag")?.bin, "recycling");     // all packaging since 2025
   assert.equal(getRule("battery")?.bin, "special");
@@ -72,7 +73,7 @@ test("score: correct, wrong, missing and unplayable items", () => {
     toScanItem({ id: "item-3", name: "box", rule: getRule("cardboard"), confidence: "high", lang: "en" }),
     toScanItem({ id: "item-4", name: "??", rule: null, confidence: "low", lang: "en" }),
   ];
-  const r = score("s", items, [{ itemId: "item-1", chosenBin: "special" }, { itemId: "item-2", chosenBin: "garbage" }]);
+  const r = score("s", items, [{ itemId: "item-1", chosenBin: "recycling" }, { itemId: "item-2", chosenBin: "garbage" }]);
   assert.equal(r.total, 3);
   assert.equal(r.correct, 1);
   assert.equal(r.score, 34);

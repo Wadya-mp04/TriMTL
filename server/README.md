@@ -70,7 +70,7 @@ In short:
    | Deposit return (consigne) | `special` + `dropoff: deposit` |
    | Pharmacy, donation, tree, bulky or yard-waste collection | `special` + matching `dropoff` |
 
-2. **Drink cans and plastic drink bottles (100 mL to 2 L) are `special` / `deposit`, not `recycling`.** Montréal's own page says they "doivent aller à la consigne". The ChatGPT plan's example put a water bottle in `recycling`, which is wrong for Montréal. A judge who drops a can in Recycling gets it wrong and learns about the deposit. That is the point of the game.
+2. **Drink cans and plastic drink bottles (100 mL to 2 L) are `recycling` (since rules v7).** They also carry a 10¢ deposit, so `specialInstruction` says returning them is even better. (Before v7 they were `special` / `deposit`.)
 3. **Since 2025, all packaging goes in recycling**: coffee cups, chip bags, granola bar wrappers, plastic film, foam food trays. Many people, judges included, believe otherwise. Expect "that's wrong!" moments in the demo and point to `sourceUrl`.
 4. **Up to 8 objects per photo** (the plan said 1–5; 8 costs nothing). Identical objects are merged.
 5. **Gemini never decides a bin.** If there's no rule, the item is unplayable, never guessed.
