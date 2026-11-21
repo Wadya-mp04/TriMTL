@@ -5,7 +5,7 @@ Owner: Waddah. This file is the **only** source of bins in TriMTL. Gemini picks 
 when the server starts and on every `npm run check`, so a typo stops the server instead of teaching a
 wrong answer.
 
-Current state: **version 3**, 50 rules, 19 boroughs, checked on montreal.ca on 2026-11-21.
+Current state: **version 4**, 50 rules, 19 boroughs, every rule and override verified, checked on montreal.ca and Recyc-Québec on 2026-11-21.
 
 ## Top-level fields
 
@@ -15,7 +15,7 @@ Current state: **version 3**, 50 rules, 19 boroughs, checked on montreal.ca on 2
 | `checkedOn` | `YYYY-MM-DD` | Last date the rules were checked against montreal.ca. |
 | `bins` | `["recycling","compost","garbage","special"]` | The four game bins. Don't add bins: add a `dropoff` instead. |
 | `categories` | `{ <category>: { fr, en } }` | Display name of every category in `CATEGORIES` (types.ts). All 19 are required. |
-| `dropoffs` | `{ <dropoff>: { name, mapsQuery, note, links } }` | Where a `special` item goes. `note` is the fallback `specialInstruction`, `mapsQuery` the fallback map search, and `links` keys go into `links`. |
+| `dropoffs` | `{ <dropoff>: { name, mapsQuery, note, links } }` | Where a `special` item goes. `note` fills `specialInstruction` when the item has none; otherwise it is sent separately as `dropoffNote` (never both with the same text). `mapsQuery` is the fallback map search, and `links` keys go into `links`. |
 | `links` | `{ <key>: { label: { fr, en }, url } }` | Reusable official links, referenced by key from items and dropoffs. |
 | `icons` | string[] | Icon names the app has assets for. An item with an unknown icon fails the check. |
 | `boroughs` | `{ <slug>: { name, organics } }` | The 19 Montréal boroughs and their **attributes**. `organics` is `"combined"` or `"food_only"`. |
@@ -39,7 +39,7 @@ Current state: **version 3**, 50 rules, 19 boroughs, checked on montreal.ca on 2
 | `links` | yes | Keys into top-level `links`. The dropoff's links are added after them, without duplicates. |
 | `overrides` | no | Context-dependent answers. See below. |
 | `verified` | yes | `false` until someone has checked it on montreal.ca. See the verification policy. |
-| `sourceUrl` | yes | The montreal.ca page that states the rule. |
+| `sourceUrl` | yes | The official page that states the rule: montreal.ca, or Recyc-Québec. Any other host must be added on purpose to `SOURCE_EXCEPTIONS` in `rules.test.ts`. |
 
 ## How to add an item
 
@@ -48,7 +48,7 @@ Current state: **version 3**, 50 rules, 19 boroughs, checked on montreal.ca on 2
 3. Set `category`, `bin` and `dropoff` (non-null only for `special`).
 4. Fill `name`, `explanation` and `specialInstruction` in **French and English**.
 5. Add plenty of `names` in both languages, e.g. `["canette", "canettes", "can", "cans", "Red Bull"]`. These matter both for typed corrections and for Gemini's matching.
-6. Set `sourceUrl`. Set `verified: true` only if the page you read states this exact rule.
+6. Set `sourceUrl` (montreal.ca or Recyc-Québec). Set `verified: true` only if the page you read states this exact rule.
 7. Bump `version`.
 8. Add a case to the "typed names" test in `server/src/tests/rules.test.ts`.
 9. Run `npm run check`, then `npm run sync-shared` so the app's offline copy matches.
@@ -104,13 +104,8 @@ Use this when a new fact varies by borough, e.g. a hypothetical `glassDropoff: t
 - `ruleId: "none"`, low confidence, or a Gemini category that disagrees with the rule's category also set `needsVerification`. **We never invent an answer.**
 - `npm run validate-rules` lists every unverified rule and override.
 
-Currently unverified:
-
-| What | Status |
-|---|---|
-| `wrapping_paper` | Rule not yet confirmed on its `sourceUrl`. |
-| `christmas_lights` | Rule not yet confirmed on its `sourceUrl`. |
-| `food_scraps`, `eggshells`, `coffee_grounds`, `paper_towel`, `compostable_plastic` with `{ hasBrownBin: false }` → `garbage` | **Unverified on purpose** (team decision). Leave them `false` until someone confirms the no-brown-bin answer on montreal.ca. |
+Currently unverified: **none** (since v4). The five no-brown-bin overrides, `wrapping_paper` and
+`christmas_lights` were checked and set to `verified: true` in v4 (see below).
 
 ## Verified facts: do not "fix" these
 
@@ -124,6 +119,11 @@ These were checked on montreal.ca on 2026-11-21. They look surprising, and that'
 | Non-upholstered furniture → bulky-item collection or écocentre. | `furniture` → `special` + `bulky_collection` | [Bulky items](https://montreal.ca/sujets/encombrants-et-materiaux-de-construction) |
 | Drink cans and plastic drink bottles (100 mL–2 L) go back for the deposit, not into recycling. | `drink_can`, `drink_bottle` → `special` + `deposit` | [Recycling bin](https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068) |
 | Since 2025, all packaging goes in recycling: coffee cups, chip bags, wrappers, film, foam food trays. | `coffee_cup`, `chip_bag`, `plastic_bags`, `foam_food` → `recycling` | [Recycling bin](https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068) |
+| Without a brown bin, food scraps, eggshells and coffee grounds go in the **garbage**, as a last resort. Soiled paper towels and tissues too: they are refused in the recycling. (Verified in v4.) | No-brown-bin overrides on `food_scraps`, `eggshells`, `coffee_grounds`, `paper_towel` → `garbage` | [Brown bin](https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580) |
+| Compostable and biodegradable plastics go in the **garbage** in every context. They aren't recyclable, and some boroughs refuse them in the brown bin. (Changed in v4: was `compost`.) | `compostable_plastic` → `garbage`, no override | [Garbage](https://montreal.ca/sujets/ordures-menageres) |
+| Gift-wrap paper is accepted printed paper → recycling. (Verified in v4; the unverified "metallic paper goes in the garbage" sentence was removed.) | `wrapping_paper` → `recycling` | [Collections, Saint-Laurent](https://montreal.ca/articles/tout-savoir-sur-les-collectes-saint-laurent-11887) |
+| Christmas lights never go in the recycling bin, where they jam the sorting machines. They go to an écocentre. (Verified in v4.) | `christmas_lights` → `special` + `ecocentre` | [Recyc-Québec holiday guide](https://newswire.ca/fr/news-releases/guide-pour-un-noel-ecoresponsable-selon-recyc-quebec-apres-les-fetes-le-sapin-et-les-decorations-885351746.html) (press release; a recyc-quebec.gouv.qc.ca page would be a better source) |
+| Yard waste: branches longer than 1 m or thicker than 5 cm, soil and stones go to an écocentre. Off season (separate-collection boroughs), yard waste goes to an écocentre, and the garbage only as a last resort. (Corrected in v4.) | `yard_waste.specialInstruction`; `dropoffs.yard_collection.note` | [Organics collection](https://montreal.ca/collectes/collecte-des-matieres-organiques) |
 | Independent municipalities (Westmount, Côte-Saint-Luc, Pointe-Claire…) are not boroughs. | Not in `boroughs`; the app sends `borough: null` ("Other"), which uses the city-wide default. | |
 
 ## What does NOT belong here
