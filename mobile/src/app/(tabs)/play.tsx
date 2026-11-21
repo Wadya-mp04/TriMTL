@@ -1,85 +1,110 @@
 /**
- * Play, "Let's sort!" (ui-references/.../frosted_mint_play). Tap the right bin, +15 XP per hit.
+ * Play: throw what you scanned into the right Montréal bin (src/game/SortGame).
+ * One continuous game in rounds. Round 1 is your own items (today's scan, or your saved items when
+ * nothing was scanned today). Round 2 is the challenge: items from earlier days plus items you have
+ * never scanned. Later rounds work through the rest of the items, six at a time.
+ * +15 XP per item sorted right on the first try; each round is scored out of 100.
  */
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
-import { AvatarButton, BrandMark, Glass, Icon, PrimaryButton, Screen, Segmented, Spring, T, XpPill } from '../../components/ui';
-import { DAILY_DECK, SortItem } from '../../data/items';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { AvatarButton, BrandMark, Icon, PrimaryButton, T, XpPill } from '../../components/ui';
+import { CHALLENGE_POOL, SortItem } from '../../data/items';
+import { Backdrop } from '../../game/Backdrop';
+import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
+import { skyInk, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
 import { useApp } from '../../state/AppState';
-import { BIN_ORDER, BinKey, bins, colors, radius, shadow } from '../../theme';
+import { bins } from '../../theme';
 
 const XP_PER_HIT = 15;
-type Mode = 'mine' | 'daily';
+const ROUND_SIZE = 6;
+
+const isToday = (iso?: string) => !!iso && new Date(iso).toDateString() === new Date().toDateString();
+const playable = (i: SortItem) => i.bin !== null;
+function shuffle<T>(a: T[]) {
+  const b = a.slice();
+  for (let i = b.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [b[i], b[j]] = [b[j], b[i]];
+  }
+  return b;
+}
+const chunk = <T,>(a: T[], n: number) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+
+interface Round { title: string; deck: DeckEntry[] }
+
+/** Round 1: your items. Round 2: earlier scans first, topped up with never-scanned. Then the rest. */
+function buildRounds(lastScan: SortItem[], saved: SortItem[], fromScan: boolean): Round[] {
+  const seen = new Set<string>();
+  const yours = [...lastScan, ...saved].filter((i) => playable(i) && !seen.has(i.id) && seen.add(i.id));
+  const scanned = lastScan.filter(playable);
+  const today = yours.filter((i) => isToday(i.scannedAt));
+  const first = fromScan && scanned.length ? scanned : today.length ? today : yours;
+  const firstIds = new Set(first.map((i) => i.id));
+  const past = shuffle(yours.filter((i) => !firstIds.has(i.id))).map((item) => ({ item, origin: 'past' as const }));
+  const known = new Set(yours.map((i) => i.name.toLowerCase()));
+  const never = shuffle(CHALLENGE_POOL.filter((p) => !known.has(p.name.toLowerCase()))).map((item) => ({ item, origin: 'never' as const }));
+  const r2 = [...past.slice(0, 3), ...never.slice(0, ROUND_SIZE - Math.min(3, past.length))];
+  const rest = shuffle([...past.slice(3), ...never.slice(ROUND_SIZE - Math.min(3, past.length))]);
+  const rounds: Round[] = [];
+  if (first.length) rounds.push({ title: 'Your items', deck: first.slice(0, 8).map((item) => ({ item, origin: isToday(item.scannedAt) ? 'today' : 'past' })) });
+  for (const d of [shuffle(r2), ...chunk(rest, ROUND_SIZE)]) if (d.length) rounds.push({ title: 'Challenge', deck: d });
+  return rounds;
+}
 
 export default function PlayScreen() {
-  const router = useRouter();
   const { deck: deckParam } = useLocalSearchParams<{ deck?: string }>();
-  const { saved, lastScan, addXp, recordGame } = useApp();
-  const [mode, setMode] = useState<Mode>('mine');
+  const { saved, lastScan, addXp, recordGame, playTheme, setPlayTheme } = useApp();
+  const [seed, setSeed] = useState(0);
+  const [roundIdx, setRoundIdx] = useState(0);
+  const [result, setResult] = useState<RoundResult[] | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [groundY, setGroundY] = useState(0);
+  const theme = THEMES[playTheme];
+  const ink = skyInk(theme);
 
-  const deck: SortItem[] = useMemo(() => {
-    if (mode === 'daily') return DAILY_DECK;
-    const source = deckParam === 'scan' && lastScan.length ? lastScan : saved;
-    const playable = source.filter((i) => i.bin !== null);
-    return playable.length ? playable.slice(0, 8) : DAILY_DECK;
-  }, [mode, deckParam, lastScan, saved]);
-
-  const [idx, setIdx] = useState(0);
-  const [chosen, setChosen] = useState<BinKey | null>(null);
-  const [correct, setCorrect] = useState(0);
-  const [done, setDone] = useState(false);
-
-  // New deck (mode switch, or arriving from a scan) → new round.
-  useEffect(() => {
-    setIdx(0);
-    setChosen(null);
-    setCorrect(0);
-    setDone(false);
-  }, [deck]);
-  useEffect(() => {
-    if (deckParam === 'scan') setMode('mine');
-  }, [deckParam]);
-
-  const item = deck[Math.min(idx, deck.length - 1)];
-  const isRight = chosen !== null && chosen === item.bin;
-
-  const answer = (bin: BinKey) => {
-    if (chosen || done) return;
-    setChosen(bin);
-    if (bin === item.bin) {
-      setCorrect((c) => c + 1);
-      addXp(XP_PER_HIT);
-    }
-  };
+  const rounds = useMemo(
+    () => buildRounds(lastScan, saved, deckParam === 'scan'),
+    // `seed` reshuffles everything on "Play again".
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [deckParam, lastScan, saved, seed],
+  );
+  const current = rounds[Math.min(roundIdx, rounds.length - 1)];
+  const hasNext = roundIdx < rounds.length - 1;
 
   const next = () => {
-    if (idx >= deck.length - 1) {
-      recordGame({ title: mode === 'daily' ? 'Daily challenge' : 'My scanned items', items: deck.length, correct });
-      setDone(true);
-      return;
-    }
-    setIdx((i) => i + 1);
-    setChosen(null);
+    setResult(null);
+    setRoundIdx((i) => i + 1);
   };
-
-  const restart = () => {
-    setIdx(0);
-    setChosen(null);
-    setCorrect(0);
-    setDone(false);
+  const again = () => {
+    setResult(null);
+    setRoundIdx(0);
+    setSeed((v) => v + 1);
   };
-
-  const progress = done ? 1 : (idx + 1) / deck.length;
+  const onHit = useCallback(() => addXp(XP_PER_HIT), [addXp]);
+  const onFinish = useCallback(
+    (r: RoundResult[]) => {
+      setResult(r);
+      recordGame({ title: `Round ${roundIdx + 1}: ${current.title}`, items: r.length, correct: r.filter((x) => x.first).length });
+    },
+    [roundIdx, current, recordGame],
+  );
 
   return (
-    <Screen edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: theme.lane }}>
+      <Backdrop theme={theme} groundY={groundY} />
+      <StatusBar style={theme.key === 'nuit' ? 'light' : 'dark'} />
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
       <View style={styles.header}>
         <View style={styles.row}>
-          <BrandMark />
-          <T size="lg" weight="bold" style={{ letterSpacing: -0.45 }}>Let's sort!</T>
+          <BrandMark size={36} />
+          <T size="lg" weight="bold" color={ink} style={{ letterSpacing: -0.45 }}>Let's sort!</T>
         </View>
         <View style={styles.row}>
           <XpPill />
@@ -87,109 +112,135 @@ export default function PlayScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
-        <View style={{ gap: 8 }}>
-          <View style={[styles.row, { justifyContent: 'space-between' }]}>
-            <T size="xs" weight="semibold" color={colors.inkMuted} style={{ fontVariant: ['tabular-nums'] }}>
-              {done ? 'Round complete' : `Item ${idx + 1} of ${deck.length}`}
-            </T>
-            <Segmented compact options={[{ key: 'mine', label: 'My items' }, { key: 'daily', label: 'Daily' }]} value={mode} onChange={setMode} />
-          </View>
-          <View style={styles.track}>
-            <Animated.View style={[styles.fill, { width: `${progress * 100}%` }]} />
-          </View>
+      <View style={styles.main}>
+        <View style={[styles.row, { justifyContent: 'space-between', minHeight: 36 }]}>
+          <T size="base" color={ink} accessibilityRole="header" style={{ fontVariant: ['tabular-nums'] }}>
+            <T size="base" weight="bold" color={ink}>Round {roundIdx + 1}</T>  {current.title}
+          </T>
+          <Pressable
+            onPress={() => setPicking((p) => !p)}
+            accessibilityRole="button"
+            accessibilityLabel={`Theme: ${theme.name.en}, ${theme.name.fr}. Change theme`}
+            accessibilityState={{ expanded: picking }}
+            hitSlop={10}
+            style={styles.row}
+          >
+            <T size="xs" weight="semibold" color={ink} style={{ opacity: 0.85 }}>{theme.name.en}</T>
+            <Swatch colors={theme.gradient} size={28} ring />
+          </Pressable>
         </View>
 
-        {done ? (
-          <Glass style={styles.focal}>
-            <View style={[styles.itemIcon, shadow.md]}>
-              <Icon name="emoji-events" size={40} color={colors.forest} />
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <T size="4xl" display style={{ lineHeight: 44, textAlign: 'center' }}>{correct} / {deck.length} sorted</T>
-              <T size="xs" color={colors.inkMuted} style={{ marginTop: 4 }}>+{correct * XP_PER_HIT} XP this round</T>
-            </View>
-            <View style={{ width: '100%', gap: 8, marginTop: 8 }}>
-              <PrimaryButton label="Play again" icon="replay" size="md" onPress={restart} />
-              <PrimaryButton label="See today's podium" icon="leaderboard" size="md" onPress={() => router.navigate('/social')} style={{ backgroundColor: colors.forest }} />
-            </View>
-          </Glass>
-        ) : (
-          <Glass style={styles.focal}>
-            <View style={[styles.itemIcon, shadow.md]}>
-              <Icon name={item.icon} size={40} color={colors.forest} />
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <T size="4xl" display style={{ lineHeight: 44, textAlign: 'center' }}>{item.name}</T>
-              <T size="xs" color={colors.inkMuted} style={{ marginTop: 4 }}>Tap the right bin below</T>
-            </View>
-          </Glass>
-        )}
-
-        {chosen && !done && (
-          <Glass style={styles.feedback}>
-            <T size="sm" weight="bold">
-              {isRight ? `Nice! +${XP_PER_HIT} XP` : `Correct bin: ${item.bin ? bins[item.bin].label : '—'}`}
-            </T>
-            <T size="xs" color={colors.inkMuted}>{item.note}</T>
-            <PrimaryButton label={idx >= deck.length - 1 ? 'Finish' : 'Next'} size="sm" onPress={next} />
-          </Glass>
-        )}
-
-        {!done && (
-          <View style={{ gap: 12 }}>
-            {[BIN_ORDER.slice(0, 2), BIN_ORDER.slice(2)].map((pair) => (
-              <View key={pair[0]} style={{ flexDirection: 'row', gap: 12 }}>
-                {pair.map((bin) => {
-                  const b = bins[bin];
-                  const reveal = chosen !== null && (bin === item.bin || bin === chosen);
-                  const ring = !reveal ? undefined : bin === item.bin ? b.fg : '#DC2626';
-                  return (
-                    <Spring
-                      key={bin}
-                      onPress={() => answer(bin)}
-                      accessibilityRole="button"
-                      accessibilityLabel={b.label}
-                      style={[styles.bin, ring ? { borderColor: ring, borderWidth: 2 } : null]}
-                    >
-                      <View style={[styles.binIcon, { backgroundColor: b.bg }]}>
-                        <Icon name={b.icon} size={22} color={b.fg} />
-                      </View>
-                      <T size="sm" weight="bold">{b.label}</T>
-                    </Spring>
-                  );
-                })}
-              </View>
-            ))}
+        {picking && (
+          <View style={styles.picker}>
+            {THEME_ORDER.map((k) => {
+              const t = THEMES[k];
+              const on = k === playTheme;
+              return (
+                <Pressable
+                  key={k}
+                  onPress={() => { setPlayTheme(k); setPicking(false); }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={`${t.name.en}, ${t.name.fr}`}
+                  hitSlop={6}
+                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Swatch colors={t.gradient} size={on ? 40 : 32} accent={t.accent} ring={on} />
+                </Pressable>
+              );
+            })}
           </View>
         )}
-      </ScrollView>
-    </Screen>
+
+        {result ? (
+          <Results
+            results={result}
+            accent={theme.accent}
+            dark={streetDark(theme)}
+            ink={theme.laneInk}
+            muted={theme.laneMuted}
+            roundNo={roundIdx + 1}
+            nextTitle={hasNext ? rounds[roundIdx + 1].title : null}
+            onNext={next}
+            onAgain={again}
+          />
+        ) : (
+          <SortGame key={`${seed}-${roundIdx}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={setGroundY} />
+        )}
+      </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+function Swatch({ colors: [a, b], size, accent, ring }: { colors: [string, string]; size: number; accent?: string; ring?: boolean }) {
+  return (
+    <Svg width={size} height={size}>
+      <Defs>
+        <LinearGradient id={`g${a}${b}`} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={a} />
+          <Stop offset="1" stopColor={b} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width={size} height={size} rx={size / 2} fill={`url(#g${a}${b})`} />
+      {ring && <Rect x="1.5" y="1.5" width={size - 3} height={size - 3} rx={(size - 3) / 2} fill="none" stroke="#FFFFFF" strokeWidth={3} />}
+      {accent && <Rect x={size * 0.62} y={size * 0.62} width={size * 0.38} height={size * 0.38} rx={size * 0.19} fill={accent} stroke="#FFFFFF" strokeWidth={2} />}
+    </Svg>
+  );
+}
+
+function Results({ results, accent, dark, ink, muted, roundNo, nextTitle, onNext, onAgain }: {
+  results: RoundResult[]; accent: string; dark: boolean; ink: string; muted: string; roundNo: number; nextTitle: string | null; onNext: () => void; onAgain: () => void;
+}) {
+  const n = results.length, good = results.filter((r) => r.first).length;
+  const score = Math.round((good * 100) / n);
+  const line = dark ? 'rgba(255,255,255,0.10)' : 'rgba(18,41,31,0.08)';
+  return (
+    <ScrollView contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: TAB_BAR_SPACE }} showsVerticalScrollIndicator={false}>
+      <View style={[styles.sheet, { backgroundColor: dark ? 'rgba(14,20,30,0.9)' : 'rgba(250,250,246,0.92)' }]}>
+        <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+          <T size="4xl" display color={ink} style={{ fontSize: 76, lineHeight: 80, fontVariant: ['tabular-nums'] }}>
+            {score}<T size="2xl" color={muted}>/100</T>
+          </T>
+          <T size="sm" weight="semibold" color={ink}>
+            Round {roundNo}: {good === n ? 'every item in the right bin.' : `${good} right first try, ${n - good} to review.`}
+          </T>
+          <T size="xs" color={muted} style={{ marginTop: 2 }}>+{good * XP_PER_HIT} XP</T>
+        </View>
+        {results.map(({ item, first }) => {
+          const b = bins[item.bin!];
+          return (
+            <View key={item.id} style={[styles.guideRow, { borderTopColor: line }]} accessible accessibilityLabel={`${item.name}: ${b.label}. ${item.note} ${first ? 'Right first try.' : 'To review.'}`}>
+              <Icon name={b.icon} size={20} color={dark ? '#FFFFFF' : b.deep} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <T size="sm" weight="bold" color={ink}>
+                  {item.name} <T size="sm" color={dark ? '#FFFFFF' : b.deep}>→ {b.label}</T>
+                </T>
+                <T size="xs" color={muted}>{item.note}</T>
+              </View>
+              {!first && <T size="xs" weight="bold" color="#D9785E">Review</T>}
+            </View>
+          );
+        })}
+      </View>
+      {nextTitle ? (
+        <PrimaryButton label={`Start round ${roundNo + 1}: ${nextTitle}`} icon="arrow-forward" size="md" onPress={onNext} style={{ backgroundColor: accent }} />
+      ) : (
+        <T size="sm" color={muted} style={{ textAlign: 'center' }}>That's every item for now.</T>
+      )}
+      <Pressable onPress={onAgain} accessibilityRole="button" style={{ alignSelf: 'center', padding: 10 }}>
+        <T size="sm" weight="semibold" color={ink}>{nextTitle ? 'Start over' : 'Play again'}</T>
+      </Pressable>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  // Floats over the game so opening it never reflows the board.
+  picker: { position: 'absolute', top: 42, right: 12, zIndex: 50, flexDirection: 'row', gap: 4 },
+  sheet: { borderRadius: 22, paddingHorizontal: 16, paddingBottom: 6 },
+  guideRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
   header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  main: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: TAB_BAR_SPACE, gap: 20 },
-  track: { height: 8, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: colors.white, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: radius.full, backgroundColor: colors.forest },
-  focal: { borderRadius: radius['3xl'], padding: 28, minHeight: 208, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  itemIcon: { width: 80, height: 80, borderRadius: radius['3xl'], backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
-  feedback: { borderRadius: radius['2xl'], padding: 14, gap: 8 },
-  bin: {
-    flex: 1,
-    minHeight: 96,
-    borderRadius: radius['3xl'],
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.88)',
-    boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12), inset 0px 1px 0px rgba(255, 255, 255, 0.9)',
-  },
-  binIcon: { width: 40, height: 40, borderRadius: radius['2xl'], alignItems: 'center', justifyContent: 'center' },
+  main: { flex: 1, paddingHorizontal: 16, paddingTop: 4, paddingBottom: TAB_BAR_SPACE, gap: 10 },
 });

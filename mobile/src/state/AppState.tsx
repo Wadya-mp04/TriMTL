@@ -6,6 +6,7 @@
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 
 import { DEMO_SAVED, SortItem } from '../data/items';
+import type { ThemeKey } from '../game/themes';
 
 export interface GameRecord {
   title: string;
@@ -35,6 +36,8 @@ interface AppState {
   games: GameRecord[];
   stats: { games: number; answered: number; correct: number };
   theme: 'forest' | 'ocean' | 'lavender';
+  /** Neighbourhood theme for the Play screen. */
+  playTheme: ThemeKey;
   signIn: (name?: string) => void;
   signOut: () => void;
   addXp: (n: number) => void;
@@ -43,6 +46,7 @@ interface AppState {
   saveItems: (items: SortItem[]) => void;
   recordGame: (g: Omit<GameRecord, 'when'>) => void;
   setTheme: (t: AppState['theme']) => void;
+  setPlayTheme: (t: ThemeKey) => void;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -59,13 +63,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [xpToday, setXpToday] = useState(75);
   const [saved, setSaved] = useState<SortItem[]>(DEMO_SAVED);
   const [photos, setPhotos] = useState<string[]>([]);
-  const [lastScan, setLastScan] = useState<SortItem[]>([]);
   const [games, setGames] = useState<GameRecord[]>([
     { title: 'My scanned items', items: 4, correct: 4, when: 'Today' },
     { title: 'Daily challenge', items: 5, correct: 4, when: 'Yesterday' },
   ]);
   const [stats, setStats] = useState({ games: 12, answered: 50, correct: 44 });
   const [theme, setTheme] = useState<AppState['theme']>('forest');
+  const [playTheme, setPlayTheme] = useState<ThemeKey>('plateau');
+  const [lastScan, setLastScanRaw] = useState<SortItem[]>([]);
+
+  // Stamp scan time so the game can tell today's items from earlier ones.
+  const setLastScan = useCallback((items: SortItem[]) => {
+    const now = new Date().toISOString();
+    setLastScanRaw(items.map((i) => ({ ...i, scannedAt: i.scannedAt ?? now })));
+  }, []);
 
   const addXp = useCallback((n: number) => {
     setXp((v) => v + n);
@@ -75,7 +86,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const saveItems = useCallback((items: SortItem[]) => {
     setSaved((prev) => {
       const ids = new Set(prev.map((p) => p.id));
-      return [...items.filter((i) => !ids.has(i.id)), ...prev];
+      const now = new Date().toISOString();
+      return [...items.filter((i) => !ids.has(i.id)).map((i) => ({ ...i, scannedAt: i.scannedAt ?? now })), ...prev];
     });
   }, []);
 
@@ -96,6 +108,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       games,
       stats,
       theme,
+      playTheme,
       signIn: (name) => name?.trim() && setUsername(name.trim()),
       signOut: () => setUsername('EcoSorter'),
       addXp,
@@ -104,8 +117,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveItems,
       recordGame,
       setTheme,
+      setPlayTheme,
     }),
-    [username, xp, xpToday, saved, photos, lastScan, games, stats, theme, addXp, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, games, stats, theme, playTheme, addXp, saveItems, recordGame, setLastScan],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
