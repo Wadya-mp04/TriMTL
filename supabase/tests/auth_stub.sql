@@ -9,4 +9,5 @@ create function auth.uid() returns uuid language sql stable as
   $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 grant usage on schema public, auth to authenticated;
 grant execute on function auth.uid() to authenticated;
-alter default privileges in schema public grant all on tables to authenticated;
+-- No default table grants: like newer Supabase projects, tables are only reachable from the app
+-- if a migration grants them explicitly (this caught "permission denied for table" on a real project).

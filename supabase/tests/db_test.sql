@@ -70,6 +70,10 @@ reset role;
 select pg_temp.ok((select username = 'alice' from public.profiles where id = :'alice'), 'bob cannot rename alice');
 select pg_temp.ok((select status = 'pending' from public.friendships where user_id = :'carol'), 'requester cannot accept own request');
 select pg_temp.ok(not has_function_privilege('anon', 'public.leaderboard(text)', 'execute'), 'signed-out users cannot read the leaderboard');
+select pg_temp.ok(not exists (
+  select 1 from unnest(array['profiles', 'scanned_items', 'game_scores', 'friendships']) t
+  where has_table_privilege('anon', 'public.' || t, 'select, insert, update, delete')
+), 'signed-out users cannot touch any table');
 
 -- Deleting an account removes everything that belongs to it.
 delete from auth.users where id = :'alice';
