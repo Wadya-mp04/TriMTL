@@ -216,7 +216,7 @@ Response 200: `ScoreResponse`
   "score": 34, "correct": 1, "total": 3,
   "results": [
     { "itemId": "item-1", "name": "Canette", "chosenBin": "special", "correctBin": "special",
-      "isCorrect": true, "points": 34, "explanation": "…", "specialInstruction": "…" }
+      "isCorrect": true, "points": 34, "explanation": "…", "specialInstruction": "…", "dropoffNote": null }
   ],
   "unplayable": ["item-4"]
 }

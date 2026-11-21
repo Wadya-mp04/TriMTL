@@ -135,6 +135,7 @@ export interface ScoreResult {
   points: number;
   explanation: string | null;
   specialInstruction: string | null;
+  dropoffNote: string | null;    // same as ScanItem.dropoffNote: show under specialInstruction
 }
 
 /** Server -> app, POST /api/score. */

@@ -78,4 +78,8 @@ test("score: correct, wrong, missing and unplayable items", () => {
   assert.equal(r.score, 34);
   assert.deepEqual(r.unplayable, ["item-4"]);
   assert.equal(r.results[2].chosenBin, null); // unanswered counts as wrong
+
+  // The results screen reads /api/score, so the drop-off's note must reach it too.
+  const battery = toScanItem({ id: "item-1", name: "AA", rule: getRule("battery"), confidence: "high", lang: "en" });
+  assert.match(score("s", [battery], []).results[0].dropoffNote ?? "", /photo ID/);
 });

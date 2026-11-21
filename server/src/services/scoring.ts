@@ -32,7 +32,7 @@ export function score(sessionId: string, items: ScanItem[], answers: { itemId: s
     return {
       itemId: item.id, name: item.name, chosenBin, correctBin: item.correctBin!, isCorrect,
       points: isCorrect ? shares[i] : 0,
-      explanation: item.explanation, specialInstruction: item.specialInstruction,
+      explanation: item.explanation, specialInstruction: item.specialInstruction, dropoffNote: item.dropoffNote,
     };
   });
   return {
