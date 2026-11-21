@@ -1,0 +1,169 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriMTL — Sorted Breakdown</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'mint-canvas': '#E5F3EA',
+            'forest': '#176B4D',
+            'forest-deep': '#123629',
+            'ink': '#12291F',
+            'ink-muted': '#415E52',
+            'recycling': '#1D4ED8',
+            'recycling-bg': '#EFF6FF',
+            'recycling-border': '#BFDBFE',
+            'compost': '#B45309',
+            'compost-bg': '#FFFBEB',
+            'compost-border': '#FDE68A',
+            'garbage': '#374151',
+            'garbage-bg': '#F3F4F6',
+            'garbage-border': '#D1D5DB',
+            'special': '#6D28D9',
+            'special-bg': '#F5F3FF',
+            'special-border': '#DDD6FE',
+          },
+          fontFamily: {
+            'display': ['"Instrument Serif"', 'Georgia', 'serif'],
+            'sans': ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+        }
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet">
+  <style>
+    .material-symbols-outlined { display: inline-block; width: 1em; height: 1em; line-height: 1 !important; box-sizing: content-box; overflow: hidden; white-space: nowrap; direction: ltr; vertical-align: middle; }
+    .apple-spring { transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), background-color 220ms ease, box-shadow 220ms ease; }
+    .apple-glass { background: rgba(255, 255, 255, 0.78); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255, 255, 255, 0.92); box-shadow: 0 10px 30px -10px rgba(20, 92, 64, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95); }
+  </style>
+</head>
+<body class="bg-mint-canvas text-ink font-sans antialiased">
+  <div class="min-h-[884px] max-w-[390px] mx-auto relative overflow-hidden flex flex-col justify-between pb-8" style="background: radial-gradient(120% 80% at 15% 0%, #FFFFFF 0%, #E5F3EA 48%, #D4EBDD 100%);" data-stitch-vh="min-h-[884px]===min-h-screen">
+    <!-- Top Header -->
+    <header class="px-5 pt-6 pb-3 flex items-center justify-between gap-3">
+      <a href="../frosted-camera-capture/FrostedCameraCapture.html" aria-label="Back to Camera" class="apple-spring apple-glass w-11 h-11 rounded-full flex items-center justify-center text-ink hover:scale-105 active:scale-95">
+        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">arrow_back</span>
+      </a>
+      <h1 class="font-display text-2xl text-ink">Where it goes</h1>
+      <span class="apple-glass px-3 py-1.5 rounded-full text-xs font-semibold text-forest tabular-nums">5 items</span>
+    </header>
+
+    <!-- Main Color-Coded Category List -->
+    <main class="px-5 flex-1 flex flex-col gap-4 pt-1">
+      <!-- 1. RECYCLING (Blue) -->
+      <section aria-label="Recycling items" class="apple-glass rounded-3xl p-4 border border-recycling-border flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-recycling-bg text-recycling text-xs font-bold">
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">recycling</span>
+            <span>Recycling</span>
+          </span>
+          <span class="text-xs font-semibold text-recycling tabular-nums">2 items</span>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <div class="bg-white rounded-2xl px-3.5 py-2.5 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-xl bg-recycling-bg text-recycling flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-[20px]" aria-hidden="true">local_drink</span>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-ink">Plastic water bottle</p>
+              <p class="text-xs text-ink-muted">Empty &amp; cap on • Deposit eligible</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl px-3.5 py-2.5 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-xl bg-recycling-bg text-recycling flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-[20px]" aria-hidden="true">sports_bar</span>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-ink">Aluminum beverage can</p>
+              <p class="text-xs text-ink-muted">Rinse lightly before bin</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. COMPOST (Amber / Brown) -->
+      <section aria-label="Compost items" class="apple-glass rounded-3xl p-4 border border-compost-border flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-compost-bg text-compost text-xs font-bold">
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">compost</span>
+            <span>Compost</span>
+          </span>
+          <span class="text-xs font-semibold text-compost tabular-nums">1 item</span>
+        </div>
+
+        <div class="bg-white rounded-2xl px-3.5 py-2.5 flex items-center gap-3">
+          <span class="w-9 h-9 rounded-xl bg-compost-bg text-compost flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">eco</span>
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-ink">Banana peel</p>
+            <p class="text-xs text-ink-muted">Montréal brown compost bin</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. GARBAGE (Slate Gray) -->
+      <section aria-label="Garbage items" class="apple-glass rounded-3xl p-4 border border-garbage-border flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-garbage-bg text-garbage text-xs font-bold">
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+            <span>Garbage</span>
+          </span>
+          <span class="text-xs font-semibold text-garbage tabular-nums">1 item</span>
+        </div>
+
+        <div class="bg-white rounded-2xl px-3.5 py-2.5 flex items-center gap-3">
+          <span class="w-9 h-9 rounded-xl bg-garbage-bg text-garbage flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">fastfood</span>
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-ink">Snack packaging</p>
+            <p class="text-xs text-ink-muted">Multi-layer foil/plastic wrapper</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. SPECIAL DROP-OFF (Purple) -->
+      <section aria-label="Special drop-off items" class="apple-glass rounded-3xl p-4 border border-special-border flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-special-bg text-special text-xs font-bold">
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">location_on</span>
+            <span>Special drop-off</span>
+          </span>
+          <span class="text-xs font-semibold text-special tabular-nums">1 item</span>
+        </div>
+
+        <div class="bg-white rounded-2xl px-3.5 py-2.5 flex items-center gap-3">
+          <span class="w-9 h-9 rounded-xl bg-special-bg text-special flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">battery_charging_full</span>
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-ink">Household battery</p>
+            <p class="text-xs text-ink-muted">Écocentre or retail battery bin</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Actions -->
+    <footer class="px-5 pt-5 flex flex-col gap-2.5">
+      <a href="../frosted-scan-viewfinder/FrostedScanViewfinder.html" class="apple-spring w-full min-h-14 rounded-full bg-ink text-white shadow-lg flex items-center justify-center gap-2 text-base font-semibold hover:bg-forest-deep active:scale-[0.97]">
+        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">bookmark_added</span>
+        <span>Save all 5 items</span>
+      </a>
+      <a href="../frosted-play/FrostedPlay.html" class="apple-spring w-full min-h-12 rounded-full bg-white/85 text-forest border border-white shadow-sm flex items-center justify-center gap-2 text-sm font-semibold hover:bg-white active:scale-[0.98]">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">play_arrow</span>
+        <span>Play with these items</span>
+      </a>
+    </footer>
+  </div>
+
+
+</body></html>

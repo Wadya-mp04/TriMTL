@@ -1,0 +1,191 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriMTL — Play</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'mint-canvas': '#E5F3EA',
+            'forest': '#176B4D',
+            'forest-deep': '#123629',
+            'ink': '#12291F',
+            'ink-muted': '#415E52',
+            'recycling': '#2563EB',
+            'recycling-bg': '#EFF6FF',
+            'compost': '#B45309',
+            'compost-bg': '#FFFBEB',
+            'garbage': '#4B5563',
+            'garbage-bg': '#F3F4F6',
+            'special': '#7C3AED',
+            'special-bg': '#F5F3FF',
+          },
+          fontFamily: {
+            'display': ['"Instrument Serif"', 'Georgia', 'serif'],
+            'sans': ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+        }
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet">
+  <style>
+    .material-symbols-outlined { display: inline-block; width: 1em; height: 1em; line-height: 1 !important; box-sizing: content-box; overflow: hidden; white-space: nowrap; direction: ltr; vertical-align: middle; }
+    .apple-spring { transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), background-color 220ms ease, box-shadow 220ms ease; }
+    .apple-glass { background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255, 255, 255, 0.88); box-shadow: 0 10px 30px -10px rgba(20, 92, 64, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
+  </style>
+</head>
+<body class="bg-mint-canvas text-ink font-sans antialiased">
+  <div class="min-h-[884px] max-w-[390px] mx-auto relative overflow-hidden flex flex-col justify-between pb-28" style="background: radial-gradient(120% 80% at 15% 0%, #FFFFFF 0%, #E5F3EA 48%, #D4EBDD 100%);" data-stitch-vh="min-h-[884px]===min-h-screen">
+    <!-- Top Header -->
+    <header class="px-5 pt-6 pb-2 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="w-10 h-10 rounded-2xl bg-forest text-white flex items-center justify-center shadow-md">
+          <span class="material-symbols-outlined text-[21px]" aria-hidden="true">eco</span>
+        </span>
+        <h1 class="font-sans font-bold text-lg tracking-tight text-ink">Let&#39;s sort!</h1>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span role="status" class="apple-glass inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-ink tabular-nums">
+          <span class="material-symbols-outlined text-[15px] text-forest" style="font-variation-settings: &#39;FILL&#39; 1;" aria-hidden="true">bolt</span>
+          <span id="xp-value">320 XP</span>
+        </span>
+        <a href="../frosted-profile/FrostedProfile.html" aria-label="Open My Profile" class="apple-spring w-10 h-10 rounded-full bg-forest text-white border-2 border-white shadow-md flex items-center justify-center text-xs font-bold hover:scale-105 active:scale-95">
+          ES
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Game Content: Direct, Simple, Airy -->
+    <main class="px-5 flex-1 flex flex-col justify-center gap-5">
+      <!-- Compact Progress + Mode Row -->
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between text-xs font-semibold">
+          <span id="progress-label" class="text-ink-muted tabular-nums">Item 1 of 4</span>
+          <div class="apple-glass rounded-full p-0.5 inline-flex gap-0.5">
+            <button id="mode-mine" type="button" class="px-3 py-1 rounded-full bg-ink text-white text-xs font-semibold">My items</button>
+            <button id="mode-daily" type="button" class="px-3 py-1 rounded-full text-ink-muted text-xs font-semibold">Daily</button>
+          </div>
+        </div>
+        <div class="w-full h-2 rounded-full bg-white/75 overflow-hidden border border-white">
+          <div id="progress-bar" class="h-full bg-forest rounded-full transition-all duration-300" style="width: 25%;"></div>
+        </div>
+      </div>
+
+      <!-- Focal Item Card -->
+      <article class="apple-glass rounded-3xl p-7 flex flex-col items-center justify-center text-center gap-3 min-h-52">
+        <span class="w-20 h-20 rounded-3xl bg-white shadow-md flex items-center justify-center text-forest">
+          <span id="item-icon" class="material-symbols-outlined text-[40px]" aria-hidden="true">local_drink</span>
+        </span>
+        <div>
+          <h2 id="item-name" class="font-display text-4xl text-ink leading-tight">Plastic bottle</h2>
+          <p class="text-xs text-ink-muted mt-1">Tap the right bin below</p>
+        </div>
+      </article>
+
+      <!-- Instant Feedback Banner -->
+      <div id="feedback-banner" class="hidden apple-glass rounded-2xl p-3.5 flex flex-col gap-2">
+        <p id="feedback-title" class="text-sm font-bold text-ink"></p>
+        <p id="feedback-body" class="text-xs text-ink-muted"></p>
+        <button id="btn-next" type="button" class="w-full min-h-11 rounded-full bg-ink text-white text-xs font-semibold">Next</button>
+      </div>
+
+      <!-- 2x2 Simple Bin Grid -->
+      <section aria-label="Disposal bins" class="grid grid-cols-2 gap-3">
+        <button type="button" data-bin="recycling" class="bin-tile apple-spring apple-glass rounded-3xl p-4 min-h-24 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.97]">
+          <span class="w-10 h-10 rounded-2xl bg-recycling-bg text-recycling flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[22px]" aria-hidden="true">recycling</span>
+          </span>
+          <span class="text-sm font-bold text-ink">Recycling</span>
+        </button>
+
+        <button type="button" data-bin="compost" class="bin-tile apple-spring apple-glass rounded-3xl p-4 min-h-24 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.97]">
+          <span class="w-10 h-10 rounded-2xl bg-compost-bg text-compost flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[22px]" aria-hidden="true">compost</span>
+          </span>
+          <span class="text-sm font-bold text-ink">Compost</span>
+        </button>
+
+        <button type="button" data-bin="garbage" class="bin-tile apple-spring apple-glass rounded-3xl p-4 min-h-24 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.97]">
+          <span class="w-10 h-10 rounded-2xl bg-garbage-bg text-garbage flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[22px]" aria-hidden="true">delete</span>
+          </span>
+          <span class="text-sm font-bold text-ink">Garbage</span>
+        </button>
+
+        <button type="button" data-bin="special" class="bin-tile apple-spring apple-glass rounded-3xl p-4 min-h-24 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.97]">
+          <span class="w-10 h-10 rounded-2xl bg-special-bg text-special flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[22px]" aria-hidden="true">location_on</span>
+          </span>
+          <span class="text-sm font-bold text-ink">Special</span>
+        </button>
+      </section>
+    </main>
+
+    <!-- Floating Apple Glass Tab Bar -->
+    <nav aria-label="Primary navigation" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-36px)] max-w-[354px] z-30">
+      <div class="apple-glass rounded-full p-1.5 grid grid-cols-3 gap-1 shadow-xl">
+        <a href="../frosted-scan-viewfinder/FrostedScanViewfinder.html" class="apple-spring min-h-12 rounded-full text-ink-muted hover:text-ink flex items-center justify-center gap-1.5 text-xs font-semibold">
+          <span class="material-symbols-outlined text-[19px]" aria-hidden="true">qr_code_scanner</span>
+          <span>Scan</span>
+        </a>
+        <a href="../frosted-play/FrostedPlay.html" class="apple-spring min-h-12 rounded-full bg-ink text-white flex items-center justify-center gap-1.5 text-xs font-semibold">
+          <span class="material-symbols-outlined text-[19px]" style="font-variation-settings: &#39;FILL&#39; 1;" aria-hidden="true">stadia_controller</span>
+          <span>Play</span>
+        </a>
+        <a href="../frosted-social/FrostedSocial.html" class="apple-spring min-h-12 rounded-full text-ink-muted hover:text-ink flex items-center justify-center gap-1.5 text-xs font-semibold">
+          <span class="material-symbols-outlined text-[19px]" aria-hidden="true">leaderboard</span>
+          <span>Social</span>
+        </a>
+      </div>
+    </nav>
+  </div>
+
+  <script>
+    (function () {
+      var deck = [
+        { name: 'Plastic bottle', icon: 'local_drink', bin: 'recycling', note: 'Empty and rinse; deposit eligibility may apply.' },
+        { name: 'Battery', icon: 'battery_charging_full', bin: 'special', note: 'Batteries go to a dedicated collection point or Écocentre.' },
+        { name: 'Snack wrapper', icon: 'fastfood', bin: 'garbage', note: 'Multi-layer foil wrappers go in household garbage.' },
+        { name: 'Banana peel', icon: 'compost', bin: 'compost', note: 'Fruit scraps belong in the Montréal brown compost bin.' }
+      ];
+      var idx = 0, xp = 320, answered = false;
+      var banner = document.getElementById('feedback-banner');
+      document.querySelectorAll('.bin-tile').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (answered) return;
+          answered = true;
+          var item = deck[idx];
+          banner.classList.remove('hidden');
+          if (btn.getAttribute('data-bin') === item.bin) {
+            xp += 15;
+            document.getElementById('xp-value').textContent = xp + ' XP';
+            document.getElementById('feedback-title').textContent = 'Nice! +15 XP';
+          } else {
+            document.getElementById('feedback-title').textContent = 'Correct bin: ' + item.bin;
+          }
+          document.getElementById('feedback-body').textContent = item.note;
+        });
+      });
+      document.getElementById('btn-next').addEventListener('click', function () {
+        if (idx === deck.length - 1) {
+          window.location.href = '../frosted-results/FrostedResults.html';
+          return;
+        }
+        idx += 1;
+        answered = false;
+        banner.classList.add('hidden');
+        document.getElementById('item-icon').textContent = deck[idx].icon;
+        document.getElementById('item-name').textContent = deck[idx].name;
+        document.getElementById('progress-label').textContent = 'Item ' + (idx + 1) + ' of ' + deck.length;
+        document.getElementById('progress-bar').style.width = (((idx + 1) / deck.length) * 100) + '%';
+      });
+    })();
+  </script>
+
+
+</body></html>
