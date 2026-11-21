@@ -53,24 +53,45 @@ interface AppState {
 
 const Ctx = createContext<AppState | null>(null);
 
-function initialsOf(name: string) {
+/** Two-letter avatar initials: "EcoSorter" -> "ES", "alice" -> "AL". */
+export function initialsOf(name: string) {
   const caps = name.match(/[A-Z]/g);
   if (caps && caps.length >= 2) return (caps[0] + caps[1]).toUpperCase();
   return name.slice(0, 2).toUpperCase() || 'ES';
 }
 
+/** The demo profile from the designs, shown when signed out or without Supabase. */
+const DEMO = {
+  username: 'EcoSorter',
+  xp: 320,
+  xpToday: 75,
+  games: [
+    { title: 'My scanned items', items: 4, correct: 4, when: 'Today' },
+    { title: 'Daily challenge', items: 5, correct: 4, when: 'Yesterday' },
+  ] as GameRecord[],
+  stats: { games: 12, answered: 50, correct: 44 },
+};
+
+const TITLES = { mine: 'My scanned items', daily: 'Daily challenge' } as const;
+
+function dayLabel(iso: string) {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(Date.now() - 86_400_000);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString();
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [username, setUsername] = useState('EcoSorter');
-  const [xp, setXp] = useState(320);
-  const [xpToday, setXpToday] = useState(75);
+  const [username, setUsername] = useState(DEMO.username);
+  const [xp, setXp] = useState(DEMO.xp);
+  const [xpToday, setXpToday] = useState(DEMO.xpToday);
   const [saved, setSaved] = useState<SortItem[]>(DEMO_SAVED);
   const [photos, setPhotos] = useState<string[]>([]);
   const [lastScan, setLastScan] = useState<SortItem[]>([]);
-  const [games, setGames] = useState<GameRecord[]>([
-    { title: 'My scanned items', items: 4, correct: 4, when: 'Today' },
-    { title: 'Daily challenge', items: 5, correct: 4, when: 'Yesterday' },
-  ]);
-  const [stats, setStats] = useState({ games: 12, answered: 50, correct: 44 });
+  const [games, setGames] = useState<GameRecord[]>(DEMO.games);
+  const [stats, setStats] = useState(DEMO.stats);
   const [theme, setTheme] = useState<AppState['theme']>('forest');
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -80,9 +101,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const sb = supabase;
     const apply = async (id: string | null) => {
       setUserId(id);
-      if (!id) return;
-      const { data } = await sb.from('profiles').select('username').eq('id', id).single();
-      if (data?.username) setUsername(data.username);
+      if (!id) {
+        setUsername(DEMO.username); setXp(DEMO.xp); setXpToday(DEMO.xpToday); setGames(DEMO.games); setStats(DEMO.stats);
+        return;
+      }
+      // Scoreboard: the signed-in user's own totals, recent rounds and today's XP (RLS limits it to them).
+      const [profile, totals, recent, board] = await Promise.all([
+        sb.from('profiles').select('username').eq('id', id).single(),
+        sb.from('player_stats').select('games, answered, correct, xp').maybeSingle(),
+        sb.from('game_scores').select('mode, items, correct, played_at').order('played_at', { ascending: false }).limit(5),
+        sb.rpc('leaderboard', { scope: 'friends' }),
+      ]);
+      if (profile.data?.username) setUsername(profile.data.username);
+      const t = totals.data;
+      setXp(t?.xp ?? 0);
+      setStats({ games: t?.games ?? 0, answered: t?.answered ?? 0, correct: t?.correct ?? 0 });
+      setGames((recent.data ?? []).map((g: { mode: 'mine' | 'daily'; items: number; correct: number; played_at: string }) =>
+        ({ title: TITLES[g.mode], items: g.items, correct: g.correct, when: dayLabel(g.played_at) })));
+      const me = (board.data as { xp_today: number; is_me: boolean }[] | null)?.find((r) => r.is_me);
+      setXpToday(me?.xp_today ?? 0);
     };
     sb.auth.getSession().then(({ data }) => apply(data.session?.user.id ?? null));
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => { apply(session?.user.id ?? null); });
@@ -109,9 +146,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(() => {
-    supabase?.auth.signOut();
-    setUserId(null);
-    setUsername('EcoSorter');
+    supabase?.auth.signOut(); // onAuthStateChange then restores the demo profile
+    if (!supabase) setUsername(DEMO.username);
   }, []);
 
   const addXp = useCallback((n: number) => {

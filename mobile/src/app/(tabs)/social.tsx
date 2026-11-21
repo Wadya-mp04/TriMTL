@@ -1,15 +1,17 @@
 /**
  * Social, "Today's podium" (ui-references/.../frosted_mint_social_podium_classic).
- * Leaderboard names are demo data until the server has a leaderboard endpoint; "You" uses real XP earned today.
+ * Signed in with Supabase: today's real leaderboard (public.leaderboard, today in Montréal time).
+ * Otherwise, or with fewer than 3 players (the podium needs 3), the demo lists with "You" added.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { AvatarButton, Glass, Icon, PrimaryButton, Screen, Segmented, T, XpPill } from '../../components/ui';
 import { CITY, FRIENDS, Ranked } from '../../data/items';
-import { useApp } from '../../state/AppState';
+import { supabase } from '../../lib/supabase';
+import { initialsOf, useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
 
 type Scope = 'friends' | 'city';
@@ -49,13 +51,29 @@ function FirstBlock() {
 }
 
 export default function SocialScreen() {
-  const { xpToday, initials } = useApp();
+  const { xpToday, initials, userId } = useApp();
   const [scope, setScope] = useState<Scope>('friends');
+  const [live, setLive] = useState<{ scope: Scope; rows: Ranked[] } | null>(null);
+
+  // Refetch when the scope changes or the player earns XP.
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    let current = true;
+    supabase.rpc('leaderboard', { scope }).then(({ data, error }) => {
+      if (!current || error || !data) return;
+      const rows = (data as { username: string; xp_today: number; is_me: boolean }[]).map((r) => ({
+        name: r.is_me ? 'You' : r.username, initials: initialsOf(r.username), xp: r.xp_today, you: r.is_me,
+      }));
+      setLive({ scope, rows });
+    });
+    return () => { current = false; };
+  }, [scope, userId, xpToday]);
 
   const ranking = useMemo(() => {
+    if (userId && live?.scope === scope && live.rows.length >= 3) return live.rows;
     const me: Ranked = { name: 'You', initials, xp: xpToday, you: true };
     return [...(scope === 'friends' ? FRIENDS : CITY), me].sort((a, b) => b.xp - a.xp);
-  }, [scope, xpToday, initials]);
+  }, [scope, xpToday, initials, userId, live]);
 
   const [first, second, third] = ranking;
   const rest = ranking.slice(3, 8);

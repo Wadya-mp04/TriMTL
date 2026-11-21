@@ -3,6 +3,7 @@
  * Stitch designs (saved items, daily deck, leaderboards).
  */
 import type { BinKey } from '../theme';
+import { rules } from './rules';
 
 export interface SortItem {
   id: string;
@@ -32,7 +33,7 @@ export interface ScanItemDTO {
   icon: string;
   correctBin: BinKey | null;
   dropoffName: string | null;
-  explanation: string;
+  explanation: string | null;
   specialInstruction: string | null;
   needsVerification: boolean;
 }
@@ -102,36 +103,45 @@ export function fromScanItem(it: ScanItemDTO, scanId: string): SortItem {
     detail: it.needsVerification && it.correctBin === null ? 'Needs verification' : parts.join(' • '),
     icon: ICONS[it.icon] ?? 'help-outline',
     bin: it.correctBin,
-    note: it.explanation,
+    note: it.explanation ?? '',
     ruleId: it.ruleId,
     category: it.category,
     count: it.count,
   };
 }
 
+/**
+ * A demo item resolved by the rules engine, so its bin and text always match the backend rules.
+ * ruleId etc. are cleared so demo items are never saved to an account.
+ */
+function demo(id: string, ruleId: string, name: string): SortItem {
+  const it = rules.toScanItem({ id, name, rule: rules.getRule(ruleId), confidence: 'high', lang: 'en' });
+  return { ...fromScanItem(it, 'demo'), id, ruleId: undefined, category: undefined, count: undefined };
+}
+
 /** Saved items on the Scan screen before the user has scanned anything (from the design). */
 export const DEMO_SAVED: SortItem[] = [
-  { id: 'd1', name: 'Plastic bottle', detail: 'Empty & cap on', icon: 'local-drink', bin: 'recycling', note: 'Empty and rinse; deposit eligibility may apply.' },
-  { id: 'd2', name: 'Energy can', detail: 'Rinse lightly before bin', icon: 'sports-bar', bin: 'recycling', note: 'Drink cans are accepted; deposit eligibility may apply.' },
-  { id: 'd3', name: 'Snack wrapper', detail: 'Multi-layer foil/plastic wrapper', icon: 'fastfood', bin: 'garbage', note: 'Multi-layer foil wrappers go in household garbage.' },
-  { id: 'd4', name: 'Battery', detail: 'Écocentre or retail battery bin', icon: 'battery-charging-full', bin: 'special', note: 'Batteries go to a dedicated collection point or Écocentre.' },
+  demo('d1', 'drink_bottle', 'Plastic bottle'),
+  demo('d2', 'drink_can', 'Energy can'),
+  demo('d3', 'chip_bag', 'Snack wrapper'),
+  demo('d4', 'battery', 'Battery'),
 ];
 
 /** Result shown by "See demo results" when the server can't be reached (Sorted breakdown design). */
 export const DEMO_SCAN: SortItem[] = [
-  { id: 's1', name: 'Plastic water bottle', detail: 'Empty & cap on • Deposit eligible', icon: 'local-drink', bin: 'recycling', note: 'Empty and rinse; deposit eligibility may apply.' },
-  { id: 's2', name: 'Aluminum beverage can', detail: 'Rinse lightly before bin', icon: 'sports-bar', bin: 'recycling', note: 'Rinse lightly; deposit eligibility may apply.' },
-  { id: 's3', name: 'Banana peel', detail: 'Montréal brown compost bin', icon: 'eco', bin: 'compost', note: 'Fruit scraps belong in the Montréal brown compost bin.' },
-  { id: 's4', name: 'Snack packaging', detail: 'Multi-layer foil/plastic wrapper', icon: 'fastfood', bin: 'garbage', note: 'Multi-layer foil wrappers go in household garbage.' },
-  { id: 's5', name: 'Household battery', detail: 'Écocentre or retail battery bin', icon: 'battery-charging-full', bin: 'special', note: 'Batteries go to a dedicated collection point or Écocentre.' },
+  demo('s1', 'drink_bottle', 'Plastic water bottle'),
+  demo('s2', 'drink_can', 'Aluminum beverage can'),
+  demo('s3', 'food_scraps', 'Banana peel'),
+  demo('s4', 'chip_bag', 'Snack packaging'),
+  demo('s5', 'battery', 'Household battery'),
 ];
 
 /** "Daily" game deck (Play design). */
 export const DAILY_DECK: SortItem[] = [
-  { id: 'q1', name: 'Plastic bottle', detail: '', icon: 'local-drink', bin: 'recycling', note: 'Empty and rinse; deposit eligibility may apply.' },
-  { id: 'q2', name: 'Battery', detail: '', icon: 'battery-charging-full', bin: 'special', note: 'Batteries go to a dedicated collection point or Écocentre.' },
-  { id: 'q3', name: 'Snack wrapper', detail: '', icon: 'fastfood', bin: 'garbage', note: 'Multi-layer foil wrappers go in household garbage.' },
-  { id: 'q4', name: 'Banana peel', detail: '', icon: 'compost', bin: 'compost', note: 'Fruit scraps belong in the Montréal brown compost bin.' },
+  demo('q1', 'drink_bottle', 'Plastic bottle'),
+  demo('q2', 'battery', 'Battery'),
+  demo('q3', 'chip_bag', 'Snack wrapper'),
+  demo('q4', 'food_scraps', 'Banana peel'),
 ];
 
 export interface Ranked {

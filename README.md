@@ -105,6 +105,18 @@ This runs, in order, and fails on the first error:
 
 After changing `types.ts`, `rulesEngine.ts` or `quebecRules.json`, run `npm run sync-shared`.
 
+Other checks:
+
+```bash
+supabase/tests/run.sh        # database: migrations + row-level security + leaderboard (needs Docker, throwaway container)
+cd mobile && npx tsc --noEmit
+cd mobile && npx expo export --platform android --output-dir /tmp/trimtl-export   # proves the app bundles
+```
+
+The app's demo lists and offline answers come from `mobile/shared/` (a copy of the server's rules), so
+the backend rules decide every bin. The leaderboard falls back to demo lists when signed out or when
+fewer than 3 players have scores today.
+
 ## Repo layout and owners
 
 ```
