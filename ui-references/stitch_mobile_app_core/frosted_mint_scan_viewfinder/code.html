@@ -1,0 +1,180 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriMTL — Scan (Viewfinder)</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'mint-canvas': '#EBF5EE',
+            'forest': '#145C40',
+            'forest-deep': '#0E3F2C',
+            'ink': '#12291F',
+            'ink-muted': '#516B5F',
+            'recycling': '#2563EB',
+            'recycling-bg': '#EFF6FF',
+            'compost': '#B45309',
+            'compost-bg': '#FFFBEB',
+            'garbage': '#4B5563',
+            'garbage-bg': '#F3F4F6',
+            'special': '#7C3AED',
+            'special-bg': '#F5F3FF',
+          },
+          fontFamily: {
+            'display': ['"Instrument Serif"', 'Georgia', 'serif'],
+            'sans': ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+        }
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet">
+  <style>
+    .material-symbols-outlined { display: inline-block; width: 1em; height: 1em; line-height: 1 !important; box-sizing: content-box; overflow: hidden; white-space: nowrap; direction: ltr; vertical-align: middle; }
+    .apple-spring { transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), background-color 220ms ease, box-shadow 220ms ease; }
+    .apple-glass { background: rgba(255, 255, 255, 0.68); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255, 255, 255, 0.85); box-shadow: 0 10px 30px -10px rgba(20, 92, 64, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
+    .bento-tile { background: linear-gradient(145deg, rgba(255,255,255,0.65), rgba(221,241,228,0.35)); border: 1px solid rgba(255,255,255,0.75); }
+  </style>
+</head>
+<body class="bg-mint-canvas text-ink font-sans antialiased">
+  <div class="min-h-[884px] max-w-[390px] mx-auto relative overflow-hidden flex flex-col justify-between pb-28" style="background: radial-gradient(120% 80% at 15% 0%, #FFFFFF 0%, #EAF6EE 48%, #D7EDE0 100%);" data-stitch-vh="min-h-[884px]===min-h-screen">
+    <!-- Subtle Pearlescent Bento Backdrop -->
+    <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-16 px-4 grid grid-cols-3 gap-3 opacity-60">
+      <div class="h-24 rounded-3xl bento-tile"></div>
+      <div class="h-24 rounded-3xl bento-tile"></div>
+      <div class="h-24 rounded-3xl bento-tile"></div>
+      <div class="h-28 rounded-3xl bento-tile"></div>
+      <div class="h-28 rounded-3xl bento-tile"></div>
+      <div class="h-28 rounded-3xl bento-tile"></div>
+    </div>
+
+    <!-- Top Header: TriMTL + XP + User Avatar -->
+    <header class="relative z-10 px-5 pt-6 pb-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="w-10 h-10 rounded-2xl bg-forest text-white flex items-center justify-center shadow-md">
+          <span class="material-symbols-outlined text-[21px]" aria-hidden="true">eco</span>
+        </span>
+        <span class="font-sans font-bold text-lg tracking-tight text-ink">TriMTL</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span role="status" class="apple-glass inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-ink tabular-nums">
+          <span class="material-symbols-outlined text-[15px] text-forest" style="font-variation-settings: &#39;FILL&#39; 1;" aria-hidden="true">bolt</span>
+          <span>320 XP</span>
+        </span>
+        <a href="../frosted-profile/FrostedProfile.html" aria-label="Open My Profile" class="apple-spring w-10 h-10 rounded-full bg-forest text-white border-2 border-white shadow-md flex items-center justify-center text-xs font-bold hover:scale-105 active:scale-95">
+          ES
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Content: Fluid Viewfinder-First Layout -->
+    <main class="relative z-10 px-5 flex-1 flex flex-col gap-5 pt-2">
+      <!-- Live Frosted Viewfinder Card -->
+      <section class="apple-glass rounded-3xl p-4 flex flex-col gap-4">
+        <div class="relative rounded-2xl bg-forest-deep/5 border border-white min-h-56 flex flex-col items-center justify-center p-5 text-center overflow-hidden">
+          <!-- Apple-like Corner Focus Brackets -->
+          <div aria-hidden="true" class="absolute top-4 left-4 w-5 h-5 border-t-2 border-l-2 border-forest/50 rounded-tl-lg"></div>
+          <div aria-hidden="true" class="absolute top-4 right-4 w-5 h-5 border-t-2 border-r-2 border-forest/50 rounded-tr-lg"></div>
+          <div aria-hidden="true" class="absolute bottom-4 left-4 w-5 h-5 border-b-2 border-l-2 border-forest/50 rounded-bl-lg"></div>
+          <div aria-hidden="true" class="absolute bottom-4 right-4 w-5 h-5 border-b-2 border-r-2 border-forest/50 rounded-br-lg"></div>
+
+          <span class="w-16 h-16 rounded-full bg-white/90 shadow-md flex items-center justify-center text-forest mb-3">
+            <span class="material-symbols-outlined text-[32px]" aria-hidden="true">qr_code_scanner</span>
+          </span>
+          <h1 class="font-display text-2xl text-ink leading-tight">Point at up to 5 items</h1>
+          <p class="text-xs text-ink-muted mt-1">Instant Montréal bin match • 1–3 photos</p>
+        </div>
+
+        <!-- Big Tactile Action Row -->
+        <div class="flex flex-col gap-2.5">
+          <a id="btn-snap" href="../frosted-camera-capture/FrostedCameraCapture.html" class="apple-spring w-full min-h-14 rounded-full bg-ink text-white shadow-lg flex items-center justify-center gap-2.5 text-base font-semibold hover:bg-forest-deep active:scale-[0.97]">
+            <span class="material-symbols-outlined text-[22px]" aria-hidden="true">photo_camera</span>
+            <span>Scan items</span>
+          </a>
+
+          <a id="btn-photos" href="../frosted-photo-picker/FrostedPhotoPicker.html" class="apple-spring w-full min-h-12 rounded-full bg-white/85 text-ink border border-white shadow-sm flex items-center justify-center gap-2 text-sm font-semibold hover:bg-white active:scale-[0.98]">
+            <span class="material-symbols-outlined text-[18px] text-forest" aria-hidden="true">photo_library</span>
+            <span>Choose photos</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- Compact 2-Column Recent Scans Grid -->
+      <section class="flex flex-col gap-3">
+        <div class="flex items-center justify-between px-1">
+          <h2 class="text-sm font-bold text-ink">Saved items (4)</h2>
+          <a href="../frosted-play/FrostedPlay.html" class="text-xs font-semibold text-forest inline-flex items-center gap-0.5 hover:opacity-80">
+            <span>Practice deck</span>
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">chevron_right</span>
+          </a>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="apple-spring apple-glass rounded-2xl p-3.5 flex flex-col gap-2 hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <span class="w-9 h-9 rounded-xl bg-recycling-bg text-recycling flex items-center justify-center">
+                <span class="material-symbols-outlined text-[19px]" aria-hidden="true">local_drink</span>
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-recycling-bg text-recycling text-xs font-semibold">Recycling</span>
+            </div>
+            <p class="text-sm font-semibold text-ink">Plastic bottle</p>
+          </div>
+
+          <div class="apple-spring apple-glass rounded-2xl p-3.5 flex flex-col gap-2 hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <span class="w-9 h-9 rounded-xl bg-recycling-bg text-recycling flex items-center justify-center">
+                <span class="material-symbols-outlined text-[19px]" aria-hidden="true">sports_bar</span>
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-recycling-bg text-recycling text-xs font-semibold">Recycling</span>
+            </div>
+            <p class="text-sm font-semibold text-ink">Energy can</p>
+          </div>
+
+          <div class="apple-spring apple-glass rounded-2xl p-3.5 flex flex-col gap-2 hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <span class="w-9 h-9 rounded-xl bg-garbage-bg text-garbage flex items-center justify-center">
+                <span class="material-symbols-outlined text-[19px]" aria-hidden="true">fastfood</span>
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-garbage-bg text-garbage text-xs font-semibold">Garbage</span>
+            </div>
+            <p class="text-sm font-semibold text-ink">Snack wrapper</p>
+          </div>
+
+          <div class="apple-spring apple-glass rounded-2xl p-3.5 flex flex-col gap-2 hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <span class="w-9 h-9 rounded-xl bg-special-bg text-special flex items-center justify-center">
+                <span class="material-symbols-outlined text-[19px]" aria-hidden="true">battery_charging_full</span>
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-special-bg text-special text-xs font-semibold">Special</span>
+            </div>
+            <p class="text-sm font-semibold text-ink">Battery</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Floating Apple Glass Tab Bar -->
+    <nav aria-label="Primary navigation" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-36px)] max-w-[354px] z-30">
+      <div class="apple-glass rounded-full p-1.5 grid grid-cols-3 gap-1 shadow-xl">
+        <a href="../frosted-scan-viewfinder/FrostedScanViewfinder.html" class="apple-spring min-h-12 rounded-full bg-ink text-white flex items-center justify-center gap-1.5 text-xs font-semibold">
+          <span class="material-symbols-outlined text-[19px]" style="font-variation-settings: &#39;FILL&#39; 1;" aria-hidden="true">qr_code_scanner</span>
+          <span>Scan</span>
+        </a>
+        <a href="../frosted-play/FrostedPlay.html" class="apple-spring min-h-12 rounded-full text-ink-muted hover:text-ink flex items-center justify-center gap-1.5 text-xs font-semibold">
+          <span class="material-symbols-outlined text-[19px]" aria-hidden="true">stadia_controller</span>
+          <span>Play</span>
+        </a>
+        <a href="../frosted-social/FrostedSocial.html" class="apple-spring min-h-12 rounded-full text-ink-muted hover:text-ink flex items-center justify-center gap-1.5 text-xs font-semibold">
+          <span class="material-symbols-outlined text-[19px]" aria-hidden="true">leaderboard</span>
+          <span>Social</span>
+        </a>
+      </div>
+    </nav>
+  </div>
+
+
+</body></html>
