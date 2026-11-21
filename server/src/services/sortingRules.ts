@@ -3,8 +3,8 @@
  * hands it to `createRulesEngine`, so the JSON is validated (Zod + integrity checks) as soon as this
  * module loads: a typo in the data stops the server instead of sending a wrong bin to the game.
  *
- * All logic lives in rulesEngine.ts (pure, shared with the app). This file must stay a thin loader:
- * no bin decisions here.
+ * All logic lives in rulesEngine.ts (pure, shared with the app). This file must stay a thin loader and
+ * must never decide a bin itself.
  */
 import { readFileSync } from "node:fs";
 import { createRulesEngine } from "./rulesEngine.js";
