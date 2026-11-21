@@ -39,7 +39,7 @@ Current state: **version 4**, 50 rules, 19 boroughs, every rule and override ver
 | `links` | yes | Keys into top-level `links`. The dropoff's links are added after them, without duplicates. |
 | `overrides` | no | Context-dependent answers. See below. |
 | `verified` | yes | `false` until someone has checked it on montreal.ca. See the verification policy. |
-| `sourceUrl` | yes | The official page that states the rule: montreal.ca, or Recyc-Québec. Any other host must be added on purpose to `SOURCE_EXCEPTIONS` in `rules.test.ts`. |
+| `sourceUrl` | yes | The official page that states the rule: montreal.ca or recyc-quebec.gouv.qc.ca. A test fails on any other host. |
 
 ## How to add an item
 
@@ -122,7 +122,7 @@ These were checked on montreal.ca on 2026-11-21. They look surprising, and that'
 | Without a brown bin, food scraps, eggshells and coffee grounds go in the **garbage**, as a last resort. Soiled paper towels and tissues too: they are refused in the recycling. (Verified in v4.) | No-brown-bin overrides on `food_scraps`, `eggshells`, `coffee_grounds`, `paper_towel` → `garbage` | [Brown bin](https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580) |
 | Compostable and biodegradable plastics go in the **garbage** in every context. They aren't recyclable, and some boroughs refuse them in the brown bin. (Changed in v4: was `compost`.) | `compostable_plastic` → `garbage`, no override | [Garbage](https://montreal.ca/sujets/ordures-menageres) |
 | Gift-wrap paper is accepted printed paper → recycling. (Verified in v4; the unverified "metallic paper goes in the garbage" sentence was removed.) | `wrapping_paper` → `recycling` | [Collections, Saint-Laurent](https://montreal.ca/articles/tout-savoir-sur-les-collectes-saint-laurent-11887) |
-| Christmas lights never go in the recycling bin, where they jam the sorting machines. They go to an écocentre. (Verified in v4.) | `christmas_lights` → `special` + `ecocentre` | [Recyc-Québec holiday guide](https://newswire.ca/fr/news-releases/guide-pour-un-noel-ecoresponsable-selon-recyc-quebec-apres-les-fetes-le-sapin-et-les-decorations-885351746.html) (press release; a recyc-quebec.gouv.qc.ca page would be a better source) |
+| Christmas lights never go in the recycling bin, where they jam the sorting machines. They go to an écocentre. (Verified in v4.) | `christmas_lights` → `special` + `ecocentre` | [Écocentres](https://montreal.ca/deposer-des-objets-lecocentre) |
 | Yard waste: branches longer than 1 m or thicker than 5 cm, soil and stones go to an écocentre. Off season (separate-collection boroughs), yard waste goes to an écocentre, and the garbage only as a last resort. (Corrected in v4.) | `yard_waste.specialInstruction`; `dropoffs.yard_collection.note` | [Organics collection](https://montreal.ca/collectes/collecte-des-matieres-organiques) |
 | Independent municipalities (Westmount, Côte-Saint-Luc, Pointe-Claire…) are not boroughs. | Not in `boroughs`; the app sends `borough: null` ("Other"), which uses the city-wide default. | |
 

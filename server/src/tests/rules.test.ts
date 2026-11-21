@@ -8,19 +8,13 @@ import { findRule, getRule, RULES, toScanItem } from "../services/sortingRules.j
 import { pointsPerItem, score } from "../services/scoring.js";
 import { totalOf } from "../services/gemini.js";
 
-// Sources should be official: the city or Recyc-Québec. Any other host must be listed here on purpose,
-// so a new non-official source shows up in review instead of slipping in.
+// Sources must be official: the city or Recyc-Québec.
 const OFFICIAL = ["https://montreal.ca/", "https://www.recyc-quebec.gouv.qc.ca/"];
-const SOURCE_EXCEPTIONS: Record<string, string> = {
-  // Recyc-Québec's holiday guide, republished on newswire.ca. Replace with the recyc-quebec.gouv.qc.ca page when found.
-  christmas_lights: "https://newswire.ca/",
-};
 
 test("rules file loads and every item has a bin, icon and an official source", () => {
   assert.ok(RULES.length >= 40);
   for (const r of RULES) {
-    const ok = OFFICIAL.some(h => r.sourceUrl.startsWith(h)) || (SOURCE_EXCEPTIONS[r.id] && r.sourceUrl.startsWith(SOURCE_EXCEPTIONS[r.id]));
-    assert.ok(r.bin && r.icon && ok, `${r.id}: ${r.sourceUrl}`);
+    assert.ok(r.bin && r.icon && OFFICIAL.some(h => r.sourceUrl.startsWith(h)), `${r.id}: ${r.sourceUrl}`);
   }
 });
 

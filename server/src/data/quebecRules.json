@@ -1127,10 +1127,7 @@
         "fr": "Les plastiques compostables et biodégradables vont aux ordures : ils ne se recyclent pas.",
         "en": "Compostable and biodegradable plastics go in the garbage: they are not recyclable."
       },
-      "specialInstruction": {
-        "fr": "Certains arrondissements acceptent les sacs compostables certifiés pour emballer les restes dans le bac brun ; vérifiez le vôtre.",
-        "en": "Some boroughs accept certified compostable bags to wrap food scraps in the brown bin; check yours."
-      },
+      "specialInstruction": null,
       "mapsQuery": null,
       "links": [
         "info_collectes"
@@ -2006,7 +2003,7 @@
         "ecocentres"
       ],
       "verified": true,
-      "sourceUrl": "https://newswire.ca/fr/news-releases/guide-pour-un-noel-ecoresponsable-selon-recyc-quebec-apres-les-fetes-le-sapin-et-les-decorations-885351746.html"
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
     },
     {
       "id": "medication",
