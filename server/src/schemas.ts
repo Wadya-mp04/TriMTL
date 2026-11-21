@@ -25,6 +25,7 @@ export const ScanItemSchema = z.object({
   dropoffName: z.string().nullable(),
   explanation: z.string().nullable(),
   specialInstruction: z.string().nullable(),
+  dropoffNote: z.string().nullable(),
   links: z.array(z.object({ label: z.string(), url: z.url() }).strict()),
   mapsUrl: z.url().nullable(),
   needsVerification: z.boolean(),

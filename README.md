@@ -125,5 +125,5 @@ docs/
 ## Contributing
 
 - Contracts (`types.ts`, response JSON) change **additively only**: add fields, never rename or remove them. See [docs/API.md](docs/API.md#contract-changes).
-- Rule data changes need a montreal.ca `sourceUrl` and `verified: false` until someone has checked it. See [docs/RULES.md](docs/RULES.md).
+- Rule data changes need an official `sourceUrl` (montreal.ca or Recyc-Québec) and `verified: false` until someone has checked it. See [docs/RULES.md](docs/RULES.md).
 - Open PRs against `main`; the PR template has the checklist.

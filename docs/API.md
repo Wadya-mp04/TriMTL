@@ -43,9 +43,13 @@ This is the canonical example, [`server/src/tests/fixtures/scanResponse.example.
 ```json
 {
   "scanId": "demo-001",
-  "rulesVersion": 3,
+  "rulesVersion": 4,
   "checkedOn": "2026-11-21",
-  "context": { "lang": "en", "borough": "plateau-mont-royal", "hasBrownBin": false },
+  "context": {
+    "lang": "en",
+    "borough": "plateau-mont-royal",
+    "hasBrownBin": false
+  },
   "total": 3,
   "isEstimate": false,
   "items": [
@@ -63,6 +67,7 @@ This is the canonical example, [`server/src/tests/fixtures/scanResponse.example.
       "dropoffName": "Deposit return",
       "explanation": "Drink containers from 100 ml to 2 L go back for the deposit.",
       "specialInstruction": "Bring it back to get your deposit.",
+      "dropoffNote": null,
       "links": [],
       "mapsUrl": "https://www.google.com/maps/search/?api=1&query=deposit%20return%20Montr%C3%A9al",
       "needsVerification": false,
@@ -83,9 +88,16 @@ This is the canonical example, [`server/src/tests/fixtures/scanResponse.example.
       "dropoffName": "Écocentre",
       "explanation": "Batteries never go in the garbage or the recycling.",
       "specialInstruction": "Cover the terminals of lithium batteries with tape.",
+      "dropoffNote": "Bring photo ID and proof of address.",
       "links": [
-        { "label": "City battery drop-off points", "url": "https://montreal.ca/lieux?mtl_content.lieux.tags.code=PR004" },
-        { "label": "Official list of écocentres", "url": "https://montreal.ca/lieux?mtl_content.lieux.type.code=ECOC&orderBy=dc_title" }
+        {
+          "label": "City battery drop-off points",
+          "url": "https://montreal.ca/lieux?mtl_content.lieux.tags.code=PR004"
+        },
+        {
+          "label": "Official list of écocentres",
+          "url": "https://montreal.ca/lieux?mtl_content.lieux.type.code=ECOC&orderBy=dc_title"
+        }
       ],
       "mapsUrl": "https://www.google.com/maps/search/?api=1&query=battery%20drop-off%20Montr%C3%A9al",
       "needsVerification": false,
@@ -106,9 +118,15 @@ This is the canonical example, [`server/src/tests/fixtures/scanResponse.example.
       "dropoffName": null,
       "explanation": "Without a brown bin, food waste goes in the garbage.",
       "specialInstruction": null,
-      "links": [{ "label": "Collection day (Info-collectes)", "url": "https://montreal.ca/services/horaire-des-collectes" }],
+      "dropoffNote": null,
+      "links": [
+        {
+          "label": "Collection day (Info-collectes)",
+          "url": "https://montreal.ca/services/horaire-des-collectes"
+        }
+      ],
       "mapsUrl": null,
-      "needsVerification": true,
+      "needsVerification": false,
       "contextApplied": true,
       "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
     }
@@ -153,7 +171,8 @@ Every bin-related field comes from the rules engine, never from Gemini.
 | `correctBin` | `recycling`, `compost`, `garbage` or `special`. **`null` means not playable**: list it under "Needs verification" and leave it out of the game. |
 | `dropoff` / `dropoffName` | Only on `special`: where it really goes (`deposit`, `ecocentre`, `pharmacy`, `donation`, `tree_collection`, `bulky_collection`, `yard_collection`) and its name in `lang`. |
 | `explanation` | One sentence: why this bin. |
-| `specialInstruction` | Extra advice ("Flatten boxes"), or `null`. |
+| `specialInstruction` | Extra advice ("Flatten boxes"), or `null`. Unchanged since v1. When the item has no advice of its own, it holds the drop-off's note. |
+| `dropoffNote` | *(added in v4)* The drop-off's own note, **only when it adds something** `specialInstruction` doesn't already say: yard waste in the 14 separate-collection boroughs ("Seasonal collection, spring to fall…" while the instruction is about branches), batteries ("Bring photo ID…" while the instruction is about taping terminals). Otherwise `null`, so the same text never shows twice. **Render it under `specialInstruction` when non-null.** |
 | `links` | Official pages (`label` in `lang`, `url`). |
 | `mapsUrl` | Google Maps search for the nearest drop-off, when relevant. |
 | `needsVerification` | `true` means show a confirm-or-edit step before the game. Set for: no rule, an unverified rule or override, low confidence, or Gemini's category disagreeing with the rule's. |
@@ -213,7 +232,7 @@ Response 200: `ScoreResponse`
 ## GET /health
 
 ```json
-{ "ok": true, "model": "gemini-3.1-flash-lite", "hasKey": true, "rules": 50, "rulesVersion": 3, "rulesCheckedOn": "2026-11-21" }
+{ "ok": true, "model": "gemini-3.1-flash-lite", "hasKey": true, "rules": 50, "rulesVersion": 4, "rulesCheckedOn": "2026-11-21" }
 ```
 
 Check it from the presentation phone's browser before the demo.
