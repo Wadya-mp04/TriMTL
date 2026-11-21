@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TriMTL Sort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+/* Tokens: every colour in this prototype lives here. */
+:root {
+  --bg: #e9f3ec;
+  --surface: #ffffff;
+  --surface-2: #f3f8f4;
+  --ink: #15241c;
+  --ink-2: #4b5a52;
+  --line: #cfe0d4;
+  --leaf: #1d7a4a;          /* the one game accent: fresh green */
+  --leaf-ink: #ffffff;
+  --leaf-soft: #d5eedd;
+  --clay: #b5523b;          /* wrong-answer mark: clay, never pure red */
+  --clay-soft: #f7e2da;
+  --focus: #0e4d64;
+
+  --bin-recycle: #1d5fa8;
+  --bin-compost: #7a4b24;
+  --bin-garbage: #3a4245;
+  --bin-dropoff: #c0560d;
+  --bin-mouth: #0d1412;
+  --bin-rim: rgba(255,255,255,.28);
+  --bin-shade: rgba(0,0,0,.16);
+  --bin-glyph: #ffffff;
+
+  /* Clip-art item palette: flat fills, ink outline, one highlight */
+  --c-outline: #1a2620;
+  --c-hi: rgba(255,255,255,.65);
+  --c-card: #d9a96a;  --c-card-2: #e9c48d;  --c-grease: #a8712c;
+  --c-paper: #fbf6ea; --c-white: #ffffff;
+  --c-metal: #ccd4d8; --c-metal-2: #98a4ab;
+  --c-copper: #d98a3a; --c-yellow: #f6c945; --c-egg: #f2dfc2;
+  --c-teal: #2f8f86;  --c-glass: #cfe9e4;  --c-film: #e4efe8;
+  --c-sky: #8fc0ea;   --c-plum: #7d5aa6;   --c-leafy: #3aa76d;
+
+  /* Scene: a Montréal triplex in winter */
+  --sky-top: #cfe6f3; --sky-bot: #eef6f0;
+  --brick: #c98d6f;   --brick-2: #b47a5d;
+  --window: #fff3cf;  --frame: #f7f1e6;
+  --iron: #2b302d;    --snow: #ffffff; --snow-shade: #dbe7ee;
+  --walk: #d7dfdb;
+
+  --confetti-1: #f6c945; --confetti-2: #3aa76d; --confetti-3: #ffffff; --confetti-4: #8fc0ea;
+
+  --font: "Atkinson Hyperlegible", -apple-system, system-ui, sans-serif;
+  --display: "Bricolage Grotesque", var(--font);
+  --r-md: 16px; --r-lg: 24px; --r-pill: 999px;
+  --shadow: 0 1px 2px rgba(21,36,28,.08), 0 10px 30px rgba(21,36,28,.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1511; --surface: #15201b; --surface-2: #1b2822;
+    --ink: #edf3ef; --ink-2: #a9b8b0; --line: #2a3a32;
+    --leaf: #6fd49c; --leaf-ink: #08170f; --leaf-soft: #17352a;
+    --clay: #f0a08a; --clay-soft: #3a211b; --focus: #9bd6e6;
+    --sky-top: #0f1d33; --sky-bot: #1b2a3a;
+    --brick: #6e4a3c; --brick-2: #5c3e32; --window: #ffd98a; --frame: #c9c2b4;
+    --iron: #0b0f0d; --snow: #dfe8ee; --snow-shade: #9fb0bb; --walk: #3a4743;
+    --bin-garbage: #59646a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1511; --surface: #15201b; --surface-2: #1b2822;
+  --ink: #edf3ef; --ink-2: #a9b8b0; --line: #2a3a32;
+  --leaf: #6fd49c; --leaf-ink: #08170f; --leaf-soft: #17352a;
+  --clay: #f0a08a; --clay-soft: #3a211b; --focus: #9bd6e6;
+  --sky-top: #0f1d33; --sky-bot: #1b2a3a;
+  --brick: #6e4a3c; --brick-2: #5c3e32; --window: #ffd98a; --frame: #c9c2b4;
+  --iron: #0b0f0d; --snow: #dfe8ee; --snow-shade: #9fb0bb; --walk: #3a4743;
+  --bin-garbage: #59646a;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font);
+  -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 12px; }
+
+.app {
+  max-width: 480px; margin: 0 auto; height: 100dvh;
+  display: grid; grid-template-rows: auto auto 1fr auto; position: relative; overflow: hidden;
+  background: var(--surface-2);
+}
+@media (min-width: 560px) {
+  body { display: grid; place-items: center; }
+  .app { height: min(920px, 100dvh - 32px); border-radius: 36px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+}
+
+/* Header */
+.top { display: flex; align-items: center; gap: 12px; padding: 14px 16px 6px; }
+.brand { font: 800 13px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--leaf); }
+.title { font: 800 22px/1.1 var(--display); margin: 2px 0 0; }
+.top .grow { flex: 1; }
+.xp {
+  font: 800 15px/1 var(--display); font-variant-numeric: tabular-nums;
+  padding: 9px 12px; border-radius: var(--r-pill); background: var(--leaf-soft); color: var(--leaf);
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
+}
+.xp svg { width: 16px; height: 16px; }
+.lang {
+  min-width: 48px; min-height: 40px; border-radius: var(--r-pill); border: 1px solid var(--line);
+  background: var(--surface); font-weight: 700; font-size: 13px; cursor: pointer;
+}
+
+/* Mode switch + progress */
+.bar { padding: 6px 16px 8px; display: grid; gap: 10px; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 4px; }
+.modes button {
+  min-height: 44px; border: 0; border-radius: var(--r-pill); background: transparent; cursor: pointer;
+  font-weight: 700; font-size: 15px; color: var(--ink-2); display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.modes button[aria-pressed="true"] { background: var(--leaf); color: var(--leaf-ink); }
+.modes .n { font-size: 12px; padding: 2px 7px; border-radius: var(--r-pill); background: rgba(0,0,0,.08); }
+.modes button[aria-pressed="true"] .n { background: rgba(255,255,255,.22); }
+.progress { display: flex; gap: 6px; align-items: center; }
+.progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--line); transition: background .3s; }
+.progress i.done { background: var(--leaf); }
+.progress i.review { background: var(--c-yellow); }
+.progress i.now { background: var(--ink-2); }
+.progress .count { flex: none; font: 700 13px/1 var(--font); color: var(--ink-2); font-variant-numeric: tabular-nums; margin-left: 4px; }
+
+/* Scene */
+.scene { position: relative; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+.backdrop { position: absolute; inset: 0 0 auto 0; width: 100%; height: 58%; }
+.walk { position: absolute; left: 0; right: 0; top: 50%; bottom: 0; background: var(--walk); }
+.walk::before { /* snowbank along the curb */
+  content: ""; position: absolute; left: -10%; right: -10%; top: -14px; height: 34px;
+  background: var(--snow); border-radius: 50% 50% 0 0 / 100% 100% 0 0; box-shadow: inset 0 -6px 0 var(--snow-shade);
+}
+.bins {
+  position: absolute; left: 10px; right: 10px; top: 22%;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; align-items: end;
+}
+.bin {
+  position: relative; border: 0; background: none; padding: 0 0 4px; cursor: pointer;
+  display: grid; justify-items: center; gap: 4px; min-height: 48px;
+  transition: transform .18s cubic-bezier(.2,.8,.2,1);
+}
+.bin svg.can { width: 100%; max-width: 96px; overflow: visible; display: block; transform-origin: 50% 100%; }
+.bin .tag {
+  font: 700 13px/1 var(--font); padding: 6px 9px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--line); white-space: nowrap;
+}
+.bin.hover { transform: translateY(-6px); }
+.bin .lid, .bin .latch { transform-box: fill-box; transform-origin: 50% 100%; }
+.bin .mark { position: absolute; top: 12%; left: 50%; width: 46px; height: 46px; margin-left: -23px; opacity: 0; pointer-events: none; }
+.bin .ring {
+  position: absolute; inset: 6% -2% 22%; border-radius: 22px; border: 3px solid var(--leaf);
+  opacity: 0; pointer-events: none;
+}
+.bin.reveal .ring { opacity: 1; animation: ring 1.4s ease-in-out infinite; }
+.bin.reveal .tag { background: var(--leaf); color: var(--leaf-ink); }
+@keyframes ring { 50% { transform: scale(1.05); opacity: .45; } }
+
+.item {
+  position: absolute; left: 0; top: 0; width: 120px; height: 120px; cursor: grab; touch-action: none;
+  will-change: transform, clip-path; z-index: 5;
+}
+.item:active { cursor: grabbing; }
+.item svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 4px 0 rgba(0,0,0,.12)); }
+.shadow {
+  position: absolute; left: 0; top: 0; width: 90px; height: 18px; border-radius: 50%;
+  background: rgba(0,0,0,.16); z-index: 4; pointer-events: none;
+}
+.label {
+  position: absolute; left: 16px; right: 16px; bottom: 14px; top: 0; align-content: end; text-align: center; pointer-events: none;
+  display: grid; gap: 6px; justify-items: center;
+}
+.label .name { font: 800 22px/1.15 var(--display); }
+.label .origin {
+  font: 700 12px/1 var(--font); padding: 6px 10px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink-2); border: 1px solid var(--line);
+  display: inline-flex; gap: 6px; align-items: center;
+}
+.label .origin.new { color: var(--leaf); border-color: var(--leaf); }
+.label .hint { font-size: 14px; color: var(--ink-2); }
+.float {
+  position: absolute; z-index: 8; pointer-events: none; font: 800 22px/1 var(--display);
+  color: var(--leaf); text-shadow: 0 2px 0 var(--surface);
+}
+canvas.confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 7; }
+
+/* Feedback strip */
+.say {
+  margin: 0 12px 12px; padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface);
+  border: 1px solid var(--line); min-height: 86px; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
+  align-items: start; box-shadow: var(--shadow);
+}
+.say .icon { grid-row: span 2; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); }
+.say .icon svg { width: 26px; height: 26px; }
+.say strong { font: 800 17px/1.25 var(--display); }
+.say p { margin: 0; font-size: 15px; line-height: 1.4; color: var(--ink-2); }
+.say .note { grid-column: 2; margin-top: 4px; font-size: 14px; padding: 8px 10px; border-radius: 10px; background: var(--leaf-soft); color: var(--ink); }
+.say.good .icon { background: var(--leaf-soft); color: var(--leaf); }
+.say.bad .icon { background: var(--clay-soft); color: var(--clay); }
+.say.enter { animation: rise .32s cubic-bezier(.2,.8,.2,1); }
+@keyframes rise { from { transform: translateY(10px); opacity: 0; } }
+
+/* Results sheet */
+.sheet {
+  position: absolute; inset: 0; z-index: 20; background: var(--surface-2); overflow: auto;
+  padding: 20px 16px 24px; display: none;
+}
+.sheet.open { display: block; animation: rise .4s cubic-bezier(.2,.8,.2,1); }
+.score { text-align: center; padding: 18px 0 8px; }
+.score .kicker { font: 800 13px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--leaf); }
+.score .big { font: 800 96px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -.03em; margin-top: 8px; }
+.score .big small { font-size: 30px; color: var(--ink-2); letter-spacing: 0; }
+.score .line { font-size: 17px; margin-top: 6px; }
+.score .sub { color: var(--ink-2); font-size: 15px; margin-top: 4px; }
+.guide h2 { font: 800 18px/1.2 var(--display); margin: 22px 4px 10px; }
+.guide ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.guide li {
+  display: grid; grid-template-columns: 52px 1fr; gap: 4px 12px; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px;
+}
+.guide li .pic { grid-row: span 3; width: 52px; height: 52px; }
+.guide li .pic svg { width: 100%; height: 100%; }
+.guide li b { font-size: 16px; }
+.guide li .chip { justify-self: start; font-size: 13px; font-weight: 700; padding: 4px 9px 4px 6px; border-radius: var(--r-pill); color: var(--bin-glyph); display: inline-flex; align-items: center; gap: 5px; }
+.guide li .chip svg { width: 16px; height: 16px; }
+.guide li .why { font-size: 14px; color: var(--ink-2); }
+.guide li .state { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.guide li .state.review { color: var(--clay); }
+.actions { display: grid; gap: 10px; margin-top: 20px; }
+.btn {
+  min-height: 52px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--surface);
+  font-weight: 700; font-size: 16px; cursor: pointer;
+}
+.btn.primary { background: var(--leaf); color: var(--leaf-ink); border-color: var(--leaf); }
+.sample { text-align: center; font-size: 12px; color: var(--ink-2); margin-top: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bin.reveal .ring { animation: none; }
+  .say.enter, .sheet.open { animation: none; }
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="grow">
+      <div class="brand">TriMTL</div>
+      <h1 class="title" id="title">Sort &amp; play</h1>
+    </div>
+    <span class="xp" aria-live="off"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1l2 4.6 5 .5-3.8 3.3 1.1 4.9L8 11.8 3.7 14.3l1.1-4.9L1 6.1l5-.5z" fill="currentColor"/></svg><span id="xp">320</span> XP</span>
+    <button type="button" class="lang" id="lang" aria-label="Français">FR</button>
+  </header>
+
+  <div class="bar">
+    <div class="modes" role="group" aria-label="Mode">
+      <button type="button" id="mToday" aria-pressed="true"><span data-t="today">Today's scan</span> <span class="n" id="nToday">5</span></button>
+      <button type="button" id="mChallenge" aria-pressed="false"><span data-t="challenge">Challenge</span> <span class="n">6</span></button>
+    </div>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+  </div>
+
+  <main class="scene" id="scene">
+    <svg class="backdrop" viewBox="0 0 480 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky-top)"/><stop offset="1" stop-color="var(--sky-bot)"/></linearGradient></defs>
+      <rect width="480" height="300" fill="url(#sky)"/>
+      <!-- triplex row: brick, stacked balconies, the outdoor stair -->
+      <g id="triplex"></g>
+    </svg>
+    <div class="walk" aria-hidden="true"></div>
+    <div class="bins" id="bins"></div>
+    <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+    <div class="shadow" id="shadow" aria-hidden="true"></div>
+    <div class="item" id="item" role="img"></div>
+    <div class="label" id="label"></div>
+  </main>
+
+  <section class="say" id="say" aria-live="polite"></section>
+
+  <section class="sheet" id="sheet" aria-labelledby="sheetTitle" role="dialog" aria-modal="true"></section>
+</div>
+
+<script>
+// ---------- Content: every bin answer below follows the montreal.ca sorting pages, checked 21 Nov 2026.
+// The plan's four game bins; deposit is an instruction on the item, not a fifth bin.
+const BINS = [
+  { id: "recycle", color: "--bin-recycle", top: 20, name: { en: "Recycle", fr: "Récup" }, full: { en: "Recycling bin", fr: "Bac de récupération" }, the: { en: "the recycling bin", fr: "le bac de récupération" } },
+  { id: "compost", color: "--bin-compost", top: 46, name: { en: "Compost", fr: "Bac brun" }, full: { en: "Brown bin (compost)", fr: "Bac brun" }, the: { en: "the brown bin", fr: "le bac brun" } },
+  { id: "garbage", color: "--bin-garbage", top: 30, name: { en: "Garbage", fr: "Ordures" }, full: { en: "Garbage", fr: "Ordures" }, the: { en: "the garbage", fr: "les ordures" } },
+  { id: "dropoff", color: "--bin-dropoff", top: 38, name: { en: "Drop-off", fr: "Dépôt" }, full: { en: "Drop-off (écocentre)", fr: "Point de dépôt (écocentre)" }, the: { en: "a drop-off point", fr: "un point de dépôt" } },
+];
+const t2 = (en, fr) => ({ en, fr });
+const ITEMS = {
+  drink_can:   { bin: "recycle", name: t2("Drink can", "Canette de boisson"),
+    why: t2("Aluminium drink cans have a deposit.", "Les canettes de boisson sont consignées."),
+    note: t2("Bring it back to a store to get your deposit.", "Rapportez-la au magasin pour récupérer votre dépôt.") },
+  chip_bag:    { bin: "recycle", name: t2("Chip bag", "Sac de chips"), why: t2("All packaging now goes in the recycling.", "Tous les emballages vont maintenant dans le bac de récupération.") },
+  battery:     { bin: "dropoff", name: t2("Batteries", "Piles"), why: t2("Batteries never go in the garbage or the recycling.", "Les piles ne vont jamais aux ordures ni dans le bac de récupération."),
+    note: t2("Use a battery drop-off box or an écocentre.", "Utilisez une boîte de récupération de piles ou un écocentre.") },
+  pizza_box:   { bin: "compost", name: t2("Greasy pizza box", "Boîte de pizza grasse"), why: t2("Cardboard soaked with grease or sauce goes in the brown bin.", "Le carton imbibé de gras ou de sauce va dans le bac brun.") },
+  coffee_cup:  { bin: "recycle", name: t2("Coffee cup", "Gobelet de café"), why: t2("Paper containers go in the recycling, even if soiled.", "Les contenants de papier vont dans le bac de récupération, même souillés.") },
+  aerosol:     { bin: "dropoff", name: t2("Aerosol can", "Aérosol"), why: t2("Pressurized containers are refused in the recycling.", "Les contenants sous pression sont refusés dans le bac de récupération.") },
+  eggshells:   { bin: "compost", name: t2("Eggshells", "Coquilles d'œufs"), why: t2("Eggs and their shells go in the brown bin.", "Les œufs et leur coquille vont dans le bac brun.") },
+  milk_carton: { bin: "recycle", name: t2("Milk carton", "Carton de lait"), why: t2("Multi-layer cartons go in the recycling.", "Les contenants multicouches vont dans le bac de récupération.") },
+  glass_jar:   { bin: "recycle", name: t2("Glass jar", "Pot de verre"), why: t2("Glass containers go in the recycling.", "Les contenants de verre vont dans le bac de récupération.") },
+  smoke_det:   { bin: "garbage", name: t2("Smoke detector", "Avertisseur de fumée"), why: t2("The City says smoke detectors go in the garbage.", "La Ville indique de jeter les avertisseurs de fumée aux ordures.") },
+  broken_plate:{ bin: "garbage", name: t2("Broken plate", "Assiette brisée"), why: t2("Dishes, drinking glasses and mirrors don't go in the recycling.", "La vaisselle, les verres à boire et les miroirs ne vont pas dans le bac de récupération.") },
+  plastic_bag: { bin: "recycle", name: t2("Plastic bag", "Sac de plastique"), why: t2("Plastic bags and wrapping film go in the recycling.", "Les sacs et pellicules d'emballage vont dans le bac de récupération.") },
+  bulb:        { bin: "garbage", name: t2("LED bulb", "Ampoule DEL"), why: t2("LED, halogen and incandescent bulbs are accepted in the garbage.", "Ces ampoules sont acceptées aux ordures."),
+    note: t2("Fluorescent bulbs are different: they go to an écocentre.", "Les fluocompactes, elles, vont à l'écocentre.") },
+  paint:       { bin: "dropoff", name: t2("Paint can", "Pot de peinture"), why: t2("Paint is household hazardous waste.", "La peinture est un résidu domestique dangereux.") },
+  paper_towel: { bin: "compost", name: t2("Paper towel", "Essuie-tout"), why: t2("Soiled paper goes in the brown bin, never in the recycling.", "Le papier souillé va dans le bac brun, jamais dans le bac de récupération.") },
+  food_can:    { bin: "recycle", name: t2("Food can", "Boîte de conserve"), why: t2("Metal containers are recyclable.", "Les contenants de métal se recyclent.") },
+  utensils:    { bin: "garbage", name: t2("Plastic fork and straw", "Fourchette et paille"), why: t2("Plastic cutlery and straws go in the garbage.", "Les ustensiles et pailles de plastique vont aux ordures.") },
+};
+// Sample data, labelled as such on screen. Real app: today's scan session and the scan history table.
+const TODAY = ["drink_can", "chip_bag", "battery", "pizza_box", "coffee_cup"];
+const HISTORY = [
+  { id: "aerosol", day: t2("Thu 19 Nov", "jeu. 19 nov.") }, { id: "eggshells", day: t2("Wed 18 Nov", "mer. 18 nov.") },
+  { id: "milk_carton", day: t2("Mon 16 Nov", "lun. 16 nov.") }, { id: "glass_jar", day: t2("Sun 15 Nov", "dim. 15 nov.") },
+];
+const NEVER = ["smoke_det", "broken_plate", "plastic_bag", "bulb", "paint", "paper_towel", "food_can", "utensils"];
+
+const STR = {
+  en: { title: "Sort & play", today: "Today's scan", challenge: "Challenge", hintDrag: "Flick it into a bin, or tap a bin.",
+    scannedToday: "Scanned today", scannedOn: "Scanned", never: "Never scanned",
+    right: ["Right bin.", "That's the one.", "Spot on."], wrong: (b) => `Not ${b}.`, goes: (b) => `It goes in ${b}.`, now: (b) => `In ${b} now.`,
+    nowThrow: (b) => `Throw it into ${b} to keep going.`, missed: "Missed the bins.", missedBody: "Flick a little straighter, or tap a bin.",
+    ready: "Ready when you are.", readyBody: "Each item is worth an equal share of 100.",
+    resultKicker: "Your results", correct: (n) => `${n} correct`, review: (n) => `${n} to review`, allRight: "Every item in the right bin.",
+    guide: "Your sorting guide", firstTry: "Right first try", toReview: "To review",
+    again: "Play again", tryChallenge: "Try a challenge", backToday: "Back to today's scan",
+    sample: "Prototype. Items and scan dates are sample data.", bin: "bin", lang: "Français", throwTo: (b) => `Throw into ${b}`,
+    itemLabel: (n) => `${n}. Drag it to a bin, or choose a bin below.` },
+  fr: { title: "Trie et joue", today: "Scan du jour", challenge: "Défi", hintDrag: "Lancez-le dans un bac, ou touchez un bac.",
+    scannedToday: "Scanné aujourd'hui", scannedOn: "Scanné le", never: "Jamais scanné",
+    right: ["Bon bac.", "C'est bien ça.", "Exact."], wrong: (b) => `Pas ${b}.`, goes: (b) => `Ça va dans ${b}.`, now: (b) => `Dans ${b}, c'est fait.`,
+    nowThrow: (b) => `Lancez-le dans « ${b} » pour continuer.`, missed: "À côté des bacs.", missedBody: "Lancez un peu plus droit, ou touchez un bac.",
+    ready: "À vous de jouer.", readyBody: "Chaque objet vaut une part égale de 100.",
+    resultKicker: "Vos résultats", correct: (n) => `${n} bonne${n > 1 ? "s" : ""} réponse${n > 1 ? "s" : ""}`, review: (n) => `${n} à revoir`, allRight: "Tout est dans le bon bac.",
+    guide: "Votre guide de tri", firstTry: "Bon du premier coup", toReview: "À revoir",
+    again: "Rejouer", tryChallenge: "Essayer un défi", backToday: "Retour au scan du jour",
+    sample: "Prototype. Les objets et les dates de scan sont des exemples.", bin: "bac", lang: "English", throwTo: (b) => `Lancer dans ${b}`,
+    itemLabel: (n) => `${n}. Glissez-le vers un bac, ou choisissez un bac ci-dessous.` },
+};
+
+// ---------- Art. One clip-art style: flat fill, 3.5 ink outline, a single highlight.
+const O = 'stroke="var(--c-outline)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
+const f = (v) => `fill="var(${v})"`;
+const HI = 'fill="none" stroke="var(--c-hi)" stroke-width="4" stroke-linecap="round"';
+const ART = {
+  drink_can: `<rect x="32" y="16" width="36" height="72" rx="8" ${f("--c-sky")} ${O}/><path d="M34 26h32M34 78h32" ${O} fill="none"/><rect x="32" y="40" width="36" height="22" ${f("--c-white")} ${O}/><path d="M44 51l4 4 8-9" ${O} fill="none" stroke="var(--bin-recycle)"/><path d="M42 20h10" ${O}/><path d="M38 32v40" ${HI}/>`,
+  chip_bag: `<path d="M26 20h48l-4 34 4 32H26l4-32z" ${f("--c-yellow")} ${O}/><path d="M26 20l4 5 4-5 4 5 4-5 4 5 4-5 4 5 4-5 4 5 4-5 4 5 4-5M26 86l4-5 4 5 4-5 4 5 4-5 4 5 4-5 4 5 4-5 4 5 4-5 4 5" ${O} fill="none"/><circle cx="50" cy="54" r="12" ${f("--c-card-2")} ${O}/><path d="M45 50l3 2M53 57l2 1M52 48l1 2" ${O}/><path d="M34 32v42" ${HI}/>`,
+  battery: `<rect x="42" y="10" width="16" height="10" rx="3" ${f("--c-metal")} ${O}/><rect x="30" y="18" width="40" height="72" rx="8" ${f("--c-outline")} ${O}/><path d="M30 26a8 8 0 0 1 8-8h24a8 8 0 0 1 8 8v16H30z" ${f("--c-copper")} ${O}/><path d="M50 26v10M45 31h10" stroke="var(--c-white)" stroke-width="3.5" stroke-linecap="round"/><path d="M38 50v32" ${HI}/>`,
+  pizza_box: `<path d="M14 46h72v32a6 6 0 0 1-6 6H20a6 6 0 0 1-6-6z" ${f("--c-card")} ${O}/><path d="M14 46l8-30h62l2 30z" ${f("--c-card-2")} ${O}/><ellipse cx="40" cy="30" rx="8" ry="5" ${f("--c-grease")} opacity=".7"/><ellipse cx="64" cy="26" rx="5" ry="3.5" ${f("--c-grease")} opacity=".7"/><ellipse cx="58" cy="66" rx="9" ry="5" ${f("--c-grease")} opacity=".6"/><path d="M14 56h72" ${O} opacity=".35"/><path d="M26 22l-4 16" ${HI}/>`,
+  coffee_cup: `<path d="M30 30h40l-6 58H36z" ${f("--c-paper")} ${O}/><path d="M32 48h36l-2 20H34z" ${f("--c-card")} ${O}/><rect x="25" y="22" width="50" height="10" rx="4" ${f("--c-white")} ${O}/><path d="M35 22l3-8h24l3 8" ${f("--c-white")} ${O}/><path d="M38 74l1 8" ${HI}/>`,
+  aerosol: `<rect x="40" y="10" width="18" height="12" rx="3" ${f("--c-teal")} ${O}/><path d="M58 14h8" ${O}/><path d="M32 30a10 10 0 0 1 10-10h16a10 10 0 0 1 10 10v54a4 4 0 0 1-4 4H36a4 4 0 0 1-4-4z" ${f("--c-metal")} ${O}/><rect x="32" y="44" width="36" height="24" ${f("--c-teal")} ${O}/><path d="M40 30v48" ${HI}/>`,
+  eggshells: `<path d="M12 62q0 26 22 26t22-26l-5-6-5 8-6-10-6 9-6-8-5 7-5-6z" ${f("--c-egg")} ${O}/><path d="M48 56q2-26 20-26t20 26l-4 5-5-7-5 9-6-9-5 8-6-7z" ${f("--c-egg")} ${O} transform="rotate(14 68 46)"/><path d="M20 70q2 10 10 12" ${HI}/>`,
+  milk_carton: `<path d="M30 36l10-18h22l8 18v52H30z" ${f("--c-white")} ${O}/><path d="M38 12h24v7H38z" ${f("--c-white")} ${O}/><path d="M50 18l8 18v52" ${O} fill="none"/><rect x="30" y="52" width="20" height="18" ${f("--c-sky")} ${O}/><path d="M36 40v40" ${HI}/>`,
+  glass_jar: `<rect x="30" y="12" width="40" height="13" rx="3" ${f("--c-metal-2")} ${O}/><path d="M28 25h44q8 8 8 20v34q0 10-10 10H30q-10 0-10-10V45q0-12 8-20z" ${f("--c-glass")} ${O}/><rect x="26" y="50" width="48" height="20" rx="3" ${f("--c-paper")} ${O}/><path d="M28 36q-2 6-2 12M28 76v6" ${HI}/>`,
+  smoke_det: `<circle cx="50" cy="50" r="36" ${f("--c-white")} ${O}/><circle cx="50" cy="50" r="22" ${f("--c-paper")} ${O}/><path d="M40 44h20M38 50h24M40 56h20" ${O} opacity=".5"/><circle cx="72" cy="34" r="4" ${f("--c-leafy")} ${O}/><path d="M24 40q-2 10 2 20" ${HI}/>`,
+  broken_plate: `<path d="M50 20a34 34 0 0 0-30 50l20-10-6-12 12-6z" ${f("--c-white")} ${O}/><path d="M60 22a34 34 0 0 1 14 58 34 34 0 0 1-40-2l16-12 6 8 2-16-8-8z" ${f("--c-white")} ${O} transform="translate(4 -2)"/><circle cx="54" cy="52" r="16" fill="none" stroke="var(--c-sky)" stroke-width="3" stroke-dasharray="6 5"/><path d="M26 46q-2 8 1 16" ${HI}/>`,
+  plastic_bag: `<path d="M34 34q-6-22 8-22t8 22M50 34q-2-22 10-22t6 22" fill="none" ${O}/><path d="M22 34h56l-4 52a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4z" ${f("--c-film")} ${O}/><path d="M36 52q14 6 28 0" fill="none" ${O} opacity=".35"/><path d="M30 44v36" ${HI}/>`,
+  bulb: `<path d="M50 10a26 26 0 0 1 15 47v7H35v-7a26 26 0 0 1 15-47z" ${f("--c-yellow")} ${O}/><rect x="36" y="64" width="28" height="8" rx="2" ${f("--c-metal")} ${O}/><rect x="38" y="72" width="24" height="8" rx="2" ${f("--c-metal-2")} ${O}/><path d="M44 80h12l-3 8h-6z" ${f("--c-outline")} ${O}/><path d="M36 26q-4 8-2 16" ${HI}/>`,
+  paint: `<path d="M22 32q28-26 56 0" fill="none" ${O}/><rect x="20" y="30" width="60" height="58" rx="6" ${f("--c-metal")} ${O}/><rect x="20" y="46" width="60" height="26" ${f("--c-plum")} ${O}/><path d="M34 30v10q0 5 4 5t4-5v-10" ${f("--c-plum")} ${O}/><path d="M28 54v12" ${HI}/>`,
+  paper_towel: `<path d="M20 56l8-24 20-8 20 6 14 18-4 24-18 12-24-2-14-12z" ${f("--c-paper")} ${O}/><path d="M36 34l8 18-14 10M60 34l-6 20 16 10M44 52l10 2M48 80l6-26" fill="none" ${O} opacity=".4"/><path d="M28 48l-2 8" ${HI}/>`,
+  food_can: `<rect x="24" y="18" width="52" height="70" rx="6" ${f("--c-metal")} ${O}/><rect x="24" y="34" width="52" height="38" ${f("--c-leafy")} ${O}/><path d="M24 26h52M24 80h52" ${O}/><circle cx="50" cy="53" r="9" ${f("--c-paper")} ${O}/><path d="M32 40v26" ${HI}/>`,
+  utensils: `<path d="M30 12v22q0 8 6 10v44a4 4 0 0 0 8 0V44q6-2 6-10V12M37 12v18M43 12v18" ${f("--c-white")} ${O}/><g transform="rotate(14 66 50)"><rect x="60" y="10" width="12" height="80" rx="6" ${f("--c-white")} ${O}/><path d="M60 24h12M60 40h12M60 56h12M60 72h12" stroke="var(--c-teal)" stroke-width="5"/><rect x="60" y="10" width="12" height="80" rx="6" fill="none" ${O}/></g>`,
+};
+const art = (id) => `<svg viewBox="0 0 100 100" aria-hidden="true">${ART[id]}</svg>`;
+
+// Three chasing arrows on a circle: each arc ends in an arrowhead aimed at the next arc's tail.
+function loop(cx, cy, r, col, w) {
+  const P = (deg, rr) => { const t = deg * Math.PI / 180; return `${(cx + rr * Math.cos(t)).toFixed(2)} ${(cy + rr * Math.sin(t)).toFixed(2)}`; };
+  const h = w * 1.2;
+  let out = "";
+  for (let k = 0; k < 3; k++) {
+    const a0 = k * 120 - 84, a1 = a0 + 72;
+    out += `<path d="M${P(a0, r)}A${r} ${r} 0 0 1 ${P(a1, r)}" fill="none" stroke="${col}" stroke-width="${w}"/>`;
+    out += `<path d="M${P(a1 + 28, r)}L${P(a1 - 1, r + h)}L${P(a1 - 1, r - h)}Z" fill="${col}" stroke="${col}" stroke-width="${w * .35}" stroke-linejoin="round"/>`;
+  }
+  return out;
+}
+// One symbol per bin, all centred on (50, 1), so each bin reads without its colour.
+const GLYPH = {
+  recycle: loop(50, 1, 8.6, "var(--bin-glyph)", 3.2),
+  compost: `<path d="M40 12C38-2 46-11 61-11c1 15-8 24-21 23z" fill="var(--bin-glyph)"/>
+    <path d="M41.5 10.5Q50 3 57.5-7" fill="none" stroke="var(--bin-compost)" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M46 6l-.6-6M50.5 2l-.4-6.5M54.5-2.5l-.2-5M46 6l6.5.8M50.5 2l6.6.4" fill="none" stroke="var(--bin-compost)" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M40.5 11.5l-3.5 3.5" stroke="var(--bin-glyph)" stroke-width="2.6" stroke-linecap="round"/>`,
+  garbage: `<path d="M38-6h24" stroke="var(--bin-glyph)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M46-6.5v-3.5h8v3.5" fill="none" stroke="var(--bin-glyph)" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M40.5-2h19l-1.7 15.5a2 2 0 0 1-2 1.8H44.2a2 2 0 0 1-2-1.8z" fill="none" stroke="var(--bin-glyph)" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M46 2.5v8.5M50 2.5v8.5M54 2.5v8.5" stroke="var(--bin-glyph)" stroke-width="2" stroke-linecap="round"/>`,
+  dropoff: `<path d="M50-11.5L62.5 10.5H37.5z" fill="var(--bin-glyph)" stroke="var(--bin-glyph)" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M50-3.8v6.4" stroke="var(--bin-dropoff)" stroke-width="3" stroke-linecap="round"/><circle cx="50" cy="6.4" r="1.8" fill="var(--bin-dropoff)"/>`,
+};
+const glyph = (id, size = 16) => `<svg viewBox="36 -14 28 30" width="${size}" height="${size}" aria-hidden="true">${GLYPH[id]}</svg>`;
+
+// Drawn after Montréal's curbside carts (no City logo): the tall wheeled recycling cart with its
+// materials sticker, the squat 45 L brown bin with the locking handle over its lid, a black
+// wheeled garbage cart, and a drop-off crate. Lids hinge at the back, so they flip up toward you.
+function binArt(b) {
+  const c = `var(${b.color})`, top = b.top, bodyTop = top + 10;
+  const sh = `fill="var(--bin-shade)"`;
+  const wheels = (r) => `<circle cx="22" cy="116" r="${r}" fill="var(--c-outline)"/><circle cx="22" cy="116" r="${r * .38}" fill="var(--c-metal)"/><circle cx="78" cy="116" r="${r}" fill="var(--c-outline)"/><circle cx="78" cy="116" r="${r * .38}" fill="var(--c-metal)"/>`;
+  const lidPath = (x1, x2) => `M${x1} ${top + 10}V${top + 3}a3 3 0 0 1 3-3h${x2 - x1 - 6}a3 3 0 0 1 3 3v7z`;
+  const lid = (x1, x2, extra = "") => `<g class="lid"><path d="${lidPath(x1, x2)}" fill="${c}" ${O}/><path d="M${x1 + 2} ${top + 7}H${x2 - 2}" stroke="var(--bin-shade)" stroke-width="3"/>${extra}</g>`;
+  const mouth = (x1, x2) => `<rect x="${x1 + 3}" y="${top + 3}" width="${x2 - x1 - 6}" height="10" rx="3" fill="var(--bin-mouth)"/>`;
+  let s = `<ellipse cx="50" cy="124" rx="40" ry="5" fill="rgba(0,0,0,.14)"/>`;
+  if (b.id === "recycle" || b.id === "garbage") {
+    // 360 L wheeled cart: push handle at the back, ribbed front, big rear wheels
+    s += `<rect x="20" y="${top - 6}" width="60" height="6" rx="3" fill="${c}" ${O}/>` + wheels(8) + mouth(9, 91);
+    s += `<path d="M11 ${bodyTop}H89L83 112H17z" fill="${c}" ${O}/>`;
+    s += `<path d="M13 ${bodyTop + 2}H87" stroke="var(--bin-rim)" stroke-width="3" stroke-linecap="round"/><path d="M15 ${bodyTop + 6}H85l-.6 5H15.6z" ${sh}/>`;
+    s += `<path d="M22 ${bodyTop + 16}L24 104M78 ${bodyTop + 16}L76 104" stroke="var(--bin-shade)" stroke-width="3" stroke-linecap="round"/>`;
+    if (b.id === "recycle") {
+      // The materials sticker on the cart's front: a coloured band with the loop, then what goes in:
+      // printed paper, a plastic bottle, a metal can. Outline drawn last so it sits on top of the band.
+      const y = bodyTop + 12, x = 28, w = 44, hgt = 50;
+      const thin = `stroke="var(--c-outline)" stroke-width="1.3" stroke-linejoin="round"`;
+      s += `<rect x="${x}" y="${y}" width="${w}" height="${hgt}" rx="5" fill="var(--c-white)"/>`;
+      s += `<path d="M${x} ${y + 24}V${y + 5}a5 5 0 0 1 5-5h${w - 10}a5 5 0 0 1 5 5v19z" fill="${c}"/>`;
+      s += `<g transform="translate(0 ${y + 11.5})">${loop(50, 0, 7, "var(--c-white)", 2.7)}</g>`;
+      s += `<path d="M${x + 4} ${y + 24}h${w - 8}" stroke="var(--c-white)" stroke-width="1" opacity=".5"/>`;
+      // newspaper with a folded corner and column lines
+      s += `<path d="M32 ${y + 29}h8l3 3v13H32z" fill="var(--c-paper)" ${thin}/><path d="M40 ${y + 29}v3h3" fill="none" ${thin}/>`;
+      s += `<path d="M34.5 ${y + 35}h6M34.5 ${y + 38}h6M34.5 ${y + 41}h4" stroke="var(--c-outline)" stroke-width="1" stroke-linecap="round" opacity=".7"/>`;
+      // plastic bottle: cap, neck, shoulder, label
+      s += `<rect x="48.4" y="${y + 27.5}" width="3.2" height="2.6" rx=".6" fill="${c}" ${thin}/>`;
+      s += `<path d="M47 ${y + 45}v-9.5q0-2.6 1.8-3.8V${y + 30}h2.4v1.7q1.8 1.2 1.8 3.8V${y + 45}z" fill="var(--c-sky)" ${thin}/>`;
+      s += `<rect x="47" y="${y + 37.5}" width="6" height="3.2" fill="var(--c-white)" ${thin}/>`;
+      // metal can: rim, ribbed body, label band
+      s += `<rect x="58" y="${y + 31}" width="9.5" height="14" rx="1.6" fill="var(--c-metal)" ${thin}/>`;
+      s += `<rect x="58" y="${y + 35}" width="9.5" height="5.5" fill="${c}" opacity=".85" ${thin}/>`;
+      s += `<path d="M59 ${y + 33}h7.5M59 ${y + 43}h7.5" stroke="var(--c-outline)" stroke-width=".9" opacity=".6"/>`;
+      s += `<rect x="${x}" y="${y}" width="${w}" height="${hgt}" rx="5" fill="none" ${O} stroke-width="2.5"/>`;
+    } else {
+      s += `<g transform="translate(50 ${(bodyTop + 112) / 2}) scale(1.2) translate(-50 -1)">${GLYPH.garbage}</g>`;
+    }
+    s += lid(7, 93, `<rect x="40" y="${top + 8}" width="20" height="5" rx="2.5" fill="${c}" ${O} stroke-width="2.5"/>`);
+  } else if (b.id === "compost") {
+    // 45 L brown bin: squat, small wheels, a locking handle that wraps over the lid
+    s += wheels(5.5).replaceAll('cx="22"', 'cx="28"').replaceAll('cx="78"', 'cx="72"') + mouth(13, 87);
+    s += `<path d="M15 ${bodyTop}H85L81 112H19z" fill="${c}" ${O}/>`;
+    s += `<path d="M17 ${bodyTop + 2}H83" stroke="var(--bin-rim)" stroke-width="3" stroke-linecap="round"/>`;
+    s += `<rect x="36" y="${bodyTop + 14}" width="28" height="26" rx="6" ${sh}/>`;
+    s += `<g transform="translate(50 ${bodyTop + 27}) scale(.95) translate(-50 -1)">${GLYPH.compost}</g>`;
+    s += lid(11, 89);
+    s += `<g class="latch"><path d="M16 ${bodyTop + 24}V${top + 4}q0-8 8-8h52q8 0 8 8V${bodyTop + 24}" fill="none" stroke="var(--c-outline)" stroke-width="7" stroke-linejoin="round"/><path d="M16 ${bodyTop + 24}V${top + 4}q0-8 8-8h52q8 0 8 8V${bodyTop + 24}" fill="none" stroke="${c}" stroke-width="3.5" stroke-linejoin="round"/><rect x="40" y="${top - 7}" width="20" height="6" rx="3" fill="var(--c-outline)"/></g>`;
+  } else {
+    // drop-off crate with hazard stripe
+    s += `<rect x="14" y="110" width="72" height="8" rx="3" fill="var(--c-outline)"/>` + mouth(9, 91);
+    s += `<path d="M12 ${bodyTop}H88V112H12z" fill="${c}" ${O}/>`;
+    s += `<path d="M12 ${bodyTop + 6}H88" stroke="var(--c-yellow)" stroke-width="5"/><path d="M12 ${bodyTop + 6}H88" stroke="var(--c-outline)" stroke-width="5" stroke-dasharray="6 6" opacity=".55"/>`;
+    s += `<g transform="translate(50 ${(bodyTop + 112) / 2 + 4}) scale(1.2) translate(-50 -1)">${GLYPH.dropoff}</g>`;
+    s += lid(8, 92, `<rect x="40" y="${top - 4}" width="20" height="5" rx="2.5" fill="${c}" ${O} stroke-width="2.5"/>`);
+  }
+  return `<svg class="can" viewBox="0 0 100 130" aria-hidden="true">${s}</svg>
+  <svg class="mark" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="21" fill="var(--clay)"/><path d="M15 15l16 16M31 15L15 31" stroke="var(--c-white)" stroke-width="5" stroke-linecap="round"/></svg>
+  <span class="ring" aria-hidden="true"></span>`;
+}
+
+// ---------- Triplex backdrop (drawn once)
+(function drawTriplex() {
+  const g = document.getElementById("triplex");
+  let s = "";
+  for (let i = 0; i < 3; i++) {
+    const x = i * 170 - 20, w = 160;
+    s += `<rect x="${x}" y="40" width="${w}" height="240" fill="var(${i % 2 ? "--brick-2" : "--brick"})"/>`;
+    s += `<rect x="${x - 4}" y="34" width="${w + 8}" height="10" fill="var(--frame)"/><rect x="${x - 4}" y="30" width="${w + 8}" height="6" rx="3" fill="var(--snow)"/>`;
+    for (let f2 = 0; f2 < 3; f2++) {
+      const y = 62 + f2 * 72;
+      s += `<rect x="${x + 18}" y="${y}" width="34" height="44" rx="2" fill="var(--window)" stroke="var(--frame)" stroke-width="4"/>`;
+      s += `<rect x="${x + 100}" y="${y}" width="26" height="54" rx="2" fill="var(--window)" stroke="var(--frame)" stroke-width="4" opacity=".9"/>`;
+      // iron balcony rail + snow on it
+      s += `<path d="M${x + 6} ${y + 58}h${w - 12}" stroke="var(--iron)" stroke-width="3"/><path d="M${x + 6} ${y + 58}v14M${x + w - 6} ${y + 58}v14" stroke="var(--iron)" stroke-width="2"/>`;
+      for (let k = 0; k < 14; k++) s += `<path d="M${x + 14 + k * 10} ${y + 58}v14" stroke="var(--iron)" stroke-width="1.4"/>`;
+      s += `<rect x="${x + 4}" y="${y + 53}" width="${w - 8}" height="5" rx="2.5" fill="var(--snow)"/>`;
+    }
+    // the exterior stair: Montréal's signature curve
+    s += `<path d="M${x + 150} 274 C ${x + 150} 230, ${x + 70} 236, ${x + 74} 196" fill="none" stroke="var(--iron)" stroke-width="3"/>`;
+    s += `<path d="M${x + 140} 274 C ${x + 140} 236, ${x + 62} 242, ${x + 64} 196" fill="none" stroke="var(--iron)" stroke-width="3"/>`;
+    for (let k = 0; k < 8; k++) { const tt = k / 7, xx = x + 145 - 76 * tt, yy = 272 - 74 * tt; s += `<path d="M${xx - 6} ${yy}h14" stroke="var(--snow)" stroke-width="3" stroke-linecap="round"/>`; }
+  }
+  g.innerHTML = s;
+})();
+
+// ---------- State
+const $ = (id) => document.getElementById(id);
+const scene = $("scene"), itemEl = $("item"), shadowEl = $("shadow"), labelEl = $("label"), sayEl = $("say");
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const S = 120;
+let lang = "en", mode = "today", queue = [], idx = 0, results = [], xp = 320;
+let pos = { x: 0, y: 0, s: 1, r: 0 }, home = { x: 0, y: 0 }, busy = false, tries = 0, rightIdx = 0;
+const L = () => STR[lang];
+const binById = (id) => BINS.find((b) => b.id === id);
+const binName = (id) => binById(id).name[lang];
+
+// ---------- Bins
+const binsEl = $("bins");
+BINS.forEach((b) => {
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "bin"; btn.dataset.bin = b.id;
+  btn.innerHTML = binArt(b) + `<span class="tag">${b.name[lang]}</span>`;
+  btn.addEventListener("click", () => { if (!busy) throwTo(b.id, false); });
+  binsEl.appendChild(btn);
+});
+const binEl = (id) => binsEl.querySelector(`[data-bin="${id}"]`);
+function binGeom(id) { // scene-space points: the mouth centre, the closed lid's top
+  const b = binById(id), svg = binEl(id).querySelector("svg.can");
+  const r = svg.getBoundingClientRect(), sr = scene.getBoundingClientRect();
+  const k = r.width / 100;
+  return { x: r.left - sr.left + r.width / 2, mouth: r.top - sr.top + (b.top + 8) * k, lidTop: r.top - sr.top + (b.top - 2) * k, w: r.width };
+}
+
+// ---------- Rendering helpers
+function render() {
+  itemEl.style.transform = `translate(${pos.x - S / 2}px, ${pos.y - S / 2}px) rotate(${pos.r}deg) scale(${pos.s})`;
+  const lift = Math.max(0, home.y - pos.y);
+  const sh = Math.max(0.25, 1 - lift / 260);
+  shadowEl.style.transform = `translate(${pos.x - 45}px, ${home.y + S * 0.4 - 9}px) scale(${sh})`;
+  shadowEl.style.opacity = String(sh * 0.9);
+}
+const ease = { out: (t) => 1 - Math.pow(1 - t, 3), inOut: (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2 };
+function tween(ms, fn) {
+  if (reduced) ms = Math.min(ms, 180);
+  return new Promise((res) => {
+    const t0 = performance.now();
+    const step = (now) => { const t = Math.min(1, (now - t0) / ms); fn(t); t < 1 ? requestAnimationFrame(step) : res(); };
+    requestAnimationFrame(step);
+  });
+}
+function anim(el, frames, opts) { el.getAnimations().forEach((a) => a.cancel()); if (reduced) opts = { ...opts, duration: Math.min(opts.duration, 120) }; return el.animate(frames, { fill: "forwards", ...opts }).finished; }
+const lid = (id) => binEl(id).querySelector(".lid");
+// Lids hinge at the back, so from the front an opening lid grows upward: scaleY goes negative about its bottom edge.
+const latch = (id) => binEl(id).querySelector(".latch");
+function openLid(id) {
+  const l = latch(id);
+  if (l) anim(l, [{ transform: "scaleY(1)" }, { transform: "scaleY(.12)" }], { duration: 110, easing: "ease-in" });
+  return anim(lid(id), reduced ? [{ transform: "scaleY(-2.4)" }] :
+    [{ transform: "scaleY(1)" }, { transform: "scaleY(1)", offset: l ? .3 : 0 }, { transform: "scaleY(-2.9)", offset: .78 }, { transform: "scaleY(-2.4)" }], { duration: l ? 300 : 230, easing: "ease-out" });
+}
+function closeLid(id) {
+  const l = latch(id);
+  if (l) setTimeout(() => anim(l, [{ transform: "scaleY(.12)" }, { transform: "scaleY(1.08)", offset: .7 }, { transform: "scaleY(1)" }], { duration: 200 }), reduced ? 0 : 520);
+  return anim(lid(id), reduced ? [{ transform: "scaleY(1)" }] :
+    [{ transform: "scaleY(-2.4)" }, { transform: "scaleY(1)", offset: .4 }, { transform: "scaleY(-.9)", offset: .58 }, { transform: "scaleY(1)", offset: .74 }, { transform: "scaleY(-.2)", offset: .87 }, { transform: "scaleY(1)" }],
+    { duration: 660, easing: "cubic-bezier(.5,0,.75,0)" });
+}
+
+// ---------- Round setup
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function buildQueue() {
+  if (mode === "today") return TODAY.map((id) => ({ id, origin: "today" }));
+  const past = shuffle(HISTORY).slice(0, 3).map((h) => ({ id: h.id, origin: "past", day: h.day }));
+  const fresh = shuffle(NEVER).slice(0, 3).map((id) => ({ id, origin: "never" }));
+  return shuffle([...past, ...fresh]);
+}
+function start(newMode) {
+  if (newMode) mode = newMode;
+  $("mToday").setAttribute("aria-pressed", String(mode === "today"));
+  $("mChallenge").setAttribute("aria-pressed", String(mode === "challenge"));
+  $("sheet").classList.remove("open");
+  queue = buildQueue(); idx = 0; results = [];
+  say("idle", L().ready, L().readyBody);
+  layout(); nextItem(true);
+}
+function layout() {
+  const r = scene.getBoundingClientRect();
+  home = { x: r.width / 2, y: r.height - 166 };
+  const c = $("confetti"); c.width = r.width * devicePixelRatio; c.height = r.height * devicePixelRatio;
+}
+function drawProgress() {
+  const p = $("progress");
+  p.innerHTML = queue.map((q, i) => {
+    const res = results[i];
+    return `<i class="${res ? (res.first ? "done" : "review") : i === idx ? "now" : ""}"></i>`;
+  }).join("") + `<span class="count">${Math.min(idx + 1, queue.length)}/${queue.length}</span>`;
+}
+function drawLabel() {
+  const q = queue[idx]; if (!q) { labelEl.innerHTML = ""; return; }
+  const it = ITEMS[q.id];
+  const origin = q.origin === "today" ? L().scannedToday : q.origin === "past" ? `${L().scannedOn} ${q.day[lang]}` : L().never;
+  labelEl.innerHTML = `<span class="origin ${q.origin === "never" ? "new" : ""}">${origin}</span><span class="name">${it.name[lang]}</span><span class="hint">${L().hintDrag}</span>`;
+  itemEl.setAttribute("aria-label", L().itemLabel(it.name[lang]));
+}
+async function nextItem(first) {
+  BINS.forEach((b) => binEl(b.id).classList.remove("reveal"));
+  drawProgress();
+  if (idx >= queue.length) return finish();
+  tries = 0;
+  const q = queue[idx];
+  itemEl.innerHTML = art(q.id);
+  itemEl.style.clipPath = "none";
+  drawLabel();
+  pos = { x: home.x, y: home.y + 90, s: .5, r: -8 };
+  itemEl.style.opacity = "1";
+  render();
+  await tween(first ? 420 : 380, (t) => {
+    const e = reduced ? t : 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2); // easeOutBack
+    pos.y = home.y + 90 * (1 - e); pos.s = .5 + .5 * e; pos.r = -8 * (1 - e); render();
+  });
+  pos = { x: home.x, y: home.y, s: 1, r: 0 }; render();
+  busy = false;
+}
+
+// ---------- Feedback strip
+const ICON = {
+  good: `<svg viewBox="0 0 26 26"><path d="M6 13.5l4.5 4.5L20 8" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  bad: `<svg viewBox="0 0 26 26"><path d="M8 8l10 10M18 8L8 18" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>`,
+  idle: `<svg viewBox="0 0 26 26"><path d="M13 22V9M7 14l6-6 6 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+};
+function say(kind, title, body, note) {
+  sayEl.className = `say ${kind}`; void sayEl.offsetWidth; sayEl.classList.add("enter");
+  sayEl.innerHTML = `<span class="icon">${ICON[kind]}</span><strong>${title}</strong><p>${body || ""}</p>${note ? `<p class="note">${note}</p>` : ""}`;
+}
+
+// ---------- Drag and flick
+let drag = null;
+itemEl.addEventListener("pointerdown", (e) => {
+  if (busy) return;
+  itemEl.setPointerCapture(e.pointerId);
+  drag = { px: e.clientX, py: e.clientY, x0: pos.x, y0: pos.y, hist: [{ x: e.clientX, y: e.clientY, t: e.timeStamp }] };
+});
+itemEl.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  pos.x = drag.x0 + (e.clientX - drag.px);
+  pos.y = drag.y0 + (e.clientY - drag.py);
+  const span = home.y - binGeom("recycle").mouth;
+  pos.s = 1 - Math.min(1, Math.max(0, (home.y - pos.y) / span)) * .35;
+  drag.hist.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
+  if (drag.hist.length > 8) drag.hist.shift();
+  const h = drag.hist, a = h[0], b = h[h.length - 1];
+  pos.r = Math.max(-18, Math.min(18, (b.x - a.x) * .25));
+  render();
+  const over = binAt(e.clientX, e.clientY);
+  BINS.forEach((bb) => binEl(bb.id).classList.toggle("hover", bb.id === over));
+});
+function endDrag(e) {
+  if (!drag) return;
+  const d = drag; drag = null;
+  BINS.forEach((bb) => binEl(bb.id).classList.remove("hover"));
+  const recent = d.hist.filter((p) => e.timeStamp - p.t < 110);
+  const a = recent[0] || d.hist[0], b = d.hist[d.hist.length - 1];
+  const dt = Math.max(16, b.t - a.t), vx = (b.x - a.x) / dt, vy = (b.y - a.y) / dt;
+  const over = binAt(e.clientX, e.clientY);
+  if (over) return throwTo(over, true);
+  if (vy < -0.45 && home.y - pos.y > 20) {
+    const rowY = binGeom("recycle").mouth;
+    const tt = (pos.y - rowY) / -vy;
+    const xl = pos.x + vx * tt;
+    let best = null, bestD = Infinity;
+    BINS.forEach((bb) => { const g = binGeom(bb.id), dd = Math.abs(g.x - xl); if (dd < bestD) { bestD = dd; best = { id: bb.id, w: g.w }; } });
+    if (best && bestD < best.w * .75) return throwTo(best.id, true, vx);
+    return miss(xl, rowY);
+  }
+  springHome();
+}
+itemEl.addEventListener("pointerup", endDrag);
+itemEl.addEventListener("pointercancel", endDrag);
+function binAt(cx, cy) {
+  for (const b of BINS) { const r = binEl(b.id).getBoundingClientRect(); if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) return b.id; }
+  return null;
+}
+async function springHome() {
+  busy = true;
+  const from = { ...pos };
+  await tween(320, (t) => {
+    const e = 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+    pos.x = from.x + (home.x - from.x) * e; pos.y = from.y + (home.y - from.y) * e;
+    pos.s = from.s + (1 - from.s) * e; pos.r = from.r * (1 - e); render();
+  });
+  busy = false;
+}
+
+// ---------- The throw
+function flight(tx, ty, ts, ms, spin, onT) {
+  const from = { ...pos };
+  const h = reduced ? 0 : Math.max(50, (from.y - ty) * .35 + 30);
+  return tween(ms, (t) => {
+    pos.x = from.x + (tx - from.x) * t;
+    pos.y = from.y + (ty - from.y) * ease.out(t) - h * 4 * t * (1 - t);
+    pos.s = from.s + (ts - from.s) * t;
+    pos.r = from.r + spin * t;
+    render(); onT && onT(t);
+  });
+}
+async function throwTo(id, fromGesture, vx = 0) {
+  if (busy || idx >= queue.length) return;
+  busy = true;
+  const it = ITEMS[queue[idx].id];
+  const right = id === it.bin;
+  const g = binGeom(id);
+  const ts = (g.w * .62) / S;
+  const spin = (vx >= 0 ? 1 : -1) * (reduced ? 0 : 300);
+  let opened = false;
+  if (right) {
+    await flight(g.x, g.mouth - 6, ts, 560, spin, (t) => { if (!opened && t > .55) { opened = true; openLid(id); } });
+    if (!opened) openLid(id);
+    await sink(g, ts);
+    landed(id, it);
+  } else {
+    await flight(g.x, g.lidTop - (S * ts) / 2, ts, 520, spin);
+    rattle(id);
+    await bounceBack();
+    wrong(id, it);
+  }
+}
+async function sink(g, ts) {
+  const rim = g.mouth - 2, y0 = pos.y, depth = S * ts * 1.05;
+  await tween(240, (t) => {
+    pos.y = y0 + depth * ease.inOut(t); pos.r += 2;
+    render();
+    const bottom = pos.y + (S * pos.s) / 2;
+    const cut = Math.max(0, (bottom - rim) / pos.s); // clip-path works in the item's untransformed box
+    itemEl.style.clipPath = `inset(-40px -40px ${Math.min(S + 40, cut)}px -40px)`;
+  });
+  itemEl.style.opacity = "0";
+}
+function landed(id, it) {
+  const can = binEl(id).querySelector("svg.can");
+  closeLid(id);
+  if (!reduced) anim(can, [{ transform: "scale(1,1)" }, { transform: "scale(1.06,.9)", offset: .3 }, { transform: "scale(.97,1.05)", offset: .6 }, { transform: "scale(1,1)" }], { duration: 520, easing: "ease-out" });
+  const g = binGeom(id);
+  confetti(g.x, g.mouth, getComputedStyle(document.documentElement).getPropertyValue(binById(id).color).trim());
+  navigator.vibrate?.(18);
+  const first = tries === 0;
+  const per = Math.round(100 / queue.length);
+  if (first) { xp += per; $("xp").textContent = xp; floatText(`+${per}`, g.x, g.lidTop - 10); }
+  results[idx] = { id: queue[idx].id, first, chosen: first ? id : results[idx]?.chosen };
+  const msg = first ? L().right[rightIdx++ % L().right.length] : L().now(binById(id).the[lang]);
+  say("good", msg, it.why[lang], it.note?.[lang]);
+  idx++;
+  setTimeout(() => nextItem(false), reduced ? 250 : 700);
+}
+function rattle(id) {
+  const can = binEl(id).querySelector("svg.can");
+  if (!reduced) {
+    anim(can, [{ transform: "rotate(0)" }, { transform: "rotate(-5deg)" }, { transform: "rotate(4deg)" }, { transform: "rotate(-2deg)" }, { transform: "rotate(0)" }], { duration: 420, easing: "ease-out" });
+    anim(lid(id), [{ transform: "scaleY(1)" }, { transform: "scaleY(.45)", offset: .25 }, { transform: "scaleY(1)", offset: .5 }, { transform: "scaleY(.8)", offset: .7 }, { transform: "scaleY(1)" }], { duration: 380 }); // jumps, stays shut
+  }
+  const mark = binEl(id).querySelector(".mark");
+  anim(mark, [{ opacity: 0, transform: "scale(.3)" }, { opacity: 1, transform: "scale(1.15)", offset: .2 }, { opacity: 1, transform: "scale(1)", offset: .3 }, { opacity: 1, offset: .8 }, { opacity: 0, transform: "scale(.9)" }], { duration: 1800 });
+}
+async function bounceBack() {
+  const from = { ...pos };
+  const h = reduced ? 0 : 70;
+  await tween(620, (t) => { // off the lid, up and back to the hand
+    pos.x = from.x + (home.x - from.x) * t;
+    pos.y = from.y + (home.y - from.y) * (t * t) - h * 4 * t * (1 - t) * .6;
+    pos.s = from.s + (1 - from.s) * ease.out(t);
+    pos.r = from.r * (1 - t) - 200 * t * (reduced ? 0 : 1);
+    render();
+  });
+  if (!reduced) for (const hop of [26, 9]) await tween(hop * 9, (t) => { pos.y = home.y - hop * 4 * t * (1 - t); render(); });
+  pos = { x: home.x, y: home.y, s: 1, r: 0 }; render();
+}
+function wrong(id, it) {
+  if (tries === 0) results[idx] = { id: queue[idx].id, first: false, chosen: id };
+  tries++;
+  binEl(it.bin).classList.add("reveal");
+  say("bad", L().wrong(binById(id).the[lang]) + " " + L().goes(binById(it.bin).the[lang]), it.why[lang] + " " + L().nowThrow(binName(it.bin)), it.note?.[lang]);
+  drawProgress();
+  busy = false;
+}
+async function miss(xl, rowY) {
+  busy = true;
+  const r = scene.getBoundingClientRect();
+  const tx = Math.max(-40, Math.min(r.width + 40, xl));
+  await flight(tx, rowY + 40, .6, 480, 240);
+  await bounceBack();
+  say("idle", L().missed, L().missedBody);
+  busy = false;
+}
+function floatText(txt, x, y) {
+  const el = document.createElement("div");
+  el.className = "float"; el.textContent = txt; el.style.left = `${x - 20}px`; el.style.top = `${y}px`;
+  scene.appendChild(el);
+  el.animate([{ transform: "translateY(10px) scale(.6)", opacity: 0 }, { transform: "translateY(-14px) scale(1.1)", opacity: 1, offset: .3 }, { transform: "translateY(-46px) scale(1)", opacity: 0 }], { duration: reduced ? 600 : 1100, easing: "ease-out" }).finished.then(() => el.remove());
+}
+
+// ---------- Confetti: bin colour plus paper, leaf, sun; flutter by flipping width.
+const ctx = $("confetti").getContext("2d");
+let bits = [], running = false;
+function confetti(x, y, binColor) {
+  if (reduced) return;
+  const css = getComputedStyle(document.documentElement);
+  const cols = [binColor, ...["--confetti-1", "--confetti-2", "--confetti-3", "--confetti-4"].map((v) => css.getPropertyValue(v).trim())];
+  for (let i = 0; i < 70; i++) {
+    const a = -Math.PI / 2 + (Math.random() - .5) * 1.9, sp = 4 + Math.random() * 7;
+    bits.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, w: 5 + Math.random() * 5, h: 8 + Math.random() * 6,
+      rot: Math.random() * 6, vr: (Math.random() - .5) * .4, ph: Math.random() * 6, c: cols[i % cols.length], round: Math.random() < .25, life: 0 });
+  }
+  if (!running) { running = true; requestAnimationFrame(tick); }
+}
+function tick() {
+  const c = ctx.canvas, d = devicePixelRatio;
+  ctx.setTransform(d, 0, 0, d, 0, 0); ctx.clearRect(0, 0, c.width, c.height);
+  const H = c.height / d;
+  bits = bits.filter((b) => b.y < H + 30 && b.life < 260);
+  for (const b of bits) {
+    b.life++; b.vy += .22; b.vx *= .985; b.vy *= .985; b.x += b.vx + Math.sin(b.ph + b.life * .1) * .6; b.y += b.vy; b.rot += b.vr;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot); ctx.scale(Math.cos(b.ph + b.life * .18), 1);
+    ctx.fillStyle = b.c; ctx.globalAlpha = Math.min(1, (260 - b.life) / 40);
+    if (b.round) { ctx.beginPath(); ctx.arc(0, 0, b.w / 2, 0, 7); ctx.fill(); } else ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+    ctx.restore();
+  }
+  if (bits.length) requestAnimationFrame(tick); else { running = false; ctx.clearRect(0, 0, c.width, c.height); }
+}
+
+// ---------- Results: score out of 100 plus the real disposal checklist
+function finish() {
+  const n = queue.length, good = results.filter((r) => r.first).length;
+  const score = Math.round((good * 100) / n);
+  const chip = (id) => { const b = binById(id); return `<span class="chip" style="background:var(${b.color})">${glyph(id)}${b.full[lang]}</span>`; };
+  const rows = queue.map((q, i) => {
+    const it = ITEMS[q.id], r = results[i];
+    return `<li><span class="pic">${art(q.id)}</span><b>${it.name[lang]}</b>${chip(it.bin)}<span class="why">${it.note ? it.note[lang] : it.why[lang]}</span>
+      <span class="state ${r.first ? "" : "review"}" style="grid-column:2">${r.first ? L().firstTry : L().toReview}</span></li>`;
+  }).join("");
+  const sheet = $("sheet");
+  sheet.innerHTML = `<div class="score"><div class="kicker" id="sheetTitle">${L().resultKicker}</div>
+      <div class="big">${score}<small>/100</small></div>
+      <div class="line">${good === n ? L().allRight : `${L().correct(good)} · ${L().review(n - good)}`}</div></div>
+    <div class="guide"><h2>${L().guide}</h2><ul>${rows}</ul></div>
+    <div class="actions">
+      <button type="button" class="btn primary" id="again">${L().again}</button>
+      <button type="button" class="btn" id="other">${mode === "today" ? L().tryChallenge : L().backToday}</button>
+    </div>
+    <p class="sample">${L().sample}</p>`;
+  sheet.classList.add("open");
+  $("again").onclick = () => start();
+  $("other").onclick = () => start(mode === "today" ? "challenge" : "today");
+  sheet.scrollTop = 0;
+  $("again").focus({ preventScroll: true });
+}
+
+// ---------- Language, modes, keys, resize
+function applyLang() {
+  document.documentElement.lang = lang;
+  $("title").textContent = L().title;
+  $("lang").textContent = lang === "en" ? "FR" : "EN";
+  $("lang").setAttribute("aria-label", L().lang);
+  document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = L()[el.dataset.t]));
+  BINS.forEach((b) => { const el = binEl(b.id); el.querySelector(".tag").textContent = b.name[lang]; el.setAttribute("aria-label", L().throwTo(b.full[lang])); });
+  drawLabel();
+  if ($("sheet").classList.contains("open")) finish();
+}
+$("lang").onclick = () => { lang = lang === "en" ? "fr" : "en"; applyLang(); };
+$("mToday").onclick = () => mode !== "today" && start("today");
+$("mChallenge").onclick = () => mode !== "challenge" && start("challenge");
+addEventListener("keydown", (e) => { const n = Number(e.key); if (n >= 1 && n <= 4 && !busy && !$("sheet").classList.contains("open")) throwTo(BINS[n - 1].id, false); });
+// The feedback strip changes height, which resizes the scene: keep the resting item on its spot.
+new ResizeObserver(() => { layout(); if (!busy && !drag) { pos.x = home.x; pos.y = home.y; render(); } }).observe(scene);
+$("nToday").textContent = TODAY.length;
+
+applyLang();
+requestAnimationFrame(() => start("today"));
+</script>
+</body>
+</html>
