@@ -1,0 +1,7 @@
+# Secrets: GEMINI_API_KEY lives only in server/.env. Never commit any .env.
+.env
+.env.*
+!.env.example
+
+node_modules/
+.DS_Store

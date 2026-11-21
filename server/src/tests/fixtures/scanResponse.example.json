@@ -1,0 +1,88 @@
+{
+  "scanId": "demo-001",
+  "rulesVersion": 3,
+  "checkedOn": "2026-11-21",
+  "context": {
+    "lang": "en",
+    "borough": "plateau-mont-royal",
+    "hasBrownBin": false
+  },
+  "total": 3,
+  "isEstimate": false,
+  "items": [
+    {
+      "id": "item-1",
+      "ruleId": "drink_bottle",
+      "category": "drink_container",
+      "name": "Plastic water bottle",
+      "kind": "PET plastic bottle",
+      "count": 1,
+      "icon": "bottle",
+      "confidence": "high",
+      "correctBin": "special",
+      "dropoff": "deposit",
+      "dropoffName": "Deposit return",
+      "explanation": "Drink containers from 100 ml to 2 L go back for the deposit.",
+      "specialInstruction": "Bring it back to get your deposit.",
+      "links": [],
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=deposit%20return%20Montr%C3%A9al",
+      "needsVerification": false,
+      "contextApplied": false,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "item-2",
+      "ruleId": "battery",
+      "category": "battery",
+      "name": "Household battery",
+      "kind": "Alkaline AA battery",
+      "count": 1,
+      "icon": "battery",
+      "confidence": "high",
+      "correctBin": "special",
+      "dropoff": "ecocentre",
+      "dropoffName": "Écocentre",
+      "explanation": "Batteries never go in the garbage or the recycling.",
+      "specialInstruction": "Cover the terminals of lithium batteries with tape.",
+      "links": [
+        {
+          "label": "City battery drop-off points",
+          "url": "https://montreal.ca/lieux?mtl_content.lieux.tags.code=PR004"
+        },
+        {
+          "label": "Official list of écocentres",
+          "url": "https://montreal.ca/lieux?mtl_content.lieux.type.code=ECOC&orderBy=dc_title"
+        }
+      ],
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=battery%20drop-off%20Montr%C3%A9al",
+      "needsVerification": false,
+      "contextApplied": false,
+      "sourceUrl": "https://montreal.ca/services/recuperation-des-piles-usagees"
+    },
+    {
+      "id": "item-3",
+      "ruleId": "food_scraps",
+      "category": "food",
+      "name": "Banana peel",
+      "kind": "Food scrap",
+      "count": 1,
+      "icon": "food",
+      "confidence": "high",
+      "correctBin": "garbage",
+      "dropoff": null,
+      "dropoffName": null,
+      "explanation": "Without a brown bin, food waste goes in the garbage.",
+      "specialInstruction": null,
+      "links": [
+        {
+          "label": "Collection day (Info-collectes)",
+          "url": "https://montreal.ca/services/horaire-des-collectes"
+        }
+      ],
+      "mapsUrl": null,
+      "needsVerification": true,
+      "contextApplied": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
+    }
+  ]
+}

@@ -1,3 +1,7 @@
+/**
+ * @file Rules, lookup and scoring tests (owner: Waddah). Pins the Montréal-specific answers the game must
+ * get right (deposit cans, 2025 packaging rule) and the scoring maths. Never calls Gemini.
+ */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findRule, getRule, RULES, toScanItem } from "../services/sortingRules.js";

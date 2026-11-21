@@ -6,7 +6,13 @@
     "dev": "tsx watch --env-file=.env src/index.ts",
     "start": "tsx --env-file=.env src/index.ts",
     "test": "tsx --test src/tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "validate-rules": "tsx scripts/validate-rules.ts",
+    "lint-docs": "tsx scripts/check-docs.ts",
+    "sync-shared": "tsx scripts/shared.ts sync",
+    "check-shared": "tsx scripts/shared.ts check",
+    "check-secrets": "tsx scripts/check-secrets.ts",
+    "check": "npm run typecheck && npm run validate-rules && npm test && npm run lint-docs && npm run check-shared && npm run check-secrets"
   },
   "engines": { "node": ">=20.6" },
   "dependencies": {
