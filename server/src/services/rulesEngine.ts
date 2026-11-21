@@ -1,6 +1,13 @@
-// Rules engine (Waddah). The ONLY place that decides which bin an item goes in.
-// Pure TypeScript, no node:fs: the server loads it in sortingRules.ts, and the app can bundle the same
-// file with quebecRules.json so lookups, quizzes and scoring give the same answers offline.
+/**
+ * @file Rules engine (owner: Waddah). The ONLY place that decides which bin an item goes in:
+ * `correctBin`, `dropoff`, `explanation` and `specialInstruction` come only from `resolveRule()` /
+ * `toScanItem()` here.
+ *
+ * Pure TypeScript with no Node imports (no node:fs): the server loads the JSON in sortingRules.ts, and
+ * the app bundles an identical copy of this file with quebecRules.json so lookups, quizzes and scoring
+ * give the same answers offline. Never import a Node module here, and never read Gemini's `name` or
+ * `category` to choose a bin.
+ */
 import { z } from "zod";
 import { BINS, CATEGORIES, DROPOFFS } from "../types.js";
 import type { Bin, Category, Confidence, Lang, OrganicsModel, ScanContext, ScanItem } from "../types.js";
@@ -22,6 +29,7 @@ const Override = z.object({
   verified: z.boolean(),
 });
 
+/** Schema of one rule (one item) in quebecRules.json → `items`. Field-by-field docs: docs/RULES.md. */
 const Item = z.object({
   id: z.string().regex(/^[a-z0-9_]+$/),
   category: z.enum(CATEGORIES),
@@ -39,6 +47,7 @@ const Item = z.object({
   sourceUrl: z.url(),
 });
 
+/** Zod schema of the whole quebecRules.json. `createRulesEngine` parses with it before anything else. */
 export const RulesFile = z.object({
   version: z.number().int(),
   checkedOn: z.string(),
@@ -59,7 +68,9 @@ export const RulesFile = z.object({
   boroughsSourceUrl: z.url(),
   items: z.array(Item),
 });
+/** The parsed rules file. */
 export type RulesFile = z.infer<typeof RulesFile>;
+/** One rule as stored in the JSON (before the user's context is applied; see `ResolvedRule`). */
 export type Rule = z.infer<typeof Item>;
 
 /** A rule after applying the user's context: what the game and the results screen actually show. */
@@ -73,10 +84,15 @@ export interface ResolvedRule {
   contextApplied: boolean;
 }
 
+/**
+ * Bucket Gemini's 0–1 confidence. "low" (< 0.5) makes the item need verification.
+ * @param c Confidence from the model, already clamped to 0–1.
+ */
 export function toConfidence(c: number): Confidence {
   return c >= 0.8 ? "high" : c >= 0.5 ? "medium" : "low";
 }
 
+/** Google Maps search URL for a drop-off query; " Montréal" is appended so results stay local. */
 export const mapsUrl = (q: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${q} Montréal`)}`;
 
@@ -93,6 +109,15 @@ function score(q: string, name: string) {
   return 0;
 }
 
+/**
+ * Validate a rules file and build the engine around it.
+ *
+ * Takes the parsed JSON instead of a path so the same function runs on the server (which reads the file
+ * with node:fs) and in the app (which imports the bundled JSON).
+ * @param raw The parsed quebecRules.json.
+ * @throws Error naming the bad field: unknown icon/link/dropoff/borough, duplicate id, missing category
+ *   name, or a dropoff on a bin other than "special" (including one an override would inherit).
+ */
 export function createRulesEngine(raw: unknown) {
   // Validated at startup: a typo in the JSON stops the server (or fails the app's test) with a clear
   // message instead of sending a wrong bin to the game.
@@ -110,7 +135,10 @@ export function createRulesEngine(raw: unknown) {
   for (const c of CATEGORIES) if (!file.categories[c]) fail(`category "${c}" has no name`);
   for (const r of file.items) for (const o of r.overrides) {
     for (const b of o.when.boroughs ?? []) if (!file.boroughs[b]) fail(`item "${r.id}" override uses unknown borough "${b}"`);
-    if ((o.dropoff ?? null) !== null && o.bin !== "special") fail(`item "${r.id}" override has a dropoff but bin "${o.bin}"`);
+    // An override that omits `dropoff` inherits the rule's, so check the dropoff it would actually produce:
+    // moving yard_waste to "compost" without `dropoff: null` would otherwise keep "yard_collection".
+    const effective = o.dropoff === undefined ? r.dropoff : o.dropoff;
+    if (effective !== null && o.bin !== "special") fail(`item "${r.id}" override gives bin "${o.bin}" a dropoff ("${effective}"); set "dropoff": null`);
   }
 
   const RULES: Rule[] = file.items;
@@ -123,7 +151,11 @@ export function createRulesEngine(raw: unknown) {
     return RULES.map(r => `- ${r.id} [${r.category}]: ${r.name.en} / ${r.name.fr} (${r.names.join(", ")})`).join("\n");
   }
 
-  /** Best rule for a typed name, or null. Works offline, no AI. */
+  /**
+   * Best rule for a name the USER typed or corrected, or null. Works offline, no AI.
+   * Never use it on Gemini's `name` in the scan path: the scan uses Gemini's `ruleId`, because a
+   * display name like "Bouteille Coca" would text-match the wrong rule more often than the model errs.
+   */
   function findRule(query: string): Rule | null {
     const q = norm(query);
     if (q.length < 2) return null;
@@ -145,7 +177,12 @@ export function createRulesEngine(raw: unknown) {
     return slug ? file.boroughs[slug] ?? null : null;
   }
 
-  /** Apply the user's context. The first matching override wins; no match = the city-wide default. */
+  /**
+   * Apply the user's context to a rule. Overrides match on borough ATTRIBUTES (`organics`, `hasBrownBin`)
+   * rather than borough names, so a fact about a borough is written once, in `boroughs`.
+   * The first matching override wins; no match = the city-wide default. A result is verified only
+   * if both the rule and the override are.
+   */
   function resolveRule(rule: Rule, ctx: Partial<ScanContext> = {}): ResolvedRule {
     const hasBrownBin = ctx.hasBrownBin ?? true;
     const organics: OrganicsModel | null = boroughInfo(ctx.borough)?.organics ?? null;
@@ -168,6 +205,14 @@ export function createRulesEngine(raw: unknown) {
     return rule ? resolveRule(rule, ctx).bin === chosen : null;
   }
 
+  /**
+   * Turn a rule (or no rule) into a game piece, in the user's context.
+   * `needsVerification` is true for: no rule, an unverified rule or override, low confidence, or a
+   * Gemini category that disagrees with the rule's category (it probably picked the wrong ruleId).
+   * @param args.rule `getRule(ruleId)` on the scan path, `findRule(typedName)` when the user corrects.
+   * @param args.aiCategory Gemini's category, used only as a sanity check, never to pick a bin.
+   * @param args.ctx Borough and brown bin; omitted fields use the defaults (borough null, hasBrownBin true).
+   */
   function toScanItem(args: {
     id: string; name: string; kind?: string; count?: number; rule: Rule | null; confidence: Confidence;
     lang: Lang; closedBag?: boolean; aiCategory?: string | null; ctx?: Partial<ScanContext>;
@@ -222,4 +267,5 @@ export function createRulesEngine(raw: unknown) {
     getRule, catalogue, findRule, resolveRule, isCorrect, toScanItem,
   };
 }
+/** Everything `createRulesEngine` returns. */
 export type RulesEngine = ReturnType<typeof createRulesEngine>;
