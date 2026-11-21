@@ -11,7 +11,7 @@ Who owns what:
 | `src/index.ts` | Juan | Express app, CORS, JSON limit, `/health`, error handler |
 | `src/routes/scan.ts` | Juan | `POST /api/scan`: photo in, game pieces out |
 | `src/services/gemini.ts` | Juan | Gemini call, prompt, JSON schema, Zod validation, timeout, retry |
-| `src/data/quebecRules.json` | Waddah | Rules v3: 50 Montréal rules, 19 boroughs, dropoffs, links (see [docs/RULES.md](../docs/RULES.md)) |
+| `src/data/quebecRules.json` | Waddah | Rules v4: 50 Montréal rules, 19 boroughs, dropoffs, links (see [docs/RULES.md](../docs/RULES.md)) |
 | `src/services/rulesEngine.ts` | Waddah | Pure rules engine, the ONLY bin decider; bundled by the app for offline |
 | `src/services/sortingRules.ts` | Waddah | Loads the rules file into the engine (server side) |
 | `src/routes/classify.ts` | Waddah | `POST /api/classify`: the user corrects an item name |

@@ -8,9 +8,14 @@ import { findRule, getRule, RULES, toScanItem } from "../services/sortingRules.j
 import { pointsPerItem, score } from "../services/scoring.js";
 import { totalOf } from "../services/gemini.js";
 
-test("rules file loads and every item has a bin, icon and source", () => {
+// Sources must be official: the city or Recyc-Québec.
+const OFFICIAL = ["https://montreal.ca/", "https://www.recyc-quebec.gouv.qc.ca/"];
+
+test("rules file loads and every item has a bin, icon and an official source", () => {
   assert.ok(RULES.length >= 40);
-  for (const r of RULES) assert.ok(r.bin && r.icon && r.sourceUrl.startsWith("https://montreal.ca/"), r.id);
+  for (const r of RULES) {
+    assert.ok(r.bin && r.icon && OFFICIAL.some(h => r.sourceUrl.startsWith(h)), `${r.id}: ${r.sourceUrl}`);
+  }
 });
 
 test("typed names find the right rule", () => {
@@ -42,7 +47,9 @@ test("no matching rule => not playable, needs verification", () => {
 test("low confidence or unverified rule => user confirms first", () => {
   assert.equal(toScanItem({ id: "a", name: "x", rule: getRule("battery"), confidence: "low", lang: "fr" }).needsVerification, true);
   assert.equal(toScanItem({ id: "b", name: "x", rule: getRule("battery"), confidence: "high", lang: "fr" }).needsVerification, false);
-  assert.equal(toScanItem({ id: "c", name: "x", rule: getRule("christmas_lights"), confidence: "high", lang: "fr" }).needsVerification, true);
+  // Every rule is verified since v4, so use an unverified copy to keep the policy under test.
+  const unverified = { ...getRule("battery")!, verified: false };
+  assert.equal(toScanItem({ id: "c", name: "x", rule: unverified, confidence: "high", lang: "fr" }).needsVerification, true);
 });
 
 test("total count: exact under 20, estimate at 20+", () => {
@@ -71,4 +78,8 @@ test("score: correct, wrong, missing and unplayable items", () => {
   assert.equal(r.score, 34);
   assert.deepEqual(r.unplayable, ["item-4"]);
   assert.equal(r.results[2].chosenBin, null); // unanswered counts as wrong
+
+  // The results screen reads /api/score, so the drop-off's note must reach it too.
+  const battery = toScanItem({ id: "item-1", name: "AA", rule: getRule("battery"), confidence: "high", lang: "en" });
+  assert.match(score("s", [battery], []).results[0].dropoffNote ?? "", /photo ID/);
 });

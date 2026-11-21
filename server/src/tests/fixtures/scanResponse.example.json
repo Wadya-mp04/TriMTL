@@ -1,6 +1,6 @@
 {
   "scanId": "demo-001",
-  "rulesVersion": 3,
+  "rulesVersion": 4,
   "checkedOn": "2026-11-21",
   "context": {
     "lang": "en",
@@ -24,6 +24,7 @@
       "dropoffName": "Deposit return",
       "explanation": "Drink containers from 100 ml to 2 L go back for the deposit.",
       "specialInstruction": "Bring it back to get your deposit.",
+      "dropoffNote": null,
       "links": [],
       "mapsUrl": "https://www.google.com/maps/search/?api=1&query=deposit%20return%20Montr%C3%A9al",
       "needsVerification": false,
@@ -44,6 +45,7 @@
       "dropoffName": "Écocentre",
       "explanation": "Batteries never go in the garbage or the recycling.",
       "specialInstruction": "Cover the terminals of lithium batteries with tape.",
+      "dropoffNote": "Bring photo ID and proof of address.",
       "links": [
         {
           "label": "City battery drop-off points",
@@ -73,6 +75,7 @@
       "dropoffName": null,
       "explanation": "Without a brown bin, food waste goes in the garbage.",
       "specialInstruction": null,
+      "dropoffNote": null,
       "links": [
         {
           "label": "Collection day (Info-collectes)",
@@ -80,7 +83,7 @@
         }
       ],
       "mapsUrl": null,
-      "needsVerification": true,
+      "needsVerification": false,
       "contextApplied": true,
       "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
     }

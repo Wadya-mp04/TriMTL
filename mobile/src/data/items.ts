@@ -15,6 +15,10 @@ export interface SortItem {
   bin: BinKey | null;
   /** Why it goes in that bin, shown after answering in the game. */
   note: string;
+  /** Rules-engine icon key (quebecRules.json `icon`), used for the game's clip-art. */
+  art?: string;
+  /** When it was scanned (ISO). Drives "today" vs earlier days in the game. */
+  scannedAt?: string;
 }
 
 /** Subset of server/src/types.ts ScanItem that the app reads. */
@@ -97,32 +101,62 @@ export function fromScanItem(it: ScanItemDTO, scanId: string): SortItem {
     icon: ICONS[it.icon] ?? 'help-outline',
     bin: it.correctBin,
     note: it.explanation,
+    art: it.icon,
   };
 }
 
+const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+
+// Demo content. Bins and wording follow server/src/data/quebecRules.json, so the game never
+// teaches an answer the rules engine would contradict (drink containers are deposit returns,
+// which the app files under Special).
+
 /** Saved items on the Scan screen before the user has scanned anything (from the design). */
 export const DEMO_SAVED: SortItem[] = [
-  { id: 'd1', name: 'Plastic bottle', detail: 'Empty & cap on', icon: 'local-drink', bin: 'recycling', note: 'Empty and rinse; deposit eligibility may apply.' },
-  { id: 'd2', name: 'Energy can', detail: 'Rinse lightly before bin', icon: 'sports-bar', bin: 'recycling', note: 'Drink cans are accepted; deposit eligibility may apply.' },
-  { id: 'd3', name: 'Snack wrapper', detail: 'Multi-layer foil/plastic wrapper', icon: 'fastfood', bin: 'garbage', note: 'Multi-layer foil wrappers go in household garbage.' },
-  { id: 'd4', name: 'Battery', detail: 'Écocentre or retail battery bin', icon: 'battery-charging-full', bin: 'special', note: 'Batteries go to a dedicated collection point or Écocentre.' },
+  { id: 'd1', name: 'Plastic bottle', detail: 'Deposit return', icon: 'local-drink', bin: 'special', note: 'Drink containers from 100 ml to 2 L go back for the deposit.', art: 'bottle', scannedAt: daysAgo(1) },
+  { id: 'd2', name: 'Energy can', detail: 'Deposit return', icon: 'sports-bar', bin: 'special', note: 'Aluminium drink cans go back for the deposit.', art: 'can', scannedAt: daysAgo(2) },
+  { id: 'd3', name: 'Snack wrapper', detail: 'All packaging is recyclable', icon: 'fastfood', bin: 'recycling', note: 'All packaging now goes in the recycling.', art: 'wrapper', scannedAt: daysAgo(3) },
+  { id: 'd4', name: 'Battery', detail: 'Écocentre or retail battery bin', icon: 'battery-charging-full', bin: 'special', note: 'Batteries never go in the garbage or the recycling.', art: 'battery', scannedAt: daysAgo(5) },
 ];
 
 /** Result shown by "See demo results" when the server can't be reached (Sorted breakdown design). */
 export const DEMO_SCAN: SortItem[] = [
-  { id: 's1', name: 'Plastic water bottle', detail: 'Empty & cap on • Deposit eligible', icon: 'local-drink', bin: 'recycling', note: 'Empty and rinse; deposit eligibility may apply.' },
-  { id: 's2', name: 'Aluminum beverage can', detail: 'Rinse lightly before bin', icon: 'sports-bar', bin: 'recycling', note: 'Rinse lightly; deposit eligibility may apply.' },
-  { id: 's3', name: 'Banana peel', detail: 'Montréal brown compost bin', icon: 'eco', bin: 'compost', note: 'Fruit scraps belong in the Montréal brown compost bin.' },
-  { id: 's4', name: 'Snack packaging', detail: 'Multi-layer foil/plastic wrapper', icon: 'fastfood', bin: 'garbage', note: 'Multi-layer foil wrappers go in household garbage.' },
-  { id: 's5', name: 'Household battery', detail: 'Écocentre or retail battery bin', icon: 'battery-charging-full', bin: 'special', note: 'Batteries go to a dedicated collection point or Écocentre.' },
+  { id: 's1', name: 'Plastic water bottle', detail: 'Deposit return', icon: 'local-drink', bin: 'special', note: 'Drink containers from 100 ml to 2 L go back for the deposit.', art: 'bottle' },
+  { id: 's2', name: 'Aluminum beverage can', detail: 'Deposit return', icon: 'sports-bar', bin: 'special', note: 'Aluminium drink cans go back for the deposit.', art: 'can' },
+  { id: 's3', name: 'Banana peel', detail: 'Montréal brown bin', icon: 'eco', bin: 'compost', note: 'Anything edible goes in the brown bin, raw, cooked or spoiled, bones included.', art: 'food' },
+  { id: 's4', name: 'Snack packaging', detail: 'All packaging is recyclable', icon: 'fastfood', bin: 'recycling', note: 'All packaging now goes in the recycling.', art: 'wrapper' },
+  { id: 's5', name: 'Household battery', detail: 'Écocentre or retail battery bin', icon: 'battery-charging-full', bin: 'special', note: 'Batteries never go in the garbage or the recycling.', art: 'battery' },
 ];
 
 /** "Daily" game deck (Play design). */
 export const DAILY_DECK: SortItem[] = [
-  { id: 'q1', name: 'Plastic bottle', detail: '', icon: 'local-drink', bin: 'recycling', note: 'Empty and rinse; deposit eligibility may apply.' },
-  { id: 'q2', name: 'Battery', detail: '', icon: 'battery-charging-full', bin: 'special', note: 'Batteries go to a dedicated collection point or Écocentre.' },
-  { id: 'q3', name: 'Snack wrapper', detail: '', icon: 'fastfood', bin: 'garbage', note: 'Multi-layer foil wrappers go in household garbage.' },
-  { id: 'q4', name: 'Banana peel', detail: '', icon: 'compost', bin: 'compost', note: 'Fruit scraps belong in the Montréal brown compost bin.' },
+  { id: 'q1', name: 'Plastic bottle', detail: '', icon: 'local-drink', bin: 'special', note: 'Drink containers from 100 ml to 2 L go back for the deposit.', art: 'bottle' },
+  { id: 'q2', name: 'Battery', detail: '', icon: 'battery-charging-full', bin: 'special', note: 'Batteries never go in the garbage or the recycling.', art: 'battery' },
+  { id: 'q3', name: 'Snack wrapper', detail: '', icon: 'fastfood', bin: 'recycling', note: 'All packaging now goes in the recycling.', art: 'wrapper' },
+  { id: 'q4', name: 'Banana peel', detail: '', icon: 'compost', bin: 'compost', note: 'Anything edible goes in the brown bin, raw, cooked or spoiled, bones included.', art: 'food' },
+];
+
+/** Challenge items the player may never have scanned. Copied from quebecRules.json (id, bin,
+ *  explanation, specialInstruction) so answers match the rules engine. */
+const pool = (id: string, name: string, art: string, bin: BinKey, note: string, detail = ''): SortItem =>
+  ({ id: `pool:${id}`, name, detail, icon: ICONS[art] ?? 'help-outline', bin, note, art });
+export const CHALLENGE_POOL: SortItem[] = [
+  pool('pizza_box_greasy', 'Greasy pizza box', 'pizza_box', 'compost', 'Cardboard soaked with grease or sauce goes in the brown bin.'),
+  pool('coffee_cup', 'Coffee cup', 'cup', 'recycling', 'Paper containers go in the recycling, even if soiled.', 'Empty it. The lid goes in the bin too.'),
+  pool('aerosol', 'Aerosol can', 'spray', 'special', 'Pressurized containers are refused in the recycling.', 'Écocentre'),
+  pool('eggshells', 'Eggshells', 'egg', 'compost', 'Eggs and their shells go in the brown bin.'),
+  pool('milk_carton', 'Milk carton', 'carton', 'recycling', 'Multi-layer cartons go in the recycling.', 'Empty and rinse.'),
+  pool('glass_jar', 'Glass jar', 'glass_jar', 'recycling', 'Glass containers go in the recycling.', 'Empty and rinse. Unscrew metal lids and put them in the bin separately.'),
+  pool('smoke_detector', 'Smoke detector', 'smoke_detector', 'garbage', 'The City says smoke detectors go in the garbage.', 'Take the battery out first.'),
+  pool('broken_glassware', 'Broken plate', 'broken_glass', 'garbage', "Dishes, drinking glasses and mirrors don't go in the recycling.", 'Wrap sharp pieces before throwing them out.'),
+  pool('plastic_bags', 'Plastic bag', 'plastic_bag', 'recycling', 'Plastic bags and wrapping film go in the recycling.', 'Except garbage bags, which are not recyclable.'),
+  pool('bulb_regular', 'LED bulb', 'bulb', 'garbage', 'These bulbs are accepted in the garbage.', 'Ideally, bring them to an écocentre so they get recycled.'),
+  pool('paint', 'Paint can', 'paint', 'special', 'These are household hazardous waste.', 'Écocentre'),
+  pool('paper_towel', 'Paper towel', 'tissue', 'compost', 'Soiled paper goes in the brown bin, never in the recycling.'),
+  pool('food_can', 'Food can', 'can', 'recycling', 'Metal containers are recyclable.', 'Empty and rinse.'),
+  pool('plastic_utensils', 'Plastic fork and straw', 'utensils', 'garbage', 'Plastic cutlery and straws go in the garbage.'),
+  pool('cardboard', 'Cardboard box', 'box', 'recycling', 'Cardboard is recyclable.', 'Break boxes down and flatten them.'),
+  pool('paper', 'Newspaper', 'paper', 'recycling', 'Printed paper is recyclable, even window envelopes and stapled sheets.'),
 ];
 
 export interface Ranked {

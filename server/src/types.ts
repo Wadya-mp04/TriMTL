@@ -81,6 +81,11 @@ export interface ScanItem {
   dropoffName: string | null;    // "Écocentre", "Pharmacy"… in the requested language
   explanation: string | null;
   specialInstruction: string | null;
+  /**
+   * The drop-off's own note (e.g. "Seasonal collection, spring to fall", "Bring photo ID"), when it adds
+   * something the specialInstruction doesn't already say. Show it under the specialInstruction.
+   */
+  dropoffNote: string | null;
   links: { label: string; url: string }[];
   mapsUrl: string | null;
   needsVerification: boolean;    // unverified rule, low confidence, or Gemini/rule category mismatch
@@ -130,6 +135,7 @@ export interface ScoreResult {
   points: number;
   explanation: string | null;
   specialInstruction: string | null;
+  dropoffNote: string | null;    // same as ScanItem.dropoffNote: show under specialInstruction
 }
 
 /** Server -> app, POST /api/score. */

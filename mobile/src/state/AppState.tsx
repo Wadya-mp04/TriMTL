@@ -6,6 +6,7 @@
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 
 import { DEMO_SAVED, DEMO_SCAN, SortItem } from '../data/items';
+import type { ThemeKey as PlayThemeKey } from '../game/themes';
 import { brand } from '../brand';
 import { applyTheme, ThemeKey } from '../theme';
 
@@ -42,6 +43,8 @@ interface AppState {
   games: GameRecord[];
   stats: { games: number; answered: number; correct: number };
   theme: ThemeKey;
+  /** Neighbourhood theme for the Play screen. */
+  playTheme: PlayThemeKey;
   signIn: (name?: string) => void;
   signOut: () => void;
   addXp: (n: number) => void;
@@ -51,6 +54,7 @@ interface AppState {
   recordGame: (g: Omit<GameRecord, 'when'>) => void;
   setTheme: (t: AppState['theme']) => void;
   setArea: (borough: string | null, hasBrownBin: boolean) => void;
+  setPlayTheme: (t: PlayThemeKey) => void;
 }
 
 // Apply the white-label default before the first render.
@@ -70,7 +74,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [xpToday, setXpToday] = useState(75);
   const [saved, setSaved] = useState<SortItem[]>(DEMO_SAVED);
   const [photos, setPhotos] = useState<string[]>([]);
-  const [lastScan, setLastScanState] = useState<SortItem[]>([]);
   // Demo profile starts with the design's sample scans.
   const [history, setHistory] = useState<SortItem[]>([...DEMO_SCAN, ...DEMO_SAVED]);
   const [borough, setBorough] = useState<string | null>(null);
@@ -81,6 +84,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ]);
   const [stats, setStats] = useState({ games: 12, answered: 50, correct: 44 });
   const [theme, setThemeState] = useState<ThemeKey>(brand.defaultTheme);
+  const [playTheme, setPlayTheme] = useState<PlayThemeKey>('plateau');
+  const [lastScan, setLastScanRaw] = useState<SortItem[]>([]);
+
+  // Stamp scan time so the game can tell today's items from earlier ones; every scan also feeds history.
+  const setLastScan = useCallback((items: SortItem[]) => {
+    const now = new Date().toISOString();
+    const stamped = items.map((i) => ({ ...i, scannedAt: i.scannedAt ?? now }));
+    setLastScanRaw(stamped);
+    setHistory((h) => [...stamped, ...h]);
+  }, []);
 
   const addXp = useCallback((n: number) => {
     setXp((v) => v + n);
@@ -90,13 +103,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const saveItems = useCallback((items: SortItem[]) => {
     setSaved((prev) => {
       const ids = new Set(prev.map((p) => p.id));
-      return [...items.filter((i) => !ids.has(i.id)), ...prev];
+      const now = new Date().toISOString();
+      return [...items.filter((i) => !ids.has(i.id)).map((i) => ({ ...i, scannedAt: i.scannedAt ?? now })), ...prev];
     });
-  }, []);
-
-  const setLastScan = useCallback((items: SortItem[]) => {
-    setLastScanState(items);
-    setHistory((h) => [...items, ...h]);
   }, []);
 
   const recordGame = useCallback((g: Omit<GameRecord, 'when'>) => {
@@ -119,6 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       games,
       stats,
       theme,
+      playTheme,
       signIn: (name) => name?.trim() && setUsername(name.trim()),
       signOut: () => setUsername('EcoSorter'),
       addXp,
@@ -128,8 +138,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       recordGame,
       setTheme: (t) => { applyTheme(t); setThemeState(t); },
       setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
+      setPlayTheme,
     }),
-    [username, xp, xpToday, saved, photos, lastScan, history, borough, hasBrownBin, games, stats, theme, addXp, setLastScan, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, history, borough, hasBrownBin, games, stats, theme, playTheme, addXp, setLastScan, saveItems, recordGame],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

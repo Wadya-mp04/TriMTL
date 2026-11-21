@@ -247,6 +247,17 @@ export function ScreenHeader({
   );
 }
 
+/** Glass pill with the user's XP (used on the Play game screen). */
+export function XpPill() {
+  const { xp } = useApp();
+  return (
+    <Pill style={{ paddingVertical: 8, paddingHorizontal: 14 }}>
+      <Icon name="bolt" size={15} color={colors.forest} />
+      <T size="xs" weight="semibold" style={{ fontVariant: ['tabular-nums'] }}>{xp} XP</T>
+    </Pill>
+  );
+}
+
 /** Round initials avatar that opens My Profile. */
 export function AvatarButton() {
   const router = useRouter();

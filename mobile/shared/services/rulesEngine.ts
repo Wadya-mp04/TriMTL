@@ -226,7 +226,7 @@ export function createRulesEngine(raw: unknown) {
     if (!rule) {
       return {
         id, ruleId: null, category: aiCategory, name, kind, count: args.count ?? 1, icon: "generic", confidence,
-        correctBin: null, dropoff: null, dropoffName: null, explanation: null,
+        correctBin: null, dropoff: null, dropoffName: null, dropoffNote: null, explanation: null,
         specialInstruction: args.closedBag
           ? (lang === "fr" ? "Le contenu du sac est caché. Videz-le sur une table et reprenez la photo." : "The bag hides what's inside. Empty it on a table and take the photo again.")
           : (lang === "fr" ? "Aucune règle vérifiée pour cet objet. Corrigez son nom ou vérifiez sur montreal.ca." : "No verified rule for this item. Edit its name or check montreal.ca."),
@@ -241,6 +241,10 @@ export function createRulesEngine(raw: unknown) {
     const linkKeys = [...new Set([...rule.links, ...(d?.links ?? [])])];
     // Gemini says "plastic" but the rule is "food"? It probably picked the wrong ruleId.
     const categoryMismatch = aiCategory !== null && aiCategory !== rule.category;
+    // The item's own instruction wins the specialInstruction slot (unchanged since v1, so existing screens
+    // keep working); the drop-off's note gets its own field so it isn't hidden when both exist.
+    const specialInstruction = (r.specialInstruction ?? d?.note)?.[lang] ?? null;
+    const note = d?.note?.[lang] ?? null;
 
     return {
       id, ruleId: rule.id, category: rule.category, name, kind, count: args.count ?? 1, icon: rule.icon, confidence,
@@ -248,7 +252,8 @@ export function createRulesEngine(raw: unknown) {
       dropoff: r.dropoff,
       dropoffName: d?.name[lang] ?? null,
       explanation: r.explanation[lang],
-      specialInstruction: (r.specialInstruction ?? d?.note)?.[lang] ?? null,
+      specialInstruction,
+      dropoffNote: note !== specialInstruction ? note : null,
       links: linkKeys.map(k => ({ label: file.links[k].label[lang], url: file.links[k].url })),
       mapsUrl: mapsQuery ? mapsUrl(mapsQuery[lang]) : null,
       // Unverified rules, low-confidence detections and category mismatches get confirmed by the user first.

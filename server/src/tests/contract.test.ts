@@ -27,8 +27,12 @@ const item = (id: string, ctx: { borough?: string | null; hasBrownBin?: boolean 
 
 // ---------- Rules data ----------
 
-test("rules file is version 3 with 19 boroughs, 5 of them combined organics", () => {
-  assert.equal(RULES_VERSION, 3);
+test("rules file is version 4 with 19 boroughs, 5 of them combined organics, every rule and override verified", () => {
+  assert.equal(RULES_VERSION, 4);
+  for (const r of RULES) {
+    assert.equal(r.verified, true, r.id);
+    for (const o of r.overrides) assert.equal(o.verified, true, `${r.id} ${JSON.stringify(o.when)}`);
+  }
   assert.equal(BOROUGHS.length, 19);
   assert.deepEqual(
     BOROUGHS.filter(b => b.organics === "combined").map(b => b.slug).sort(),
@@ -76,14 +80,46 @@ test("yard_waste: combined-organics borough -> compost; food_only borough -> spe
   assert.equal(item("yard_waste", { borough: "westmount" }).correctBin, "special");
 });
 
-test("food_scraps without a brown bin -> garbage, context applied, needs verification (override unverified)", () => {
+test("food_scraps without a brown bin -> garbage, context applied, verified since v4", () => {
   const it = item("food_scraps", { hasBrownBin: false });
   assert.equal(it.correctBin, "garbage");
   assert.equal(it.contextApplied, true);
-  assert.equal(it.needsVerification, true);
+  assert.equal(it.needsVerification, false);
   // Default context: hasBrownBin defaults to true.
   assert.equal(item("food_scraps").correctBin, "compost");
   assert.equal(item("food_scraps").needsVerification, false);
+});
+
+test("compostable_plastic -> garbage in every context, no override", () => {
+  for (const borough of [null, ...BOROUGHS.map(b => b.slug)]) for (const hasBrownBin of [true, false]) {
+    const it = item("compostable_plastic", { borough, hasBrownBin });
+    assert.equal(it.correctBin, "garbage", `${borough} ${hasBrownBin}`);
+    assert.equal(it.contextApplied, false, `${borough} ${hasBrownBin}`);
+  }
+});
+
+test("dropoffNote: shown when it adds something, null when it would repeat specialInstruction", () => {
+  const verdun = item("yard_waste", { borough: "verdun" });
+  assert.match(verdun.dropoffNote ?? "", /Seasonal collection, spring to fall/);
+  assert.notEqual(verdun.dropoffNote, verdun.specialInstruction);
+  assert.match(verdun.specialInstruction ?? "", /longer than 1 m or thicker than 5 cm/);
+
+  const plateau = item("yard_waste", { borough: "plateau-mont-royal" });
+  assert.equal(plateau.correctBin, "compost");
+  assert.equal(plateau.dropoffNote, null);
+
+  // vape has no instruction of its own, so the écocentre note fills specialInstruction: no duplicate.
+  const vape = item("vape");
+  assert.match(vape.specialInstruction ?? "", /photo ID/);
+  assert.equal(vape.dropoffNote, null);
+
+  // battery has its own instruction (tape the terminals), so the écocentre note gets its own field.
+  const battery = item("battery");
+  assert.match(battery.dropoffNote ?? "", /photo ID/);
+  assert.notEqual(battery.dropoffNote, battery.specialInstruction);
+
+  // No dropoff, no note.
+  assert.equal(item("cardboard").dropoffNote, null);
 });
 
 test("pizza_box_greasy without a brown bin -> recycling", () => {
@@ -162,7 +198,7 @@ test("scan route: returns a valid ScanResponse and passes aiCategory + context t
     const res = await post(url, { imageBase64: image, mimeType: "image/jpeg", lang: "en", borough: "plateau-mont-royal", hasBrownBin: false });
     assert.equal(res.status, 200);
     const body = ScanResponseSchema.parse(await res.json());
-    assert.equal(body.rulesVersion, 3);
+    assert.equal(body.rulesVersion, 4);
     assert.deepEqual(body.context, { lang: "en", borough: "plateau-mont-royal", hasBrownBin: false });
     assert.equal(body.total, 4);
     assert.equal(body.sessionId, body.scanId);        // legacy fields still sent

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "checkedOn": "2026-11-21",
   "bins": [
     "recycling",
@@ -177,8 +177,8 @@
       },
       "mapsQuery": null,
       "note": {
-        "fr": "Collecte saisonnière, au printemps et à l'automne. Hors saison : écocentre.",
-        "en": "Seasonal collection, spring to fall. Off season: an écocentre."
+        "fr": "Collecte saisonnière, du printemps à l'automne. Hors saison : à l'écocentre, et aux ordures seulement en dernier recours.",
+        "en": "Seasonal collection, spring to fall. Off season: an écocentre, and the garbage only as a last resort."
       },
       "links": [
         "yard_collection"
@@ -796,16 +796,13 @@
         "fr": "Le papier d'emballage ordinaire est du papier.",
         "en": "Plain wrapping paper is paper."
       },
-      "specialInstruction": {
-        "fr": "Le papier métallisé va aux ordures, comme les rubans et les boucles.",
-        "en": "Metallic paper goes in the garbage, as do ribbons and bows."
-      },
+      "specialInstruction": null,
       "mapsQuery": null,
       "links": [
         "info_collectes"
       ],
-      "verified": false,
-      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/tout-savoir-sur-les-collectes-saint-laurent-11887"
     },
     {
       "id": "drink_can",
@@ -963,7 +960,7 @@
             "en": "Without a brown bin, food waste goes in the garbage."
           },
           "specialInstruction": null,
-          "verified": false
+          "verified": true
         }
       ],
       "verified": true,
@@ -1006,7 +1003,7 @@
             "en": "Without a brown bin, food waste goes in the garbage."
           },
           "specialInstruction": null,
-          "verified": false
+          "verified": true
         }
       ],
       "verified": true,
@@ -1055,7 +1052,7 @@
             "en": "Without a brown bin, food waste goes in the garbage."
           },
           "specialInstruction": null,
-          "verified": false
+          "verified": true
         }
       ],
       "verified": true,
@@ -1101,7 +1098,7 @@
             "en": "Without a brown bin, soiled paper goes in the garbage, never in the recycling."
           },
           "specialInstruction": null,
-          "verified": false
+          "verified": true
         }
       ],
       "verified": true,
@@ -1110,7 +1107,7 @@
     {
       "id": "compostable_plastic",
       "category": "plastic",
-      "bin": "compost",
+      "bin": "garbage",
       "dropoff": null,
       "icon": "leaf",
       "name": {
@@ -1127,33 +1124,16 @@
         "compostable cup"
       ],
       "explanation": {
-        "fr": "Seulement s'il porte un logo de certification compostable (BNQ, BPI, OK Compost).",
-        "en": "Only if it carries a compostable certification logo (BNQ, BPI, OK Compost)."
+        "fr": "Les plastiques compostables et biodégradables vont aux ordures : ils ne se recyclent pas.",
+        "en": "Compostable and biodegradable plastics go in the garbage: they are not recyclable."
       },
-      "specialInstruction": {
-        "fr": "« Biodégradable » ne suffit pas : sans certification, c'est aux ordures.",
-        "en": "\"Biodegradable\" is not enough: without certification it goes in the garbage."
-      },
+      "specialInstruction": null,
       "mapsQuery": null,
       "links": [
         "info_collectes"
       ],
-      "overrides": [
-        {
-          "when": {
-            "hasBrownBin": false
-          },
-          "bin": "garbage",
-          "explanation": {
-            "fr": "Sans bac brun, les emballages compostables vont aux ordures.",
-            "en": "Without a brown bin, compostable packaging goes in the garbage."
-          },
-          "specialInstruction": null,
-          "verified": false
-        }
-      ],
       "verified": true,
-      "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
+      "sourceUrl": "https://montreal.ca/sujets/ordures-menageres"
     },
     {
       "id": "yard_waste",
@@ -1185,8 +1165,8 @@
         "en": "In most boroughs, yard waste has its own collection, in paper bags."
       },
       "specialInstruction": {
-        "fr": "Branches de plus de 5 cm de diamètre, terre et pierres : à l'écocentre.",
-        "en": "Branches over 5 cm thick, soil and stones: to an écocentre."
+        "fr": "Branches de plus de 1 m ou de plus de 5 cm de diamètre, terre et pierres : à l'écocentre.",
+        "en": "Branches longer than 1 m or thicker than 5 cm, soil and stones: to an écocentre."
       },
       "mapsQuery": null,
       "links": [
@@ -2011,15 +1991,18 @@
         "fairy lights"
       ],
       "explanation": {
-        "fr": "Les lumières électriques ne vont pas dans le bac de récupération.",
-        "en": "Electric lights don't go in the recycling."
+        "fr": "Hors d'usage, les lumières vont à l'écocentre : dans le bac de récupération, elles bloquent les machines du centre de tri.",
+        "en": "Worn-out lights go to an écocentre: in the recycling bin they jam the sorting-centre machines."
       },
-      "specialInstruction": null,
+      "specialInstruction": {
+        "fr": "Encore fonctionnelles ? Donnez-les.",
+        "en": "Still working? Give them away."
+      },
       "mapsQuery": null,
       "links": [
         "ecocentres"
       ],
-      "verified": false,
+      "verified": true,
       "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
     },
     {
