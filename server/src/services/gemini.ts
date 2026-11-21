@@ -7,6 +7,8 @@ import type { Lang } from "../types.js";
 
 export const MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 const TIMEOUT_MS = 20_000;
+// Tested 21 Nov: thinkingLevel "low"/"high" did not improve counting of partly hidden cans and
+// "high" timed out on 2 of 4 photos, so the model's default is used.
 const MAX_ITEMS = 8;
 
 export class AiError extends Error {
@@ -32,7 +34,8 @@ Rules:
 - If a closed, opaque bag hides its contents, return one entry for it with ruleId "none" and closedBag true.
 - Ignore people, hands, tables, floors, walls, and belongings clearly in use (a phone or laptop on the desk, keys, a wallet).
 - "confidence": 0 to 1, how sure you are of the object AND the id.
-- Nothing to sort in the photo -> return an empty list.`;
+- "subject": in a few words, in the requested language, what the photo mainly shows (e.g. "un chat", "une personne", "une rue", "des canettes sur une table").
+- "notWaste": true when the photo contains NOTHING to throw away or sort: only an animal, a person, a landscape, a room, a screen, food still on a plate being eaten, etc. Then return an empty list. If there is any waste in the photo (even a person holding a bottle), notWaste is false and you list the waste.`;
 
 const SCHEMA = {
   type: "object",
@@ -54,14 +57,18 @@ const SCHEMA = {
     },
     totalObjects: { type: "integer" },
     isEstimate: { type: "boolean" },
+    subject: { type: "string" },
+    notWaste: { type: "boolean" },
   },
-  required: ["items", "totalObjects", "isEstimate"],
+  required: ["items", "totalObjects", "isEstimate", "subject", "notWaste"],
 };
 
 // Never trust the model's JSON blindly: validate, clamp, and drop anything malformed.
 const Detected = z.object({
   totalObjects: z.number().int().catch(0),
   isEstimate: z.boolean().catch(false),
+  subject: z.string().trim().max(80).catch(""),
+  notWaste: z.boolean().catch(false),
   items: z.array(z.object({
     name: z.string().trim().min(1).max(80),
     kind: z.string().trim().max(80).catch(""),
@@ -72,7 +79,7 @@ const Detected = z.object({
   })).max(MAX_ITEMS * 2),
 });
 export type DetectedItem = z.infer<typeof Detected>["items"][number];
-export interface Detection { items: DetectedItem[]; total: number; isEstimate: boolean }
+export interface Detection { items: DetectedItem[]; total: number; isEstimate: boolean; subject: string; notWaste: boolean }
 
 /** Total objects: the sum of merged counts, unless the model saw more than it listed (20+ = estimate). */
 export function totalOf(items: DetectedItem[], modelTotal: number, modelEstimate: boolean) {
@@ -92,7 +99,8 @@ async function callOnce(imageBase64: string, mimeType: string, lang: Lang): Prom
     model: MODEL,
     contents: [
       { inlineData: { mimeType, data: imageBase64 } },
-      { text: `List every object to sort in this photo. Names in ${lang === "en" ? "English" : "French"}.` },
+      // The examples in SYSTEM are French; say the language explicitly or "subject"/"kind" drift into French.
+      { text: `List every object to sort in this photo. Write every "name", "kind" and "subject" in ${lang === "en" ? "English" : "French"}.` },
     ],
     config: { systemInstruction: SYSTEM, responseMimeType: "application/json", responseJsonSchema: SCHEMA, temperature: 0 },
   });
@@ -110,7 +118,12 @@ async function callOnce(imageBase64: string, mimeType: string, lang: Lang): Prom
   const parsed = Detected.safeParse(JSON.parse(text ?? "{}"));
   if (!parsed.success) throw new AiError("ai_failed", "Gemini returned JSON in an unexpected shape");
   const items = parsed.data.items.slice(0, MAX_ITEMS);
-  return { items, ...totalOf(items, parsed.data.totalObjects, parsed.data.isEstimate) };
+  return {
+    items, ...totalOf(items, parsed.data.totalObjects, parsed.data.isEstimate),
+    subject: parsed.data.subject,
+    // Listed waste wins over the flag: a person holding a bottle is a bottle to sort.
+    notWaste: parsed.data.notWaste && items.length === 0,
+  };
 }
 
 /** One retry for a transient failure or malformed output; never retry a quota error or a timeout. */
