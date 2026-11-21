@@ -1,11 +1,13 @@
 /**
- * In-memory app state: profile, XP, saved items, the photos being scanned and the last scan result.
- * Starts with the demo profile from the designs (EcoSorter, 320 XP). Nothing is persisted yet and
- * there is no auth backend: sign in / sign up only set the local profile.
+ * App state: profile, XP, saved items, the photos being scanned and the last scan result.
+ * Starts with the demo profile from the designs (EcoSorter, 320 XP).
+ * With Supabase configured (src/lib/supabase.ts), sign in / sign up use real accounts, and saved scans
+ * and finished rounds are also written to the user's rows. Without it, everything stays local (demo mode).
  */
-import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { DEMO_SAVED, SortItem } from '../data/items';
+import { supabase } from '../lib/supabase';
 
 export interface GameRecord {
   title: string;
@@ -35,13 +37,17 @@ interface AppState {
   games: GameRecord[];
   stats: { games: number; answered: number; correct: number };
   theme: 'forest' | 'ocean' | 'lavender';
-  signIn: (name?: string) => void;
+  /** Supabase user id, or null when signed out or in demo mode. */
+  userId: string | null;
+  /** Each returns an error message to show, or null on success. */
+  signIn: (email: string, password: string) => Promise<string | null>;
+  signUp: (username: string, email: string, password: string) => Promise<string | null>;
   signOut: () => void;
   addXp: (n: number) => void;
   setPhotos: (uris: string[]) => void;
   setLastScan: (items: SortItem[]) => void;
   saveItems: (items: SortItem[]) => void;
-  recordGame: (g: Omit<GameRecord, 'when'>) => void;
+  recordGame: (g: Omit<GameRecord, 'when'> & { mode: 'daily' | 'mine'; xp: number }) => void;
   setTheme: (t: AppState['theme']) => void;
 }
 
@@ -66,6 +72,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ]);
   const [stats, setStats] = useState({ games: 12, answered: 50, correct: 44 });
   const [theme, setTheme] = useState<AppState['theme']>('forest');
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Restore the saved session on launch and follow sign-in / sign-out / token refresh.
+  useEffect(() => {
+    if (!supabase) return;
+    const sb = supabase;
+    const apply = async (id: string | null) => {
+      setUserId(id);
+      if (!id) return;
+      const { data } = await sb.from('profiles').select('username').eq('id', id).single();
+      if (data?.username) setUsername(data.username);
+    };
+    sb.auth.getSession().then(({ data }) => apply(data.session?.user.id ?? null));
+    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => { apply(session?.user.id ?? null); });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    if (!supabase) return null; // demo mode: any input enters
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    return error ? error.message : null;
+  }, []);
+
+  const signUp = useCallback(async (name: string, email: string, password: string) => {
+    if (!supabase) {
+      if (name.trim()) setUsername(name.trim());
+      return null;
+    }
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(), password, options: { data: { username: name.trim() } },
+    });
+    if (error) return error.message.includes('Database error') ? 'That username is taken or invalid (3–24 letters, numbers, . _ -).' : error.message;
+    // With "Confirm email" on in Supabase Auth, sign-up returns no session until the link is clicked.
+    return data.session ? null : 'Check your email to confirm your account, then sign in.';
+  }, []);
+
+  const signOut = useCallback(() => {
+    supabase?.auth.signOut();
+    setUserId(null);
+    setUsername('EcoSorter');
+  }, []);
 
   const addXp = useCallback((n: number) => {
     setXp((v) => v + n);
@@ -77,12 +124,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const ids = new Set(prev.map((p) => p.id));
       return [...items.filter((i) => !ids.has(i.id)), ...prev];
     });
-  }, []);
+    const real = items.filter((i) => i.ruleId !== undefined);
+    if (!supabase || !userId || !real.length) return;
+    // Store the rule id and context, not the bin: the rules engine decides the bin when it is played.
+    // borough/has_brown_bin use the table defaults (null, true), which is what api/scan.ts sends today.
+    supabase.from('scanned_items')
+      .insert(real.map((i) => ({ rule_id: i.ruleId, category: i.category, name: i.name, count: i.count ?? 1 })))
+      .then(({ error }) => { if (error) console.warn('save scans failed:', error.message); });
+  }, [userId]);
 
-  const recordGame = useCallback((g: Omit<GameRecord, 'when'>) => {
-    setGames((prev) => [{ ...g, when: 'Today' }, ...prev].slice(0, 5));
+  const recordGame = useCallback((g: Omit<GameRecord, 'when'> & { mode: 'daily' | 'mine'; xp: number }) => {
+    setGames((prev) => [{ title: g.title, items: g.items, correct: g.correct, when: 'Today' }, ...prev].slice(0, 5));
     setStats((s) => ({ games: s.games + 1, answered: s.answered + g.items, correct: s.correct + g.correct }));
-  }, []);
+    if (!supabase || !userId) return;
+    supabase.from('game_scores')
+      .insert({ mode: g.mode, items: g.items, correct: g.correct, xp: g.xp })
+      .then(({ error }) => { if (error) console.warn('save score failed:', error.message); });
+  }, [userId]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -96,8 +154,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       games,
       stats,
       theme,
-      signIn: (name) => name?.trim() && setUsername(name.trim()),
-      signOut: () => setUsername('EcoSorter'),
+      userId,
+      signIn,
+      signUp,
+      signOut,
       addXp,
       setPhotos,
       setLastScan,
@@ -105,7 +165,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       recordGame,
       setTheme,
     }),
-    [username, xp, xpToday, saved, photos, lastScan, games, stats, theme, addXp, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, games, stats, theme, userId, signIn, signUp, signOut, addXp, saveItems, recordGame],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

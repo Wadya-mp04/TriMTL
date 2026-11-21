@@ -57,7 +57,7 @@ export default function PlayScreen() {
 
   const next = () => {
     if (idx >= deck.length - 1) {
-      recordGame({ title: mode === 'daily' ? 'Daily challenge' : 'My scanned items', items: deck.length, correct });
+      recordGame({ title: mode === 'daily' ? 'Daily challenge' : 'My scanned items', items: deck.length, correct, mode, xp: correct * XP_PER_HIT });
       setDone(true);
       return;
     }

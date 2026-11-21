@@ -15,11 +15,17 @@ export interface SortItem {
   bin: BinKey | null;
   /** Why it goes in that bin, shown after answering in the game. */
   note: string;
+  /** Set only on items from a real scan (undefined on demo items), so only those get saved to the account. */
+  ruleId?: string | null;
+  category?: string | null;
+  count?: number;
 }
 
 /** Subset of server/src/types.ts ScanItem that the app reads. */
 export interface ScanItemDTO {
   id: string;
+  ruleId: string | null;
+  category: string | null;
   name: string;
   kind: string;
   count: number;
@@ -97,6 +103,9 @@ export function fromScanItem(it: ScanItemDTO, scanId: string): SortItem {
     icon: ICONS[it.icon] ?? 'help-outline',
     bin: it.correctBin,
     note: it.explanation,
+    ruleId: it.ruleId,
+    category: it.category,
+    count: it.count,
   };
 }
 

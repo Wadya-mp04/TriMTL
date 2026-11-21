@@ -71,6 +71,23 @@ npx expo start              # scan the QR code with Expo Go
 | `GEMINI_MODEL` | no | `gemini-3.1-flash-lite` | 2–4 s per photo in testing. |
 | `PORT` | no | `3001` | |
 
+### Accounts and saved data (Supabase)
+
+Optional: without it the app runs in demo mode with nothing saved.
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In **SQL Editor**, run [`supabase/migrations/20261121000000_init.sql`](supabase/migrations/20261121000000_init.sql). It creates
+   `profiles`, `scanned_items`, `game_scores` and `friendships`, all protected by row-level security
+   (each user can only read and write their own rows).
+3. For the demo, turn off **Authentication → Sign In / Providers → Email → Confirm email**, so sign-up
+   logs straight in. Otherwise the app shows "Check your email to confirm your account".
+4. `cp mobile/.env.example mobile/.env` and paste the **Project URL** and the **publishable (anon) key** from
+   Project Settings → API. Never the secret / service-role key: the app ships whatever is in this file.
+5. Restart `npx expo start`.
+
+Scanned items are stored as `rule_id` + category + context, **not** as a bin, so the rules engine
+decides the bin when an item is played and stored items follow rule updates.
+
 ## Checks
 
 ```bash
