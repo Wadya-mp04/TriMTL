@@ -51,6 +51,9 @@ export interface ScanResponse {
   totalCount: number;       // every object in the photo, merged counts included (3 cans + 1 bottle = 4)
   countIsEstimate: boolean; // true with 20+ objects: show "about 25 items"
   items: ScanItem[];
+  subject: string;          // what the photo mainly shows ("un chat", "des canettes sur une table")
+  notWaste: boolean;        // true => nothing to sort in the photo (a cat, a person...); items is empty
+  message: string | null;   // ready-to-show text when notWaste or when nothing was found; null otherwise
 }
 
 export interface ScoreRequest {

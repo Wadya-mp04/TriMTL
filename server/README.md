@@ -112,7 +112,10 @@ Field rules the frontend can rely on:
 | `kind` | What the object physically is, material included ("Canette en aluminium", "Sachet souple en plastique"). Show it under the name. |
 | `totalCount` | Every object in the photo, merged counts included. Exact below 20. |
 | `countIsEstimate` | `true` with 20 or more objects: display "environ 25 objets" / "about 25 items". Only up to 8 game pieces are returned even then. |
-| Empty `items` | Nothing to sort was found. Show "No items found, try again" (not an error). |
+| `subject` | What the photo mainly shows, in the requested language ("a cat playing with a lizard"). |
+| `notWaste` | `true` = the photo holds nothing to sort (a cat, a person, a street). `items` is empty. |
+| `message` | Ready-to-show text whenever `items` is empty: either "That's not something to sort (a cat…). Take a photo of a container, packaging…" or "No items to sort were found. Move closer…". `null` when there are items. |
+| Empty `items` | Not an error: show `message`. |
 
 Errors:
 
