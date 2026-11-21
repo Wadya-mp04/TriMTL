@@ -67,7 +67,7 @@ In short:
    | Brown bin, plus yard waste | `compost` |
    | Garbage | `garbage` |
    | Écocentre | `special` + `dropoff: ecocentre` |
-   | Deposit return (consigne) | `special` + `dropoff: deposit` |
+   | Deposit return (consigne) | Not used as a bin: deposit containers are `recycling`, and the deposit is a tip in `specialInstruction` (see 2.) |
    | Pharmacy, donation, tree, bulky or yard-waste collection | `special` + matching `dropoff` |
 
 2. **Drink cans and plastic drink bottles (100 mL to 2 L) are `recycling` (since rules v7).** They also carry a 10¢ deposit, so `specialInstruction` says returning them is even better. (Before v7 they were `special` / `deposit`.)
