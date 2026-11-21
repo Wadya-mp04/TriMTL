@@ -9,6 +9,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View
 import { BrandMark, Glass, Icon, PrimaryButton, Screen, Segmented, Spring, T } from '../components/ui';
 import { useApp } from '../state/AppState';
 import { colors, fonts, radius } from '../theme';
+import { brand } from '../brand';
 
 type Mode = 'signin' | 'signup';
 
@@ -48,8 +49,8 @@ export default function AuthScreen() {
           <View style={styles.brand}>
             <BrandMark size={64} />
             <View style={{ alignItems: 'center' }}>
-              <T size="4xl" display style={{ lineHeight: 45 }}>TriMTL</T>
-              <T size="sm" color={colors.inkMuted} style={{ marginTop: 4 }}>Scan it. Sort it. Learn Montréal.</T>
+              <T size="4xl" display style={{ lineHeight: 45 }}>{brand.appName}</T>
+              <T size="sm" color={colors.inkMuted} style={{ marginTop: 4 }}>{brand.tagline}</T>
             </View>
           </View>
 

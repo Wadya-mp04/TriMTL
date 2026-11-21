@@ -8,14 +8,15 @@ import { Animated, Easing, Image, Pressable, StyleSheet, View } from 'react-nati
 import { scanPhotos } from '../api/scan';
 import { CircleButton, Glass, Icon, Pill, PrimaryButton, Screen, T } from '../components/ui';
 import { DEMO_SCAN } from '../data/items';
+import { tipOfTheDay } from '../data/rules';
 import { useApp } from '../state/AppState';
-import { colors, radius, shadow } from '../theme';
+import { bins, colors, radius, shadow } from '../theme';
 
 type Phase = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'empty'; message: string };
 
 export default function AnalyzingScreen() {
   const router = useRouter();
-  const { photos, setLastScan } = useApp();
+  const { photos, setLastScan, borough, hasBrownBin } = useApp();
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const abort = useRef<AbortController | null>(null);
 
@@ -41,7 +42,7 @@ export default function AnalyzingScreen() {
     abort.current = ctrl;
     setPhase({ kind: 'loading' });
     try {
-      const { items, messages } = await scanPhotos(photos, ctrl.signal);
+      const { items, messages } = await scanPhotos(photos, { borough, hasBrownBin }, ctrl.signal);
       if (ctrl.signal.aborted) return;
       if (items.length === 0) {
         setPhase({ kind: 'empty', message: messages[0] ?? 'No items to sort were found. Move closer and try again.' });
@@ -53,7 +54,7 @@ export default function AnalyzingScreen() {
       if (ctrl.signal.aborted) return;
       setPhase({ kind: 'error', message: (e as Error).message });
     }
-  }, [photos, router, setLastScan]);
+  }, [photos, borough, hasBrownBin, router, setLastScan]);
 
   useEffect(() => {
     run();
@@ -66,6 +67,7 @@ export default function AnalyzingScreen() {
   };
 
   const loading = phase.kind === 'loading';
+  const tip = tipOfTheDay();
   const barLeft = sweep.interpolate({ inputRange: [0, 1], outputRange: ['-50%', '100%'] });
 
   return (
@@ -99,10 +101,20 @@ export default function AnalyzingScreen() {
           </View>
           {loading && (
             <View style={styles.track}>
-              <Animated.View style={[styles.bar, { left: barLeft }]} />
+              <Animated.View style={[styles.bar, { left: barLeft, backgroundColor: colors.forest }]} />
             </View>
           )}
         </Glass>
+
+        {loading && (
+          <View style={styles.tip}>
+            <T size="xs" weight="bold" color={colors.forest} style={{ letterSpacing: 0.6 }}>DID YOU KNOW?</T>
+            <T size="sm" weight="semibold" style={{ textAlign: 'center' }}>
+              {tip.name} → <T size="sm" weight="semibold" color={bins[tip.bin].deep}>{tip.where ?? bins[tip.bin].label}</T>
+            </T>
+            <T size="xs" color={colors.inkMuted} style={{ textAlign: 'center' }}>{tip.text}</T>
+          </View>
+        )}
 
         {phase.kind === 'empty' && (
           <PrimaryButton label="Take another photo" size="sm" onPress={() => router.replace('/camera')} style={styles.cta} />
@@ -130,7 +142,8 @@ const styles = StyleSheet.create({
   card: { width: '100%', borderRadius: radius['3xl'], padding: 28, alignItems: 'center', gap: 16 },
   spark: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   track: { width: '100%', height: 8, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.8)', overflow: 'hidden' },
-  bar: { position: 'absolute', top: 0, bottom: 0, width: '50%', borderRadius: radius.full, backgroundColor: colors.forest },
+  bar: { position: 'absolute', top: 0, bottom: 0, width: '50%', borderRadius: radius.full },
   cta: { width: 'auto', paddingHorizontal: 24 },
   retry: { alignSelf: 'center', paddingVertical: 8 },
+  tip: { alignItems: 'center', gap: 4, paddingHorizontal: 12 },
 });

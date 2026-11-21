@@ -6,13 +6,10 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { BentoBackdrop, CircleButton, Glass, Icon, Screen, Spring, T } from '../components/ui';
 import { levelFor, useApp } from '../state/AppState';
-import { colors, radius, shadow } from '../theme';
+import { colors, radius, shadow, THEMES, ThemeKey } from '../theme';
+import { brand } from '../brand';
 
-const THEMES = [
-  { key: 'forest', label: 'Forest', color: colors.forest },
-  { key: 'ocean', label: 'Ocean', color: colors.ocean },
-  { key: 'lavender', label: 'Lavender', color: colors.lavender },
-] as const;
+const THEME_TILES = (Object.keys(THEMES) as ThemeKey[]).map((key) => ({ key, label: THEMES[key].label, color: THEMES[key].forest }));
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -32,13 +29,13 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
         <Glass style={styles.identity}>
           <View style={[styles.row, { gap: 16 }]}>
-            <View style={[styles.bigAvatar, shadow.md]}>
+            <View style={[styles.bigAvatar, shadow.md, { backgroundColor: colors.forest }]}>
               <T size="xl" weight="bold" color={colors.white}>{initials}</T>
             </View>
             <View>
               <T size="xl" weight="bold">{username}</T>
               <View style={[styles.levelChip, shadow.sm]}>
-                <T size="xs" weight="semibold" color={colors.forest}>Level {level} • Montréal</T>
+                <T size="xs" weight="semibold" color={colors.forest}>Level {level} • {brand.city}</T>
               </View>
             </View>
           </View>
@@ -48,7 +45,7 @@ export default function ProfileScreen() {
               <T size="xs" weight="semibold" color={colors.forest} style={{ fontVariant: ['tabular-nums'] }}>{xp} / {next} XP</T>
             </View>
             <View style={styles.track}>
-              <View style={[styles.fill, { width: `${progress * 100}%` }]} />
+              <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: colors.forest }]} />
             </View>
           </View>
         </Glass>
@@ -72,7 +69,7 @@ export default function ProfileScreen() {
             <T size="xs" weight="semibold" color={colors.forest}>All 3 unlocked</T>
           </View>
           <View style={[styles.row, { gap: 10 }]}>
-            {THEMES.map((t) => {
+            {THEME_TILES.map((t) => {
               const active = theme === t.key;
               return (
                 <Spring
@@ -126,10 +123,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   main: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40, gap: 16 },
   identity: { borderRadius: radius['3xl'], padding: 20, gap: 16 },
-  bigAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.forest, alignItems: 'center', justifyContent: 'center' },
+  bigAvatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   levelChip: { alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 10, paddingVertical: 2, borderRadius: radius.full, backgroundColor: colors.white },
   track: { height: 10, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.8)', overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: radius.full, backgroundColor: colors.forest },
+  fill: { height: '100%', borderRadius: radius.full },
   stat: { flex: 1, borderRadius: radius['2xl'], padding: 12, alignItems: 'center' },
   themeTile: {
     flex: 1,

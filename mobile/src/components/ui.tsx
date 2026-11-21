@@ -238,7 +238,7 @@ export function AvatarButton() {
   const router = useRouter();
   const { initials } = useApp();
   return (
-    <Spring onPress={() => router.push('/profile')} pressedScale={0.95} accessibilityLabel="Open My Profile" style={[styles.avatar, shadow.md]}>
+    <Spring onPress={() => router.push('/profile')} pressedScale={0.95} accessibilityLabel="Open My Profile" style={[styles.avatar, shadow.md, { backgroundColor: colors.forest }]}>
       <T size="xs" weight="bold" color={colors.white}>{initials}</T>
     </Spring>
   );
@@ -336,7 +336,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.forest,
     borderWidth: 2,
     borderColor: colors.white,
     alignItems: 'center',

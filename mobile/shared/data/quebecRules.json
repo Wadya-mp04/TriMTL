@@ -1,0 +1,2207 @@
+{
+  "version": 3,
+  "checkedOn": "2026-11-21",
+  "bins": [
+    "recycling",
+    "compost",
+    "garbage",
+    "special"
+  ],
+  "categories": {
+    "paper_cardboard": {
+      "fr": "Papier et carton",
+      "en": "Paper and cardboard"
+    },
+    "plastic": {
+      "fr": "Plastique",
+      "en": "Plastic"
+    },
+    "metal": {
+      "fr": "Métal",
+      "en": "Metal"
+    },
+    "glass": {
+      "fr": "Verre",
+      "en": "Glass"
+    },
+    "drink_container": {
+      "fr": "Contenant de boisson consigné",
+      "en": "Deposit drink container"
+    },
+    "food": {
+      "fr": "Résidus alimentaires",
+      "en": "Food waste"
+    },
+    "yard": {
+      "fr": "Résidus verts",
+      "en": "Yard waste"
+    },
+    "hygiene": {
+      "fr": "Hygiène",
+      "en": "Hygiene"
+    },
+    "textile": {
+      "fr": "Textiles",
+      "en": "Textiles"
+    },
+    "household_object": {
+      "fr": "Objets du quotidien",
+      "en": "Household objects"
+    },
+    "electronics": {
+      "fr": "Électronique",
+      "en": "Electronics"
+    },
+    "battery": {
+      "fr": "Piles et batteries",
+      "en": "Batteries"
+    },
+    "lighting": {
+      "fr": "Éclairage",
+      "en": "Lighting"
+    },
+    "appliance": {
+      "fr": "Électroménagers",
+      "en": "Appliances"
+    },
+    "hazardous": {
+      "fr": "Résidus dangereux",
+      "en": "Hazardous waste"
+    },
+    "medical": {
+      "fr": "Médicaments",
+      "en": "Medication"
+    },
+    "automotive": {
+      "fr": "Automobile",
+      "en": "Automotive"
+    },
+    "construction": {
+      "fr": "Construction et rénovation",
+      "en": "Construction"
+    },
+    "furniture": {
+      "fr": "Meubles",
+      "en": "Furniture"
+    }
+  },
+  "dropoffs": {
+    "ecocentre": {
+      "name": {
+        "fr": "Écocentre",
+        "en": "Écocentre"
+      },
+      "mapsQuery": {
+        "fr": "Écocentre",
+        "en": "Écocentre"
+      },
+      "note": {
+        "fr": "Apportez une pièce d'identité et une preuve d'adresse.",
+        "en": "Bring photo ID and proof of address."
+      },
+      "links": [
+        "ecocentres"
+      ]
+    },
+    "deposit": {
+      "name": {
+        "fr": "Retour de la consigne",
+        "en": "Deposit return"
+      },
+      "mapsQuery": {
+        "fr": "retour de la consigne",
+        "en": "deposit return"
+      },
+      "note": {
+        "fr": "Rapportez-la pour récupérer votre dépôt.",
+        "en": "Bring it back to get your deposit."
+      },
+      "links": []
+    },
+    "pharmacy": {
+      "name": {
+        "fr": "Pharmacie",
+        "en": "Pharmacy"
+      },
+      "mapsQuery": {
+        "fr": "pharmacie",
+        "en": "pharmacy"
+      },
+      "note": null,
+      "links": []
+    },
+    "donation": {
+      "name": {
+        "fr": "Don",
+        "en": "Donation"
+      },
+      "mapsQuery": {
+        "fr": "boîte de dons de vêtements",
+        "en": "clothing donation bin"
+      },
+      "note": null,
+      "links": []
+    },
+    "tree_collection": {
+      "name": {
+        "fr": "Collecte des sapins",
+        "en": "Tree collection"
+      },
+      "mapsQuery": {
+        "fr": "Écocentre",
+        "en": "Écocentre"
+      },
+      "note": null,
+      "links": [
+        "tree_collection"
+      ]
+    },
+    "bulky_collection": {
+      "name": {
+        "fr": "Collecte des encombrants",
+        "en": "Bulky-item collection"
+      },
+      "mapsQuery": {
+        "fr": "Écocentre",
+        "en": "Écocentre"
+      },
+      "note": null,
+      "links": [
+        "bulky_collection"
+      ]
+    },
+    "yard_collection": {
+      "name": {
+        "fr": "Collecte des résidus verts",
+        "en": "Yard-waste collection"
+      },
+      "mapsQuery": null,
+      "note": {
+        "fr": "Collecte saisonnière, au printemps et à l'automne. Hors saison : écocentre.",
+        "en": "Seasonal collection, spring to fall. Off season: an écocentre."
+      },
+      "links": [
+        "yard_collection"
+      ]
+    }
+  },
+  "links": {
+    "info_collectes": {
+      "label": {
+        "fr": "Jour de collecte (Info-collectes)",
+        "en": "Collection day (Info-collectes)"
+      },
+      "url": "https://montreal.ca/services/horaire-des-collectes"
+    },
+    "city_battery_points": {
+      "label": {
+        "fr": "Points de dépôt de piles de la Ville",
+        "en": "City battery drop-off points"
+      },
+      "url": "https://montreal.ca/lieux?mtl_content.lieux.tags.code=PR004"
+    },
+    "ecocentres": {
+      "label": {
+        "fr": "Liste officielle des écocentres",
+        "en": "Official list of écocentres"
+      },
+      "url": "https://montreal.ca/lieux?mtl_content.lieux.type.code=ECOC&orderBy=dc_title"
+    },
+    "arpe_quebec": {
+      "label": {
+        "fr": "Points de dépôt ARPE-Québec",
+        "en": "ARPE-Québec drop-off points"
+      },
+      "url": "https://recyclermeselectroniques.ca/qc/ou-recycler"
+    },
+    "electrobac": {
+      "label": {
+        "fr": "Boîtes Électrobac (téléphones, câbles)",
+        "en": "Électrobac boxes (phones, cables)"
+      },
+      "url": "https://www.electrobac.com/fr/"
+    },
+    "gorecycle_pickup": {
+      "label": {
+        "fr": "Ramassage gratuit à domicile (GoRecycle)",
+        "en": "Free pickup at home (GoRecycle)"
+      },
+      "url": "https://www.gorecycle.com/fr/ramassage-electromenager-gratuit/"
+    },
+    "tree_collection": {
+      "label": {
+        "fr": "Collecte des sapins dans votre arrondissement",
+        "en": "Tree collection in your borough"
+      },
+      "url": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-arbres-de-noel"
+    },
+    "bulky_collection": {
+      "label": {
+        "fr": "Collecte des encombrants",
+        "en": "Bulky-item collection"
+      },
+      "url": "https://montreal.ca/sujets/encombrants-et-materiaux-de-construction"
+    },
+    "yard_collection": {
+      "label": {
+        "fr": "Collecte des résidus verts",
+        "en": "Yard-waste collection"
+      },
+      "url": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-residus-verts"
+    }
+  },
+  "icons": [
+    "appliance",
+    "battery",
+    "bottle",
+    "box",
+    "broken_glass",
+    "bulb",
+    "can",
+    "car_battery",
+    "carton",
+    "coffee",
+    "cup",
+    "diaper",
+    "egg",
+    "foam",
+    "foil",
+    "food",
+    "fridge",
+    "gas_tank",
+    "generic",
+    "gift",
+    "glass_jar",
+    "leaf",
+    "lights",
+    "oil",
+    "paint",
+    "paper",
+    "paw",
+    "phone",
+    "pills",
+    "pizza_box",
+    "plastic_bag",
+    "plastic_container",
+    "shirt",
+    "smoke_detector",
+    "sofa",
+    "spray",
+    "tire",
+    "tissue",
+    "toy",
+    "tree",
+    "utensils",
+    "wood",
+    "wrapper"
+  ],
+  "boroughs": {
+    "ahuntsic-cartierville": {
+      "name": "Ahuntsic-Cartierville",
+      "organics": "food_only"
+    },
+    "anjou": {
+      "name": "Anjou",
+      "organics": "food_only"
+    },
+    "cote-des-neiges-notre-dame-de-grace": {
+      "name": "Côte-des-Neiges–Notre-Dame-de-Grâce",
+      "organics": "food_only"
+    },
+    "lachine": {
+      "name": "Lachine",
+      "organics": "combined"
+    },
+    "lasalle": {
+      "name": "LaSalle",
+      "organics": "food_only"
+    },
+    "ile-bizard-sainte-genevieve": {
+      "name": "L'Île-Bizard–Sainte-Geneviève",
+      "organics": "combined"
+    },
+    "mercier-hochelaga-maisonneuve": {
+      "name": "Mercier–Hochelaga-Maisonneuve",
+      "organics": "food_only"
+    },
+    "montreal-nord": {
+      "name": "Montréal-Nord",
+      "organics": "food_only"
+    },
+    "outremont": {
+      "name": "Outremont",
+      "organics": "food_only"
+    },
+    "pierrefonds-roxboro": {
+      "name": "Pierrefonds-Roxboro",
+      "organics": "combined"
+    },
+    "plateau-mont-royal": {
+      "name": "Le Plateau-Mont-Royal",
+      "organics": "combined"
+    },
+    "riviere-des-prairies-pointe-aux-trembles": {
+      "name": "Rivière-des-Prairies–Pointe-aux-Trembles",
+      "organics": "food_only"
+    },
+    "rosemont-la-petite-patrie": {
+      "name": "Rosemont–La Petite-Patrie",
+      "organics": "food_only"
+    },
+    "saint-laurent": {
+      "name": "Saint-Laurent",
+      "organics": "combined"
+    },
+    "saint-leonard": {
+      "name": "Saint-Léonard",
+      "organics": "food_only"
+    },
+    "sud-ouest": {
+      "name": "Le Sud-Ouest",
+      "organics": "food_only"
+    },
+    "verdun": {
+      "name": "Verdun",
+      "organics": "food_only"
+    },
+    "ville-marie": {
+      "name": "Ville-Marie",
+      "organics": "food_only"
+    },
+    "villeray-saint-michel-parc-extension": {
+      "name": "Villeray–Saint-Michel–Parc-Extension",
+      "organics": "food_only"
+    }
+  },
+  "boroughsSourceUrl": "https://montreal.ca/collectes/collecte-des-matieres-organiques",
+  "items": [
+    {
+      "id": "cardboard",
+      "category": "paper_cardboard",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "box",
+      "name": {
+        "fr": "Boîte de carton",
+        "en": "Cardboard box"
+      },
+      "names": [
+        "carton",
+        "boîte de carton",
+        "boîte",
+        "cardboard",
+        "cardboard box",
+        "box"
+      ],
+      "explanation": {
+        "fr": "Le carton se recycle.",
+        "en": "Cardboard is recyclable."
+      },
+      "specialInstruction": {
+        "fr": "Défaites les boîtes et mettez-les à plat.",
+        "en": "Break boxes down and flatten them."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "pizza_box_clean",
+      "category": "paper_cardboard",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "pizza_box",
+      "name": {
+        "fr": "Boîte de pizza propre",
+        "en": "Clean pizza box"
+      },
+      "names": [
+        "boîte de pizza propre",
+        "clean pizza box"
+      ],
+      "explanation": {
+        "fr": "Le carton peu souillé va dans le bac de récupération.",
+        "en": "Lightly soiled cardboard goes in the recycling."
+      },
+      "specialInstruction": {
+        "fr": "Si elle est imbibée de gras, mettez-la plutôt dans le bac brun.",
+        "en": "If it is soaked with grease, use the brown bin instead."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "paper",
+      "category": "paper_cardboard",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "paper",
+      "name": {
+        "fr": "Papier, journaux, enveloppes",
+        "en": "Paper, newspapers, envelopes"
+      },
+      "names": [
+        "papier",
+        "journal",
+        "journaux",
+        "circulaire",
+        "enveloppe",
+        "magazine",
+        "cahier",
+        "feuille",
+        "paper",
+        "newspaper",
+        "envelope",
+        "flyer"
+      ],
+      "explanation": {
+        "fr": "Les imprimés se recyclent, même les enveloppes à fenêtre et les feuilles agrafées.",
+        "en": "Printed paper is recyclable, even window envelopes and stapled sheets."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "milk_carton",
+      "category": "paper_cardboard",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "carton",
+      "name": {
+        "fr": "Carton de lait ou de jus",
+        "en": "Milk or juice carton"
+      },
+      "names": [
+        "carton de lait",
+        "carton de jus",
+        "pinte de lait",
+        "milk carton",
+        "juice carton",
+        "tetra pak"
+      ],
+      "explanation": {
+        "fr": "Les contenants multicouches vont dans le bac de récupération.",
+        "en": "Multi-layer cartons go in the recycling."
+      },
+      "specialInstruction": {
+        "fr": "Videz et rincez.",
+        "en": "Empty and rinse."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "plastic_container",
+      "category": "plastic",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "plastic_container",
+      "name": {
+        "fr": "Contenant de plastique",
+        "en": "Plastic container"
+      },
+      "names": [
+        "pot de yogourt",
+        "contenant de plastique",
+        "bouteille de shampoing",
+        "bouteille de détergent",
+        "barquette",
+        "casseau",
+        "yogurt",
+        "plastic container",
+        "shampoo bottle",
+        "detergent bottle",
+        "clamshell"
+      ],
+      "explanation": {
+        "fr": "Tous les contenants et emballages de plastique numérotés se recyclent.",
+        "en": "All numbered plastic containers and packaging are recyclable."
+      },
+      "specialInstruction": {
+        "fr": "Videz et rincez. Laissez le bouchon sur les bouteilles de plastique.",
+        "en": "Empty and rinse. Leave caps on plastic bottles."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "food_can",
+      "category": "metal",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "can",
+      "name": {
+        "fr": "Boîte de conserve",
+        "en": "Food can"
+      },
+      "names": [
+        "boîte de conserve",
+        "conserve",
+        "tin can",
+        "food can",
+        "soup can"
+      ],
+      "explanation": {
+        "fr": "Les contenants de métal se recyclent.",
+        "en": "Metal containers are recyclable."
+      },
+      "specialInstruction": {
+        "fr": "Videz et rincez.",
+        "en": "Empty and rinse."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "glass_jar",
+      "category": "glass",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "glass_jar",
+      "name": {
+        "fr": "Pot ou bouteille de verre",
+        "en": "Glass jar or bottle"
+      },
+      "names": [
+        "pot en verre",
+        "bocal",
+        "pot de confiture",
+        "bouteille de vin",
+        "bouteille de verre",
+        "glass jar",
+        "glass bottle",
+        "wine bottle",
+        "jar"
+      ],
+      "explanation": {
+        "fr": "Les contenants de verre vont dans le bac de récupération.",
+        "en": "Glass containers go in the recycling."
+      },
+      "specialInstruction": {
+        "fr": "Videz et rincez. Dévissez les couvercles de métal et mettez-les à part dans le bac.",
+        "en": "Empty and rinse. Unscrew metal lids and put them in the bin separately."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "plastic_bags",
+      "category": "plastic",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "plastic_bag",
+      "name": {
+        "fr": "Sacs et pellicule de plastique",
+        "en": "Plastic bags and film"
+      },
+      "names": [
+        "sac de plastique",
+        "sac d'épicerie",
+        "pellicule",
+        "pellicule plastique",
+        "plastic bag",
+        "grocery bag",
+        "plastic film",
+        "plastic wrap"
+      ],
+      "explanation": {
+        "fr": "Les sacs et pellicules d'emballage vont dans le bac de récupération.",
+        "en": "Plastic bags and wrapping film go in the recycling."
+      },
+      "specialInstruction": {
+        "fr": "Sauf les sacs à ordures, qui ne se recyclent pas.",
+        "en": "Except garbage bags, which are not recyclable."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "chip_bag",
+      "category": "plastic",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "wrapper",
+      "name": {
+        "fr": "Sac de chips, emballage de bonbon",
+        "en": "Chip bag, candy wrapper"
+      },
+      "names": [
+        "sac de chips",
+        "sac de croustilles",
+        "emballage de bonbon",
+        "papier de bonbon",
+        "chip bag",
+        "candy wrapper",
+        "wrapper"
+      ],
+      "explanation": {
+        "fr": "Tous les emballages vont maintenant dans le bac de récupération.",
+        "en": "All packaging now goes in the recycling."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    },
+    {
+      "id": "coffee_cup",
+      "category": "paper_cardboard",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "cup",
+      "name": {
+        "fr": "Gobelet de café",
+        "en": "Coffee cup"
+      },
+      "names": [
+        "gobelet de café",
+        "tasse jetable",
+        "verre de café",
+        "coffee cup",
+        "disposable cup",
+        "paper cup"
+      ],
+      "explanation": {
+        "fr": "Les contenants de papier vont dans le bac de récupération, même souillés.",
+        "en": "Paper containers go in the recycling, even if soiled."
+      },
+      "specialInstruction": {
+        "fr": "Videz-le. Le couvercle va aussi dans le bac.",
+        "en": "Empty it. The lid goes in the bin too."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "foam_food",
+      "category": "plastic",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "foam",
+      "name": {
+        "fr": "Barquette ou verre de styromousse",
+        "en": "Foam food tray or cup"
+      },
+      "names": [
+        "barquette de styromousse",
+        "styromousse",
+        "polystyrène",
+        "verre de styromousse",
+        "foam tray",
+        "styrofoam tray",
+        "styrofoam cup"
+      ],
+      "explanation": {
+        "fr": "Le polystyrène qui sert de contenant ou d'emballage alimentaire se recycle.",
+        "en": "Polystyrene used as a food container or tray is recyclable."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-faire-avec-le-polystyrene-94375"
+    },
+    {
+      "id": "aluminium_foil",
+      "category": "metal",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "foil",
+      "name": {
+        "fr": "Papier et assiette d'aluminium",
+        "en": "Aluminium foil and trays"
+      },
+      "names": [
+        "papier aluminium",
+        "papier d'aluminium",
+        "assiette d'aluminium",
+        "aluminium foil",
+        "foil",
+        "foil tray"
+      ],
+      "explanation": {
+        "fr": "L'aluminium se recycle.",
+        "en": "Aluminium is recyclable."
+      },
+      "specialInstruction": {
+        "fr": "Faites une boule avec le papier d'aluminium.",
+        "en": "Scrunch foil into a ball."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "wrapping_paper",
+      "category": "paper_cardboard",
+      "bin": "recycling",
+      "dropoff": null,
+      "icon": "gift",
+      "name": {
+        "fr": "Papier d'emballage",
+        "en": "Wrapping paper"
+      },
+      "names": [
+        "papier d'emballage",
+        "papier cadeau",
+        "papier de soie",
+        "wrapping paper",
+        "gift wrap"
+      ],
+      "explanation": {
+        "fr": "Le papier d'emballage ordinaire est du papier.",
+        "en": "Plain wrapping paper is paper."
+      },
+      "specialInstruction": {
+        "fr": "Le papier métallisé va aux ordures, comme les rubans et les boucles.",
+        "en": "Metallic paper goes in the garbage, as do ribbons and bows."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": false,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "drink_can",
+      "category": "drink_container",
+      "bin": "special",
+      "dropoff": "deposit",
+      "icon": "can",
+      "name": {
+        "fr": "Canette de boisson",
+        "en": "Drink can"
+      },
+      "names": [
+        "canette",
+        "canette de bière",
+        "canette de boisson gazeuse",
+        "can",
+        "pop can",
+        "beer can",
+        "soda can"
+      ],
+      "explanation": {
+        "fr": "Les canettes de boisson en aluminium vont à la consigne.",
+        "en": "Aluminium drink cans go back for the deposit."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "drink_bottle",
+      "category": "drink_container",
+      "bin": "special",
+      "dropoff": "deposit",
+      "icon": "bottle",
+      "name": {
+        "fr": "Bouteille de boisson en plastique",
+        "en": "Plastic drink bottle"
+      },
+      "names": [
+        "bouteille d'eau",
+        "bouteille de plastique",
+        "bouteille de jus",
+        "bouteille de boisson gazeuse",
+        "water bottle",
+        "plastic bottle",
+        "pop bottle",
+        "juice bottle"
+      ],
+      "explanation": {
+        "fr": "Les contenants de boisson de 100 ml à 2 L vont à la consigne.",
+        "en": "Drink containers from 100 ml to 2 L go back for the deposit."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+    },
+    {
+      "id": "pizza_box_greasy",
+      "category": "paper_cardboard",
+      "bin": "compost",
+      "dropoff": null,
+      "icon": "pizza_box",
+      "name": {
+        "fr": "Boîte de pizza grasse",
+        "en": "Greasy pizza box"
+      },
+      "names": [
+        "boîte de pizza grasse",
+        "boîte de pizza",
+        "boîte de poulet",
+        "pizza box",
+        "greasy pizza box"
+      ],
+      "explanation": {
+        "fr": "Le carton imbibé de gras ou de sauce va dans le bac brun.",
+        "en": "Cardboard soaked with grease or sauce goes in the brown bin."
+      },
+      "specialInstruction": {
+        "fr": "Pas de bac brun chez vous ? Mettez-la dans le bac de récupération.",
+        "en": "No brown bin where you live? Put it in the recycling."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "overrides": [
+        {
+          "when": {
+            "hasBrownBin": false
+          },
+          "bin": "recycling",
+          "explanation": {
+            "fr": "Sans bac brun, la boîte de pizza grasse va dans le bac de récupération.",
+            "en": "Without a brown bin, a greasy pizza box goes in the recycling."
+          },
+          "specialInstruction": null,
+          "verified": true
+        }
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
+    },
+    {
+      "id": "food_scraps",
+      "category": "food",
+      "bin": "compost",
+      "dropoff": null,
+      "icon": "food",
+      "name": {
+        "fr": "Restes de nourriture",
+        "en": "Food scraps"
+      },
+      "names": [
+        "restes de table",
+        "restes",
+        "nourriture",
+        "pelure",
+        "épluchures",
+        "banane",
+        "pomme",
+        "viande",
+        "os",
+        "pain",
+        "fromage",
+        "food",
+        "food scraps",
+        "peel",
+        "banana",
+        "apple",
+        "meat",
+        "bones",
+        "bread"
+      ],
+      "explanation": {
+        "fr": "Tout ce qui se mange va dans le bac brun, cru, cuit ou moisi, os compris.",
+        "en": "Anything edible goes in the brown bin, raw, cooked or spoiled, bones included."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "overrides": [
+        {
+          "when": {
+            "hasBrownBin": false
+          },
+          "bin": "garbage",
+          "explanation": {
+            "fr": "Sans bac brun, les résidus alimentaires vont aux ordures.",
+            "en": "Without a brown bin, food waste goes in the garbage."
+          },
+          "specialInstruction": null,
+          "verified": false
+        }
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
+    },
+    {
+      "id": "eggshells",
+      "category": "food",
+      "bin": "compost",
+      "dropoff": null,
+      "icon": "egg",
+      "name": {
+        "fr": "Coquilles d'œufs",
+        "en": "Eggshells"
+      },
+      "names": [
+        "coquilles d'oeufs",
+        "coquilles d'œufs",
+        "coquille",
+        "eggshells",
+        "eggshell"
+      ],
+      "explanation": {
+        "fr": "Les œufs et leur coquille vont dans le bac brun.",
+        "en": "Eggs and their shells go in the brown bin."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "overrides": [
+        {
+          "when": {
+            "hasBrownBin": false
+          },
+          "bin": "garbage",
+          "explanation": {
+            "fr": "Sans bac brun, les résidus alimentaires vont aux ordures.",
+            "en": "Without a brown bin, food waste goes in the garbage."
+          },
+          "specialInstruction": null,
+          "verified": false
+        }
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
+    },
+    {
+      "id": "coffee_grounds",
+      "category": "food",
+      "bin": "compost",
+      "dropoff": null,
+      "icon": "coffee",
+      "name": {
+        "fr": "Marc de café et sachets de thé",
+        "en": "Coffee grounds and tea bags"
+      },
+      "names": [
+        "marc de café",
+        "filtre à café",
+        "sachet de thé",
+        "thé",
+        "tisane",
+        "coffee grounds",
+        "coffee filter",
+        "tea bag"
+      ],
+      "explanation": {
+        "fr": "Le café et le thé vont dans le bac brun avec leurs filtres ou sachets de papier.",
+        "en": "Coffee and tea go in the brown bin with their paper filters or bags."
+      },
+      "specialInstruction": {
+        "fr": "Retirez les agrafes.",
+        "en": "Remove any staples."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "overrides": [
+        {
+          "when": {
+            "hasBrownBin": false
+          },
+          "bin": "garbage",
+          "explanation": {
+            "fr": "Sans bac brun, les résidus alimentaires vont aux ordures.",
+            "en": "Without a brown bin, food waste goes in the garbage."
+          },
+          "specialInstruction": null,
+          "verified": false
+        }
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
+    },
+    {
+      "id": "paper_towel",
+      "category": "paper_cardboard",
+      "bin": "compost",
+      "dropoff": null,
+      "icon": "tissue",
+      "name": {
+        "fr": "Essuie-tout et mouchoirs",
+        "en": "Paper towels and tissues"
+      },
+      "names": [
+        "essuie-tout",
+        "serviette de table",
+        "mouchoir",
+        "papier mouchoir",
+        "paper towel",
+        "napkin",
+        "tissue",
+        "kleenex"
+      ],
+      "explanation": {
+        "fr": "Le papier souillé va dans le bac brun, jamais dans le bac de récupération.",
+        "en": "Soiled paper goes in the brown bin, never in the recycling."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "overrides": [
+        {
+          "when": {
+            "hasBrownBin": false
+          },
+          "bin": "garbage",
+          "explanation": {
+            "fr": "Sans bac brun, le papier souillé va aux ordures, jamais dans le bac de récupération.",
+            "en": "Without a brown bin, soiled paper goes in the garbage, never in the recycling."
+          },
+          "specialInstruction": null,
+          "verified": false
+        }
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
+    },
+    {
+      "id": "compostable_plastic",
+      "category": "plastic",
+      "bin": "compost",
+      "dropoff": null,
+      "icon": "leaf",
+      "name": {
+        "fr": "Emballage certifié compostable",
+        "en": "Certified-compostable packaging"
+      },
+      "names": [
+        "compostable",
+        "plastique compostable",
+        "sac compostable",
+        "ustensile compostable",
+        "PLA",
+        "compostable bag",
+        "compostable cup"
+      ],
+      "explanation": {
+        "fr": "Seulement s'il porte un logo de certification compostable (BNQ, BPI, OK Compost).",
+        "en": "Only if it carries a compostable certification logo (BNQ, BPI, OK Compost)."
+      },
+      "specialInstruction": {
+        "fr": "« Biodégradable » ne suffit pas : sans certification, c'est aux ordures.",
+        "en": "\"Biodegradable\" is not enough: without certification it goes in the garbage."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "overrides": [
+        {
+          "when": {
+            "hasBrownBin": false
+          },
+          "bin": "garbage",
+          "explanation": {
+            "fr": "Sans bac brun, les emballages compostables vont aux ordures.",
+            "en": "Without a brown bin, compostable packaging goes in the garbage."
+          },
+          "specialInstruction": null,
+          "verified": false
+        }
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-deposer-dans-le-bac-brun-44580"
+    },
+    {
+      "id": "yard_waste",
+      "category": "yard",
+      "bin": "special",
+      "dropoff": "yard_collection",
+      "icon": "leaf",
+      "name": {
+        "fr": "Feuilles mortes, gazon, résidus de jardin",
+        "en": "Leaves, grass, yard waste"
+      },
+      "names": [
+        "feuilles",
+        "feuilles mortes",
+        "gazon",
+        "herbe",
+        "résidus verts",
+        "branches",
+        "plante",
+        "jardin",
+        "leaves",
+        "grass",
+        "yard waste",
+        "branches",
+        "plants"
+      ],
+      "explanation": {
+        "fr": "Dans la plupart des arrondissements, les résidus verts ont leur propre collecte, dans des sacs de papier.",
+        "en": "In most boroughs, yard waste has its own collection, in paper bags."
+      },
+      "specialInstruction": {
+        "fr": "Branches de plus de 5 cm de diamètre, terre et pierres : à l'écocentre.",
+        "en": "Branches over 5 cm thick, soil and stones: to an écocentre."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/collectes/collecte-des-matieres-organiques",
+      "overrides": [
+        {
+          "when": {
+            "organics": "combined"
+          },
+          "bin": "compost",
+          "dropoff": null,
+          "explanation": {
+            "fr": "Dans votre arrondissement, les résidus verts vont dans le bac brun avec les restes de table.",
+            "en": "In your borough, yard waste goes in the brown bin with food scraps."
+          },
+          "specialInstruction": {
+            "fr": "Branches : 1 m de long et 5 cm de diamètre au maximum. Surplus : sacs de papier à côté du bac.",
+            "en": "Branches: 1 m long and 5 cm thick at most. Extra: paper bags next to the bin."
+          },
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "diaper",
+      "category": "hygiene",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "diaper",
+      "name": {
+        "fr": "Couches et serviettes hygiéniques",
+        "en": "Diapers and sanitary pads"
+      },
+      "names": [
+        "couche",
+        "couches",
+        "serviette hygiénique",
+        "lingette",
+        "diaper",
+        "sanitary pad",
+        "wipes"
+      ],
+      "explanation": {
+        "fr": "Les couches vont aux ordures, même celles dites compostables.",
+        "en": "Diapers go in the garbage, even ones labelled compostable."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    },
+    {
+      "id": "pet_waste",
+      "category": "hygiene",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "paw",
+      "name": {
+        "fr": "Litière et excréments d'animaux",
+        "en": "Pet litter and waste"
+      },
+      "names": [
+        "litière",
+        "litière de chat",
+        "crottes",
+        "excréments",
+        "cat litter",
+        "pet waste",
+        "dog poop"
+      ],
+      "explanation": {
+        "fr": "La litière et les excréments d'animaux vont aux ordures.",
+        "en": "Pet litter and waste go in the garbage."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    },
+    {
+      "id": "broken_glassware",
+      "category": "glass",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "broken_glass",
+      "name": {
+        "fr": "Vaisselle et verres brisés, miroirs",
+        "en": "Broken dishes, drinking glasses, mirrors"
+      },
+      "names": [
+        "vaisselle brisée",
+        "verre à boire",
+        "tasse",
+        "assiette",
+        "pyrex",
+        "miroir",
+        "vitre",
+        "céramique",
+        "broken glass",
+        "drinking glass",
+        "mug",
+        "plate",
+        "mirror"
+      ],
+      "explanation": {
+        "fr": "La vaisselle, les verres à boire et les miroirs ne vont pas dans le bac de récupération.",
+        "en": "Dishes, drinking glasses and mirrors don't go in the recycling."
+      },
+      "specialInstruction": {
+        "fr": "Emballez les morceaux coupants avant de les jeter.",
+        "en": "Wrap sharp pieces before throwing them out."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    },
+    {
+      "id": "toys",
+      "category": "household_object",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "toy",
+      "name": {
+        "fr": "Jouets et objets brisés",
+        "en": "Broken toys and objects"
+      },
+      "names": [
+        "jouet",
+        "jouets",
+        "jouet brisé",
+        "outil brisé",
+        "balai",
+        "toy",
+        "toys",
+        "broken toy"
+      ],
+      "explanation": {
+        "fr": "Les objets faits de plusieurs matières vont aux ordures.",
+        "en": "Objects made of mixed materials go in the garbage."
+      },
+      "specialInstruction": {
+        "fr": "S'il est encore en bon état, donnez-le.",
+        "en": "If it still works, donate it."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    },
+    {
+      "id": "plastic_utensils",
+      "category": "plastic",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "utensils",
+      "name": {
+        "fr": "Ustensiles et pailles jetables",
+        "en": "Disposable cutlery and straws"
+      },
+      "names": [
+        "ustensile",
+        "fourchette en plastique",
+        "paille",
+        "pailles",
+        "plastic fork",
+        "straw",
+        "cutlery"
+      ],
+      "explanation": {
+        "fr": "Les ustensiles et pailles de plastique vont aux ordures.",
+        "en": "Plastic cutlery and straws go in the garbage."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    },
+    {
+      "id": "clothes_worn",
+      "category": "textile",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "shirt",
+      "name": {
+        "fr": "Vêtements et souliers usés",
+        "en": "Worn-out clothes and shoes"
+      },
+      "names": [
+        "vêtements usés",
+        "souliers usés",
+        "chaussettes trouées",
+        "linge déchiré",
+        "worn clothes",
+        "old shoes",
+        "torn clothes"
+      ],
+      "explanation": {
+        "fr": "Les vêtements et souliers trop usés vont aux ordures.",
+        "en": "Worn-out clothes and shoes go in the garbage."
+      },
+      "specialInstruction": {
+        "fr": "En bon état ? Donnez-les plutôt.",
+        "en": "Still in good shape? Donate them instead."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    },
+    {
+      "id": "smoke_detector",
+      "category": "household_object",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "smoke_detector",
+      "name": {
+        "fr": "Avertisseur de fumée",
+        "en": "Smoke detector"
+      },
+      "names": [
+        "avertisseur de fumée",
+        "détecteur de fumée",
+        "smoke detector",
+        "smoke alarm"
+      ],
+      "explanation": {
+        "fr": "La Ville indique de jeter les avertisseurs de fumée aux ordures.",
+        "en": "The City says smoke detectors go in the garbage."
+      },
+      "specialInstruction": {
+        "fr": "Retirez d'abord la pile. Si elle est scellée et ne s'enlève pas, apportez-le au comptoir des résidus dangereux d'un écocentre.",
+        "en": "Take the battery out first. If it is sealed in, bring it to an écocentre's hazardous waste counter instead."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
+    },
+    {
+      "id": "bulb_regular",
+      "category": "lighting",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "bulb",
+      "name": {
+        "fr": "Ampoule DEL, halogène ou à filament",
+        "en": "LED, halogen or incandescent bulb"
+      },
+      "names": [
+        "ampoule",
+        "ampoule del",
+        "ampoule led",
+        "ampoule halogène",
+        "light bulb",
+        "led bulb",
+        "bulb"
+      ],
+      "explanation": {
+        "fr": "Ces ampoules sont acceptées aux ordures.",
+        "en": "These bulbs are accepted in the garbage."
+      },
+      "specialInstruction": {
+        "fr": "Idéalement, apportez-les à un écocentre pour qu'elles soient recyclées.",
+        "en": "Ideally, bring them to an écocentre so they get recycled."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    },
+    {
+      "id": "battery",
+      "category": "battery",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "battery",
+      "name": {
+        "fr": "Piles",
+        "en": "Batteries"
+      },
+      "names": [
+        "pile",
+        "piles",
+        "batterie",
+        "pile rechargeable",
+        "battery",
+        "batteries",
+        "AA",
+        "AAA"
+      ],
+      "explanation": {
+        "fr": "Les piles ne vont jamais aux ordures ni dans le bac de récupération.",
+        "en": "Batteries never go in the garbage or the recycling."
+      },
+      "specialInstruction": {
+        "fr": "Couvrez les bornes des piles au lithium avec du ruban adhésif.",
+        "en": "Cover the terminals of lithium batteries with tape."
+      },
+      "mapsQuery": {
+        "fr": "dépôt de piles",
+        "en": "battery drop-off"
+      },
+      "links": [
+        "city_battery_points",
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/services/recuperation-des-piles-usagees"
+    },
+    {
+      "id": "electronics",
+      "category": "electronics",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "phone",
+      "name": {
+        "fr": "Appareils électroniques",
+        "en": "Electronics"
+      },
+      "names": [
+        "ordinateur",
+        "portable",
+        "écran",
+        "télévision",
+        "téléviseur",
+        "imprimante",
+        "téléphone",
+        "cellulaire",
+        "tablette",
+        "câble",
+        "chargeur",
+        "clavier",
+        "souris",
+        "radio",
+        "computer",
+        "laptop",
+        "monitor",
+        "tv",
+        "printer",
+        "phone",
+        "tablet",
+        "cable",
+        "charger",
+        "keyboard",
+        "mouse",
+        "electronics"
+      ],
+      "explanation": {
+        "fr": "Fonctionnels ou non, les appareils électroniques doivent être apportés à un point de dépôt.",
+        "en": "Working or not, electronics must be brought to a drop-off point."
+      },
+      "specialInstruction": {
+        "fr": "Téléphones, chargeurs et câbles : aussi acceptés dans les électrobacs.",
+        "en": "Phones, chargers and cables: also accepted in Électrobac boxes."
+      },
+      "mapsQuery": {
+        "fr": "recyclage d'électroniques",
+        "en": "electronics recycling"
+      },
+      "links": [
+        "arpe_quebec",
+        "electrobac",
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/recycler-ses-produits-electroniques"
+    },
+    {
+      "id": "small_appliance",
+      "category": "appliance",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "appliance",
+      "name": {
+        "fr": "Électroménager",
+        "en": "Household appliance"
+      },
+      "names": [
+        "électroménager",
+        "grille-pain",
+        "micro-ondes",
+        "bouilloire",
+        "cafetière",
+        "aspirateur",
+        "séchoir à cheveux",
+        "mélangeur",
+        "laveuse",
+        "sécheuse",
+        "cuisinière",
+        "appliance",
+        "toaster",
+        "microwave",
+        "kettle",
+        "coffee maker",
+        "vacuum",
+        "hair dryer",
+        "blender",
+        "washer",
+        "dryer",
+        "stove"
+      ],
+      "explanation": {
+        "fr": "Les électroménagers de toute taille vont à l'écocentre, jamais aux ordures.",
+        "en": "Appliances of every size go to an écocentre, never in the garbage."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
+    },
+    {
+      "id": "fridge",
+      "category": "appliance",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "fridge",
+      "name": {
+        "fr": "Réfrigérateur, congélateur, climatiseur",
+        "en": "Fridge, freezer, air conditioner"
+      },
+      "names": [
+        "réfrigérateur",
+        "frigo",
+        "congélateur",
+        "climatiseur",
+        "air climatisé",
+        "déshumidificateur",
+        "cellier",
+        "fridge",
+        "refrigerator",
+        "freezer",
+        "air conditioner",
+        "dehumidifier",
+        "wine cooler"
+      ],
+      "explanation": {
+        "fr": "Ils contiennent des gaz réfrigérants nocifs et doivent être récupérés.",
+        "en": "They hold harmful refrigerant gases and must be recovered."
+      },
+      "specialInstruction": {
+        "fr": "Videz-le. GoRecycle peut venir le chercher gratuitement chez vous.",
+        "en": "Empty it. GoRecycle can pick it up from your home for free."
+      },
+      "mapsQuery": null,
+      "links": [
+        "gorecycle_pickup",
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/encombrants-et-materiaux-de-construction"
+    },
+    {
+      "id": "vape",
+      "category": "battery",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "battery",
+      "name": {
+        "fr": "Objet à pile intégrée",
+        "en": "Item with a built-in battery"
+      },
+      "names": [
+        "cigarette électronique",
+        "vapoteuse",
+        "brosse à dents électrique",
+        "rasoir électrique",
+        "vape",
+        "e-cigarette",
+        "electric toothbrush",
+        "electric razor"
+      ],
+      "explanation": {
+        "fr": "La pile intégrée est dangereuse : apportez l'objet au comptoir des résidus dangereux de l'écocentre.",
+        "en": "The built-in battery is hazardous: bring it to the écocentre's hazardous waste counter."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
+    },
+    {
+      "id": "bulb_mercury",
+      "category": "lighting",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "bulb",
+      "name": {
+        "fr": "Ampoule fluocompacte, tube fluorescent",
+        "en": "Compact fluorescent bulb, fluorescent tube"
+      },
+      "names": [
+        "ampoule fluocompacte",
+        "fluocompacte",
+        "néon",
+        "tube fluorescent",
+        "fluorescent bulb",
+        "CFL",
+        "fluorescent tube"
+      ],
+      "explanation": {
+        "fr": "Elle contient du mercure.",
+        "en": "It contains mercury."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/residus-domestiques-dangereux"
+    },
+    {
+      "id": "paint",
+      "category": "hazardous",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "paint",
+      "name": {
+        "fr": "Peinture, solvants, produits ménagers",
+        "en": "Paint, solvents, cleaning products"
+      },
+      "names": [
+        "peinture",
+        "solvant",
+        "varsol",
+        "teinture",
+        "vernis",
+        "produit nettoyant",
+        "eau de javel",
+        "pesticide",
+        "paint",
+        "solvent",
+        "stain",
+        "varnish",
+        "cleaner",
+        "bleach"
+      ],
+      "explanation": {
+        "fr": "Ce sont des résidus domestiques dangereux.",
+        "en": "These are household hazardous waste."
+      },
+      "specialInstruction": {
+        "fr": "Gardez-les dans leur contenant d'origine, bien identifiés.",
+        "en": "Keep them in their original, labelled container."
+      },
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/residus-domestiques-dangereux"
+    },
+    {
+      "id": "aerosol",
+      "category": "hazardous",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "spray",
+      "name": {
+        "fr": "Aérosol",
+        "en": "Aerosol can"
+      },
+      "names": [
+        "aérosol",
+        "bombe aérosol",
+        "fixatif",
+        "désodorisant en aérosol",
+        "aerosol",
+        "spray can",
+        "hairspray"
+      ],
+      "explanation": {
+        "fr": "Les contenants sous pression sont refusés dans le bac de récupération.",
+        "en": "Pressurized containers are refused in the recycling."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/residus-domestiques-dangereux"
+    },
+    {
+      "id": "propane",
+      "category": "hazardous",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "gas_tank",
+      "name": {
+        "fr": "Bonbonne de propane",
+        "en": "Propane tank"
+      },
+      "names": [
+        "bonbonne de propane",
+        "propane",
+        "bouteille de propane",
+        "propane tank"
+      ],
+      "explanation": {
+        "fr": "Le gaz sous pression est dangereux.",
+        "en": "Pressurized gas is hazardous."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/residus-domestiques-dangereux"
+    },
+    {
+      "id": "motor_oil",
+      "category": "hazardous",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "oil",
+      "name": {
+        "fr": "Huile à moteur et huile de cuisson",
+        "en": "Motor oil and cooking oil"
+      },
+      "names": [
+        "huile",
+        "huile à moteur",
+        "huile de cuisson",
+        "graisse",
+        "motor oil",
+        "cooking oil",
+        "grease"
+      ],
+      "explanation": {
+        "fr": "Les huiles ne vont ni à l'égout ni aux ordures.",
+        "en": "Oils never go down the drain or in the garbage."
+      },
+      "specialInstruction": {
+        "fr": "Contenant fermé de 20 litres maximum.",
+        "en": "Closed container, 20 litres maximum."
+      },
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/residus-domestiques-dangereux"
+    },
+    {
+      "id": "car_battery",
+      "category": "automotive",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "car_battery",
+      "name": {
+        "fr": "Batterie d'auto",
+        "en": "Car battery"
+      },
+      "names": [
+        "batterie d'auto",
+        "batterie de voiture",
+        "car battery"
+      ],
+      "explanation": {
+        "fr": "Les batteries au plomb sont dangereuses.",
+        "en": "Lead-acid batteries are hazardous."
+      },
+      "specialInstruction": {
+        "fr": "Les garages les reprennent souvent aussi.",
+        "en": "Garages often take them back too."
+      },
+      "mapsQuery": {
+        "fr": "garage",
+        "en": "garage"
+      },
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/residus-domestiques-dangereux"
+    },
+    {
+      "id": "tires",
+      "category": "automotive",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "tire",
+      "name": {
+        "fr": "Pneus",
+        "en": "Tires"
+      },
+      "names": [
+        "pneu",
+        "pneus",
+        "pneu d'hiver",
+        "tire",
+        "tires",
+        "winter tire"
+      ],
+      "explanation": {
+        "fr": "Les pneus sont refusés aux ordures.",
+        "en": "Tires are refused in the garbage."
+      },
+      "specialInstruction": {
+        "fr": "8 pneus par jour au maximum.",
+        "en": "8 tires per day at most."
+      },
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
+    },
+    {
+      "id": "foam_protective",
+      "category": "plastic",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "foam",
+      "name": {
+        "fr": "Styromousse d'emballage",
+        "en": "Protective foam packaging"
+      },
+      "names": [
+        "styromousse de protection",
+        "polystyrène de protection",
+        "billes de styromousse",
+        "protective foam",
+        "packing foam"
+      ],
+      "explanation": {
+        "fr": "Celui qui se défait en billes ne va pas dans le bac de récupération.",
+        "en": "Foam that crumbles into beads doesn't go in the recycling."
+      },
+      "specialInstruction": {
+        "fr": "Seuls les écocentres LaSalle et Saint-Laurent le recyclent. Sinon, il va aux ordures.",
+        "en": "Only the LaSalle and Saint-Laurent écocentres recycle it. Otherwise it goes in the garbage."
+      },
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/articles/quoi-faire-avec-le-polystyrene-94375"
+    },
+    {
+      "id": "wood",
+      "category": "construction",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "wood",
+      "name": {
+        "fr": "Bois et matériaux de rénovation",
+        "en": "Wood and renovation materials"
+      },
+      "names": [
+        "bois",
+        "planche",
+        "gypse",
+        "brique",
+        "céramique de plancher",
+        "wood",
+        "lumber",
+        "drywall",
+        "brick"
+      ],
+      "explanation": {
+        "fr": "Le bois et les résidus de construction vont à l'écocentre.",
+        "en": "Wood and construction waste go to an écocentre."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
+    },
+    {
+      "id": "christmas_lights",
+      "category": "lighting",
+      "bin": "special",
+      "dropoff": "ecocentre",
+      "icon": "lights",
+      "name": {
+        "fr": "Lumières de Noël",
+        "en": "Christmas lights"
+      },
+      "names": [
+        "lumières de noël",
+        "guirlande lumineuse",
+        "lumières",
+        "christmas lights",
+        "string lights",
+        "fairy lights"
+      ],
+      "explanation": {
+        "fr": "Les lumières électriques ne vont pas dans le bac de récupération.",
+        "en": "Electric lights don't go in the recycling."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [
+        "ecocentres"
+      ],
+      "verified": false,
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
+    },
+    {
+      "id": "medication",
+      "category": "medical",
+      "bin": "special",
+      "dropoff": "pharmacy",
+      "icon": "pills",
+      "name": {
+        "fr": "Médicaments et seringues",
+        "en": "Medication and syringes"
+      },
+      "names": [
+        "médicaments",
+        "médicament",
+        "pilules",
+        "sirop",
+        "seringue",
+        "aiguille",
+        "medication",
+        "pills",
+        "syrup",
+        "syringe",
+        "needle"
+      ],
+      "explanation": {
+        "fr": "Rapportez-les à une pharmacie.",
+        "en": "Bring them back to a pharmacy."
+      },
+      "specialInstruction": null,
+      "mapsQuery": null,
+      "links": [],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/residus-domestiques-dangereux"
+    },
+    {
+      "id": "clothes_good",
+      "category": "textile",
+      "bin": "special",
+      "dropoff": "donation",
+      "icon": "shirt",
+      "name": {
+        "fr": "Vêtements, patins, manteaux en bon état",
+        "en": "Clothes, skates, coats in good condition"
+      },
+      "names": [
+        "vêtements",
+        "manteau",
+        "patins",
+        "bottes",
+        "linge",
+        "chandail",
+        "clothes",
+        "coat",
+        "skates",
+        "boots",
+        "sweater"
+      ],
+      "explanation": {
+        "fr": "Ce qui est encore bon se donne.",
+        "en": "What's still good can be donated."
+      },
+      "specialInstruction": {
+        "fr": "Les écocentres acceptent aussi les vêtements en bon état.",
+        "en": "Écocentres also take clothes in good condition."
+      },
+      "mapsQuery": null,
+      "links": [],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
+    },
+    {
+      "id": "christmas_tree",
+      "category": "yard",
+      "bin": "special",
+      "dropoff": "tree_collection",
+      "icon": "tree",
+      "name": {
+        "fr": "Sapin de Noël naturel",
+        "en": "Real Christmas tree"
+      },
+      "names": [
+        "sapin de noël",
+        "arbre de noël",
+        "sapin",
+        "christmas tree",
+        "tree"
+      ],
+      "explanation": {
+        "fr": "En janvier, mettez-le en bordure du trottoir pour la collecte spéciale des sapins.",
+        "en": "In January, put it at the curb for the special tree collection."
+      },
+      "specialInstruction": {
+        "fr": "Retirez toutes les décorations, sans sac de plastique. Après la collecte, apportez-le à un écocentre.",
+        "en": "Remove every decoration, no plastic bag. After the collection, bring it to an écocentre."
+      },
+      "mapsQuery": null,
+      "links": [
+        "tree_collection",
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-arbres-de-noel"
+    },
+    {
+      "id": "furniture",
+      "category": "furniture",
+      "bin": "special",
+      "dropoff": "bulky_collection",
+      "icon": "sofa",
+      "name": {
+        "fr": "Meubles non rembourrés",
+        "en": "Non-upholstered furniture"
+      },
+      "names": [
+        "meuble",
+        "table",
+        "chaise en bois",
+        "commode",
+        "bibliothèque",
+        "étagère",
+        "bureau",
+        "furniture",
+        "wooden chair",
+        "dresser",
+        "bookshelf",
+        "desk"
+      ],
+      "explanation": {
+        "fr": "Les meubles non rembourrés vont à la collecte des encombrants de votre arrondissement ou à l'écocentre.",
+        "en": "Non-upholstered furniture goes to your borough's bulky-item collection or to an écocentre."
+      },
+      "specialInstruction": {
+        "fr": "Encore utilisable ? Donnez-le d'abord.",
+        "en": "Still usable? Give it away first."
+      },
+      "mapsQuery": null,
+      "links": [
+        "bulky_collection",
+        "ecocentres"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/sujets/encombrants-et-materiaux-de-construction"
+    },
+    {
+      "id": "upholstered_furniture",
+      "category": "furniture",
+      "bin": "garbage",
+      "dropoff": null,
+      "icon": "sofa",
+      "name": {
+        "fr": "Matelas, sofa, fauteuil rembourré",
+        "en": "Mattress, sofa, upholstered chair"
+      },
+      "names": [
+        "matelas",
+        "sommier",
+        "sofa",
+        "divan",
+        "canapé",
+        "fauteuil",
+        "chaise rembourrée",
+        "mattress",
+        "box spring",
+        "couch",
+        "armchair",
+        "upholstered chair"
+      ],
+      "explanation": {
+        "fr": "Les meubles rembourrés, matelas et sommiers vont aux ordures ménagères.",
+        "en": "Upholstered furniture, mattresses and box springs go in household garbage."
+      },
+      "specialInstruction": {
+        "fr": "Encore utilisable ? Donnez-le d'abord. Seul l'écocentre de Saint-Laurent recycle les matelas (projet pilote).",
+        "en": "Still usable? Give it away first. Only the Saint-Laurent écocentre recycles mattresses (pilot project)."
+      },
+      "mapsQuery": null,
+      "links": [
+        "info_collectes"
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+    }
+  ]
+}

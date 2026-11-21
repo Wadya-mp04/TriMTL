@@ -96,7 +96,7 @@ export default function PlayScreen() {
             <Segmented compact options={[{ key: 'mine', label: 'My items' }, { key: 'daily', label: 'Daily' }]} value={mode} onChange={setMode} />
           </View>
           <View style={styles.track}>
-            <Animated.View style={[styles.fill, { width: `${progress * 100}%` }]} />
+            <Animated.View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: colors.forest }]} />
           </View>
         </View>
 
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   main: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: TAB_BAR_SPACE, gap: 20 },
   track: { height: 8, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: colors.white, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: radius.full, backgroundColor: colors.forest },
+  fill: { height: '100%', borderRadius: radius.full },
   focal: { borderRadius: radius['3xl'], padding: 28, minHeight: 208, alignItems: 'center', justifyContent: 'center', gap: 12 },
   itemIcon: { width: 80, height: 80, borderRadius: radius['3xl'], backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   feedback: { borderRadius: radius['2xl'], padding: 14, gap: 8 },

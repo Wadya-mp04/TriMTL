@@ -11,6 +11,7 @@ import { AvatarButton, Glass, Icon, PrimaryButton, Screen, Segmented, T, XpPill 
 import { CITY, FRIENDS, Ranked } from '../../data/items';
 import { useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
+import { brand } from '../../brand';
 
 type Scope = 'friends' | 'city';
 
@@ -62,7 +63,7 @@ export default function SocialScreen() {
 
   const share = () => {
     const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${p.name} +${p.xp} XP`);
-    Share.share({ message: `Today's TriMTL podium ♻️\n${lines.join('\n')}` });
+    Share.share({ message: `Today's ${brand.appName} podium ♻️\n${lines.join('\n')}` });
   };
 
   const youTone = (p: Ranked, base: string) => (p.you ? colors.forest : base);
@@ -72,7 +73,7 @@ export default function SocialScreen() {
       <View style={styles.header}>
         <View style={{ flexShrink: 1 }}>
           <T size="3xl" display style={{ lineHeight: 36 }}>Today's podium</T>
-          <T size="xs" color={colors.inkMuted}>{scope === 'friends' ? 'Your friend group' : 'All players'} · Montréal</T>
+          <T size="xs" color={colors.inkMuted}>{scope === 'friends' ? 'Your friend group' : 'All players'} · {brand.city}</T>
         </View>
         <View style={styles.row}>
           <XpPill />
@@ -82,7 +83,7 @@ export default function SocialScreen() {
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
         <Segmented
-          options={[{ key: 'friends', label: 'Friends' }, { key: 'city', label: 'Montréal' }]}
+          options={[{ key: 'friends', label: 'Friends' }, { key: 'city', label: brand.city }]}
           value={scope}
           onChange={setScope}
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.72)', borderColor: 'rgba(255, 255, 255, 0.88)', boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12)' }}
@@ -100,7 +101,7 @@ export default function SocialScreen() {
               <T weight="semibold" color={youTone(second, colors.inkMuted)} style={{ fontSize: 11, lineHeight: 16 }}>+{second.xp} XP</T>
             </View>
             {second.you ? (
-              <View style={[styles.block, styles.youBlock, { height: 96 }]}><T size="2xl" display color={colors.white}>2</T></View>
+              <View style={[styles.block, styles.youBlock, { height: 96, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>2</T></View>
             ) : (
               <Glass style={[styles.block, { height: 96 }]}><T size="2xl" display color={colors.inkMuted}>2</T></Glass>
             )}
@@ -132,7 +133,7 @@ export default function SocialScreen() {
               <T weight="semibold" color={youTone(third, colors.inkMuted)} style={{ fontSize: 11, lineHeight: 16 }}>+{third.xp} XP</T>
             </View>
             {third.you ? (
-              <View style={[styles.block, styles.youBlock, { height: 80 }]}><T size="2xl" display color={colors.white}>3</T></View>
+              <View style={[styles.block, styles.youBlock, { height: 80, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>3</T></View>
             ) : (
               <Glass style={[styles.block, { height: 80 }]}><T size="2xl" display color={colors.inkMuted}>3</T></Glass>
             )}
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     overflow: 'hidden',
   },
-  youBlock: { backgroundColor: colors.forest, ...shadow.md },
+  youBlock: { ...shadow.md },
   listRow: { borderRadius: radius['2xl'], paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   listRank: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
 });
