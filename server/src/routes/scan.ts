@@ -7,7 +7,7 @@
  */
 import { Router } from "express";
 import { z } from "zod";
-import { AiError, identifyItems } from "../services/gemini.js";
+import { AiError, identifyItems, type Detection } from "../services/gemini.js";
 import { createSession } from "../services/sessions.js";
 import { BOROUGHS, getRule, RULES_CHECKED_ON, RULES_VERSION, toConfidence, toScanItem } from "../services/sortingRules.js";
 import type { ApiError, ScanContext, ScanResponse } from "../types.js";
@@ -29,6 +29,23 @@ const Body = z.object({
   borough: z.enum(BOROUGH_SLUGS, { error: "borough must be one of the 19 borough slugs, or null" }).nullable().default(null),
   hasBrownBin: z.boolean({ error: "hasBrownBin must be true or false" }).default(true),
 });
+
+/**
+ * What to tell the user when there is nothing to play with: "not waste" (a cat, a street) or "nothing
+ * found". Null when there are items. Built server-side so both languages read the same in every screen.
+ */
+function emptyMessage(d: Detection, lang: "fr" | "en"): string | null {
+  if (d.items.length) return null;
+  const what = d.subject ? ` (${d.subject})` : "";
+  if (d.notWaste) {
+    return lang === "fr"
+      ? `Ce n'est pas un déchet à trier${what}. Prenez en photo un contenant, un emballage ou un objet à jeter.`
+      : `That's not something to sort${what}. Take a photo of a container, packaging or something you want to throw away.`;
+  }
+  return lang === "fr"
+    ? "Aucun objet à trier n'a été trouvé. Rapprochez-vous et assurez-vous que les objets sont bien visibles."
+    : "No items to sort were found. Move closer and make sure the items are clearly visible.";
+}
 
 const AI_STATUS = { rate_limited: 429, timeout: 504, ai_failed: 502, no_key: 500 } as const;
 
@@ -73,6 +90,7 @@ export function createScanRouter(identify: typeof identifyItems = identifyItems)
         total: detected.total, isEstimate: detected.isEstimate, items,
         // Legacy names, same values (contract changes are additive only).
         sessionId: scanId, totalCount: detected.total, countIsEstimate: detected.isEstimate,
+        subject: detected.subject, notWaste: detected.notWaste, message: emptyMessage(detected, lang),
       } satisfies ScanResponse);
     } catch (err) {
       if (err instanceof AiError) {

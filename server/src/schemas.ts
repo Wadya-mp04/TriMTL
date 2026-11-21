@@ -33,8 +33,8 @@ export const ScanItemSchema = z.object({
 }).strict();
 
 /**
- * POST /api/scan response. The three legacy fields are optional here because the canonical example
- * (scanResponse.example.json) predates them; the server always sends them (see the route test).
+ * POST /api/scan response. The legacy fields and subject/notWaste/message are optional here because the
+ * canonical example (scanResponse.example.json) predates them; the server always sends them (route test).
  */
 export const ScanResponseSchema = z.object({
   scanId: z.string().min(1),
@@ -51,6 +51,10 @@ export const ScanResponseSchema = z.object({
   sessionId: z.string().optional(),
   totalCount: z.number().int().optional(),
   countIsEstimate: z.boolean().optional(),
+  // Added after the canonical example was written (PR #2), so optional here; the server always sends them.
+  subject: z.string().optional(),
+  notWaste: z.boolean().optional(),
+  message: z.string().nullable().optional(),
 }).strict();
 
 // Compile-time drift check: each side must be assignable to the other.

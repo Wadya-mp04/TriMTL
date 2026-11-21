@@ -150,7 +150,7 @@ const image = "A".repeat(200);
 
 test("scan route: returns a valid ScanResponse and passes aiCategory + context to the engine", async () => {
   const fake = async (): Promise<Detection> => ({
-    total: 4, isEstimate: false,
+    total: 4, isEstimate: false, subject: "kitchen waste", notWaste: false,
     items: [
       { name: "Banana peel", kind: "Food", category: "food", ruleId: "food_scraps", count: 1, confidence: 0.95, closedBag: false },
       { name: "Leaves", kind: "Leaves", category: "yard", ruleId: "yard_waste", count: 1, confidence: 0.9, closedBag: false },
@@ -168,6 +168,9 @@ test("scan route: returns a valid ScanResponse and passes aiCategory + context t
     assert.equal(body.sessionId, body.scanId);        // legacy fields still sent
     assert.equal(body.totalCount, body.total);
     assert.equal(body.countIsEstimate, body.isEstimate);
+    assert.equal(body.subject, "kitchen waste");
+    assert.equal(body.notWaste, false);
+    assert.equal(body.message, null);                  // items present -> no empty-state message
     const [food, yard, mismatch, none] = body.items;
     assert.equal(food.correctBin, "garbage");         // ctx.hasBrownBin reached the engine
     assert.equal(food.contextApplied, true);
@@ -180,10 +183,19 @@ test("scan route: returns a valid ScanResponse and passes aiCategory + context t
 });
 
 test("scan route: defaults to borough null and hasBrownBin true", async () => {
-  await withScanServer(async () => ({ total: 0, isEstimate: false, items: [] }), async url => {
-    const body = await (await post(url, { imageBase64: image })).json();
+  await withScanServer(async () => ({ total: 0, isEstimate: false, subject: "une table", notWaste: false, items: [] }), async url => {
+    const body = ScanResponseSchema.parse(await (await post(url, { imageBase64: image })).json());
     assert.deepEqual(body.context, { lang: "fr", borough: null, hasBrownBin: true });
     assert.deepEqual(body.items, []);
+    assert.match(body.message ?? "", /Aucun objet/);   // empty, not "not waste"
+  });
+});
+
+test("scan route: a non-waste photo returns notWaste and a message in the requested language", async () => {
+  await withScanServer(async () => ({ total: 0, isEstimate: false, subject: "a cat", notWaste: true, items: [] }), async url => {
+    const body = ScanResponseSchema.parse(await (await post(url, { imageBase64: image, lang: "en" })).json());
+    assert.equal(body.notWaste, true);
+    assert.match(body.message ?? "", /not something to sort \(a cat\)/);
   });
 });
 

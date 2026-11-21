@@ -109,6 +109,9 @@ export interface ScanResponse {
   totalCount: number;
   /** @deprecated Same value as `isEstimate`. */
   countIsEstimate: boolean;
+  subject: string;          // what the photo mainly shows ("un chat", "des canettes sur une table")
+  notWaste: boolean;        // true => nothing to sort in the photo (a cat, a person...); items is empty
+  message: string | null;   // ready-to-show text when notWaste or when nothing was found; null otherwise
 }
 
 /** App -> server, POST /api/score: the bin the player chose for each item of a scan session. */

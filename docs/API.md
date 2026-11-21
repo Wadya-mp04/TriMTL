@@ -116,7 +116,8 @@ This is the canonical example, [`server/src/tests/fixtures/scanResponse.example.
 }
 ```
 
-The live server also sends three **legacy fields** with the same values: `sessionId` (= `scanId`),
+The live server also sends `subject`, `notWaste` and `message` (see the table below; the example predates
+them), and three **legacy fields** with the same values: `sessionId` (= `scanId`),
 `totalCount` (= `total`) and `countIsEstimate` (= `isEstimate`). They exist because contract changes are
 additive only, and `/api/score` and `/api/classify` still take `sessionId`. New code should read the new names.
 
@@ -130,7 +131,10 @@ additive only, and `/api/score` and `/api/classify` still take `sessionId`. New 
 | `context` | The context the answers were computed for, defaults filled in (`borough: null`, `hasBrownBin: true`). Show it ("Answers for Le Plateau, no brown bin"). |
 | `total` | Every object in the photo, merged counts included. Exact below 20. |
 | `isEstimate` | `true` at 20 or more objects: show "about 25 items". At most 8 game pieces are returned. |
-| `items` | Game pieces. An empty list means nothing to sort was found: show "No items found, try again" (not an error). |
+| `items` | Game pieces. An empty list is **not an error**: show `message`. |
+| `subject` | What the photo mainly shows, in `lang` ("a cat playing with a lizard"). From Gemini, display only. |
+| `notWaste` | `true` when the photo holds nothing to sort (a cat, a person, a street). `items` is then empty. If Gemini lists any waste, this is forced to `false`: a person holding a bottle is a bottle to sort. |
+| `message` | Ready-to-show text whenever `items` is empty: "That's not something to sort (a cat). Take a photo of a container…" when `notWaste`, otherwise "No items to sort were found. Move closer…". `null` when there are items. |
 
 ### `ScanItem` fields
 
@@ -233,7 +237,9 @@ the object is before choosing a rule. A test enforces both.
       "ruleId": "drink_can", "count": 3, "confidence": 0.93, "closedBag": false }
   ],
   "totalObjects": 3,
-  "isEstimate": false
+  "isEstimate": false,
+  "subject": "des canettes sur une table",
+  "notWaste": false
 }
 ```
 

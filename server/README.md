@@ -47,8 +47,9 @@ The full contract, with request/response examples and error codes, is in **[docs
 In short:
 
 - `POST /api/scan` takes `{ imageBase64, mimeType, lang, borough?, hasBrownBin? }` and returns
-  `ScanResponse { scanId, rulesVersion, checkedOn, context, total, isEstimate, items }`. The legacy
-  `sessionId`, `totalCount` and `countIsEstimate` are still sent.
+  `ScanResponse { scanId, rulesVersion, checkedOn, context, total, isEstimate, items, subject, notWaste, message }`.
+  The legacy `sessionId`, `totalCount` and `countIsEstimate` are still sent. Empty `items` is not an
+  error: show `message` ("That's not something to sort (a cat)…" when `notWaste`, else "No items found…").
 - `POST /api/classify` takes `{ name, lang, sessionId?, itemId? }` and returns `{ item }` (the user corrects a name).
 - `POST /api/score` takes `{ sessionId, answers }` and returns a score out of 100.
 - Errors: `{ "error": "<code>", "message": "…" }`. `rate_limited` 429, `timeout` 504, `ai_failed` 502, `no_key` 500, `bad_request` 400, `session_not_found` 404.
