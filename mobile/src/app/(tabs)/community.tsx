@@ -1,19 +1,29 @@
 /**
- * Social, "Today's podium" (ui-references/.../frosted_mint_social_podium_classic).
- * Leaderboard names are demo data until the server has a leaderboard endpoint; "You" uses real XP earned today.
+ * Community (ui-references/.../frosted_mint_social_podium_classic): boroughs compete to sort right.
+ * shortcut: standings are demo data plus the user's real XP today; switch to Supabase totals once accounts exist.
  */
 import { useMemo, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
-import { AvatarButton, Glass, Icon, PrimaryButton, Screen, Segmented, T, XpPill } from '../../components/ui';
-import { CITY, FRIENDS, Ranked } from '../../data/items';
+import { useRouter } from 'expo-router';
+
+import { AvatarButton, BentoBackdrop, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
+import { CITY, Ranked } from '../../data/items';
+import { BOROUGHS } from '../../data/rules';
 import { useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
 import { brand } from '../../brand';
 
-type Scope = 'friends' | 'city';
+type Scope = 'boroughs' | 'players';
+
+/** Two letters from the borough's main words: "Le Plateau-Mont-Royal" -> "PM". */
+const initialsOf = (name: string) =>
+  name.split(/[\s–'-]+/).filter((w) => /^[A-ZÀ-Ý]/.test(w) && !['Le', 'La', 'L'].includes(w)).slice(0, 2).map((w) => w[0]).join('');
+
+/** Stable demo points per borough, so the standings don't jump between renders. */
+const demoPoints = (slug: string) => 300 + ([...slug].reduce((n, c) => n * 31 + c.charCodeAt(0), 7) % 600);
 
 function Avatar({ p, size, bg, fg }: { p: Ranked; size: number; bg: string; fg: string }) {
   return (
@@ -49,47 +59,61 @@ function FirstBlock() {
   );
 }
 
-export default function SocialScreen() {
-  const { xpToday, initials } = useApp();
-  const [scope, setScope] = useState<Scope>('friends');
+export default function CommunityScreen() {
+  const router = useRouter();
+  const { xpToday, initials, borough } = useApp();
+  const [scope, setScope] = useState<Scope>('boroughs');
+  const unit = scope === 'boroughs' ? 'pts' : 'XP';
 
   const ranking = useMemo(() => {
+    if (scope === 'boroughs') {
+      // Your XP today counts for your borough.
+      return BOROUGHS.map((b) => ({
+        name: b.name,
+        initials: initialsOf(b.name),
+        xp: demoPoints(b.slug) + (b.slug === borough ? xpToday : 0),
+        you: b.slug === borough,
+      })).sort((a, b) => b.xp - a.xp);
+    }
     const me: Ranked = { name: 'You', initials, xp: xpToday, you: true };
-    return [...(scope === 'friends' ? FRIENDS : CITY), me].sort((a, b) => b.xp - a.xp);
-  }, [scope, xpToday, initials]);
+    return [...CITY, me].sort((a, b) => b.xp - a.xp);
+  }, [scope, xpToday, initials, borough]);
 
   const [first, second, third] = ranking;
-  const rest = ranking.slice(3, 8);
+  // Always show your own row, even if you're outside the top 8.
+  const mine = ranking.findIndex((r) => r.you);
+  const rest = ranking.map((r, i) => ({ ...r, rank: i + 1 })).filter((r) => (r.rank > 3 && r.rank <= 8) || (r.you && r.rank > 3));
 
   const share = () => {
-    const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${p.name} +${p.xp} XP`);
-    Share.share({ message: `Today's ${brand.appName} podium ♻️\n${lines.join('\n')}` });
+    const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${p.name} ${p.xp} ${unit}`);
+    const what = scope === 'boroughs' ? 'borough podium' : 'player podium';
+    Share.share({ message: `This week's ${brand.appName} ${what} ♻️\n${lines.join('\n')}` });
   };
 
   const youTone = (p: Ranked, base: string) => (p.you ? colors.forest : base);
 
   return (
-    <Screen variant="pearl" edges={['top']}>
-      <View style={styles.header}>
-        <View style={{ flexShrink: 1 }}>
-          <T size="3xl" display style={{ lineHeight: 36 }}>Today's podium</T>
-          <T size="xs" color={colors.inkMuted}>{scope === 'friends' ? 'Your friend group' : 'All players'} · {brand.city}</T>
-        </View>
-        <View style={styles.row}>
-          <XpPill />
-          <AvatarButton />
-        </View>
-      </View>
+    <Screen edges={['top']}>
+      <BentoBackdrop />
+      <ScreenHeader eyebrow={`This week · ${brand.city}`} title="Community" right={<AvatarButton />} />
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
         <Segmented
-          options={[{ key: 'friends', label: 'Friends' }, { key: 'city', label: brand.city }]}
+          options={[{ key: 'boroughs', label: 'Boroughs' }, { key: 'players', label: 'Players' }]}
           value={scope}
           onChange={setScope}
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.72)', borderColor: 'rgba(255, 255, 255, 0.88)', boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12)' }}
         />
 
-        <View accessibilityLabel="Top 3 today" style={styles.podium}>
+        {scope === 'boroughs' && mine === -1 && (
+          <Spring onPress={() => router.push('/profile')} accessibilityRole="button" pressedScale={0.98} style={styles.cta}>
+            <Icon name="location-city" size={18} color={colors.forest} />
+            <T size="sm" weight="semibold" style={{ flex: 1 }}>Pick your borough to sort for your neighbourhood</T>
+            <Icon name="chevron-right" size={18} color={colors.inkMuted} />
+          </Spring>
+        )}
+
+        <View accessibilityLabel="Top 3 this week" style={styles.podium}>
           {/* 2nd */}
           <View style={styles.col}>
             <View>
@@ -97,8 +121,8 @@ export default function SocialScreen() {
               <RankBadge n={2} bg={second.you ? colors.forest : colors.ink} />
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight={second.you ? 'bold' : 'semibold'} numberOfLines={1} style={{ maxWidth: 96 }}>{second.name}</T>
-              <T weight="semibold" color={youTone(second, colors.inkMuted)} style={{ fontSize: 11, lineHeight: 16 }}>+{second.xp} XP</T>
+              <T size="xs" weight={second.you ? 'bold' : 'semibold'} numberOfLines={2} style={styles.podiumName}>{second.name}</T>
+              <T weight="semibold" color={youTone(second, colors.inkMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{second.xp} {unit}</T>
             </View>
             {second.you ? (
               <View style={[styles.block, styles.youBlock, { height: 96, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>2</T></View>
@@ -116,8 +140,8 @@ export default function SocialScreen() {
               </View>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight="bold" numberOfLines={1} style={{ maxWidth: 100 }}>{first.name}</T>
-              <T size="xs" weight="bold" color={colors.forest}>+{first.xp} XP</T>
+              <T size="xs" weight="bold" numberOfLines={2} style={styles.podiumName}>{first.name}</T>
+              <T size="xs" weight="bold" color={colors.forest}>{first.xp} {unit}</T>
             </View>
             <FirstBlock />
           </View>
@@ -129,8 +153,8 @@ export default function SocialScreen() {
               <RankBadge n={3} bg={third.you ? colors.forest : colors.ink} />
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight={third.you ? 'bold' : 'semibold'} numberOfLines={1} style={{ maxWidth: 96 }}>{third.name}</T>
-              <T weight="semibold" color={youTone(third, colors.inkMuted)} style={{ fontSize: 11, lineHeight: 16 }}>+{third.xp} XP</T>
+              <T size="xs" weight={third.you ? 'bold' : 'semibold'} numberOfLines={2} style={styles.podiumName}>{third.name}</T>
+              <T weight="semibold" color={youTone(third, colors.inkMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{third.xp} {unit}</T>
             </View>
             {third.you ? (
               <View style={[styles.block, styles.youBlock, { height: 80, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>3</T></View>
@@ -142,30 +166,40 @@ export default function SocialScreen() {
 
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-            <T size="xs" weight="semibold" color={colors.inkMuted} style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>Also sorting today</T>
-            <T size="xs" color={colors.inkMuted}>Resets midnight</T>
+            <T size="xs" weight="semibold" color={colors.inkMuted} style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>{scope === 'boroughs' ? 'Other boroughs' : 'Also sorting'}</T>
+            <T size="xs" color={colors.inkMuted}>Resets Monday</T>
           </View>
-          {rest.map((p, i) => (
+          {rest.map((p) => (
             <Glass key={p.name} style={[styles.listRow, p.you && { borderColor: colors.forest }]}>
-              <View style={styles.row}>
+              <View style={[styles.row, { flex: 1, marginRight: 8 }]}>
                 <View style={[styles.listRank, p.you && { backgroundColor: colors.forest }]}>
-                  <T size="xs" weight="bold" color={p.you ? colors.white : colors.ink}>{i + 4}</T>
+                  <T size="xs" weight="bold" color={p.you ? colors.white : colors.ink}>{p.rank}</T>
                 </View>
-                <T size="sm" weight="semibold" style={{ marginLeft: 4 }}>{p.name}</T>
+                <T size="sm" weight="semibold" numberOfLines={1} style={{ marginLeft: 4, flexShrink: 1 }}>{p.name}</T>
               </View>
-              <T size="xs" weight="bold" color={youTone(p, colors.inkMuted)}>+{p.xp} XP</T>
+              <T size="xs" weight="bold" color={youTone(p, colors.inkMuted)}>{p.xp} {unit}</T>
             </Glass>
           ))}
         </View>
 
-        <PrimaryButton label="Share today's podium" icon="ios-share" onPress={share} style={{ gap: 8 }} />
+        <PrimaryButton label="Share this week's podium" icon="ios-share" onPress={share} style={{ gap: 8 }} />
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  podiumName: { maxWidth: 100, textAlign: 'center' },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: radius['2xl'],
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.88)',
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   main: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: TAB_BAR_SPACE, gap: 20 },
   podium: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingTop: 16 },

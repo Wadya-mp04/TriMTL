@@ -1,5 +1,5 @@
 /**
- * Scan / Play / Social: swipe left or right between them, or tap the floating frosted tab bar.
+ * Scan / Play / Community: swipe left or right between them, or tap the floating frosted tab bar.
  */
 import TopTabs from 'expo-router/js-top-tabs';
 
@@ -15,7 +15,7 @@ export default function TabsLayout() {
     >
       <TopTabs.Screen name="scan" />
       <TopTabs.Screen name="play" />
-      <TopTabs.Screen name="social" />
+      <TopTabs.Screen name="community" />
     </TopTabs>
   );
 }

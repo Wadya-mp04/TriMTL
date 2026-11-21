@@ -1,6 +1,7 @@
 /**
  * Scan home (ui-references/.../frosted_mint_scan_viewfinder), with a larger viewfinder and scan button.
  */
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
@@ -13,6 +14,7 @@ import {
   Icon,
   IconBubble,
   Screen,
+  ScreenHeader,
   Spring,
   T,
 } from '../../components/ui';
@@ -85,16 +87,16 @@ export default function ScanScreen() {
   const { saved, username, xp } = useApp();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const openCamera = () => router.push('/camera');
+  const openCamera = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/camera');
+  };
 
   return (
-    <Screen variant="pearl" edges={['top']}>
+    <Screen edges={['top']}>
       <BentoBackdrop />
       <View style={styles.page}>
-        <View style={styles.header}>
-          <T size="sm" color={colors.inkMuted}>{greeting} · Level {levelFor(xp).level}</T>
-          <T display style={styles.welcome}>Welcome back, {username}</T>
-        </View>
+        <ScreenHeader eyebrow={`${greeting} · Level ${levelFor(xp).level}`} title={`Welcome back, ${username}`} />
 
         <View style={styles.main}>
           <Glass style={styles.finderCard}>
@@ -125,8 +127,6 @@ export default function ScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16, gap: 2 },
-  welcome: { fontSize: 34, lineHeight: 40, color: colors.ink },
   page: { flex: 1, paddingBottom: TAB_BAR_SPACE },
   main: { flex: 1, paddingHorizontal: 20, paddingTop: 4, gap: 20 },
   finderCard: { flex: 1, borderRadius: 28, padding: 16, gap: 16 },

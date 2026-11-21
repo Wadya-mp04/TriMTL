@@ -2,6 +2,7 @@
  * Full-screen camera: the preview fills the screen, controls float on top. 1–3 photos, then Analyze.
  */
 import { CameraView, FlashMode, useCameraPermissions } from 'expo-camera';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
@@ -41,6 +42,7 @@ export default function CameraScreen() {
   const snap = async () => {
     if (!cam.current || !ready || busy || full) return;
     setBusy(true);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     blink.setValue(1);
     Animated.timing(blink, { toValue: 0, duration: 250, useNativeDriver: true }).start();
     try {
@@ -54,6 +56,7 @@ export default function CameraScreen() {
   const fromLibrary = async () => add(await pickPhotos(MAX_PHOTOS - shots.length));
 
   const analyze = () => {
+    void Haptics.selectionAsync();
     setPhotos(shots);
     router.replace('/analyzing');
   };

@@ -6,9 +6,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
-import { AvatarButton, BrandMark, Glass, Icon, PrimaryButton, Screen, Segmented, Spring, T, XpPill } from '../../components/ui';
+import { BentoBackdrop, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
 import { DAILY_DECK, SortItem } from '../../data/items';
-import { useApp } from '../../state/AppState';
+import { levelFor, useApp } from '../../state/AppState';
 import { BIN_ORDER, BinKey, bins, colors, radius, shadow } from '../../theme';
 
 const XP_PER_HIT = 15;
@@ -17,7 +17,7 @@ type Mode = 'mine' | 'daily';
 export default function PlayScreen() {
   const router = useRouter();
   const { deck: deckParam } = useLocalSearchParams<{ deck?: string }>();
-  const { saved, lastScan, addXp, recordGame } = useApp();
+  const { saved, lastScan, addXp, recordGame, xp } = useApp();
   const [mode, setMode] = useState<Mode>('mine');
 
   const deck: SortItem[] = useMemo(() => {
@@ -76,16 +76,8 @@ export default function PlayScreen() {
 
   return (
     <Screen edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.row}>
-          <BrandMark />
-          <T size="lg" weight="bold" style={{ letterSpacing: -0.45 }}>Let's sort!</T>
-        </View>
-        <View style={styles.row}>
-          <XpPill />
-          <AvatarButton />
-        </View>
-      </View>
+      <BentoBackdrop />
+      <ScreenHeader eyebrow={`${xp} XP · Level ${levelFor(xp).level}`} title="Let's sort!" />
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
         <View style={{ gap: 8 }}>
@@ -111,7 +103,7 @@ export default function PlayScreen() {
             </View>
             <View style={{ width: '100%', gap: 8, marginTop: 8 }}>
               <PrimaryButton label="Play again" icon="replay" size="md" onPress={restart} />
-              <PrimaryButton label="See today's podium" icon="leaderboard" size="md" onPress={() => router.navigate('/social')} style={{ backgroundColor: colors.forest }} />
+              <PrimaryButton label="See today's podium" icon="leaderboard" size="md" onPress={() => router.navigate('/community')} style={{ backgroundColor: colors.forest }} />
             </View>
           </Glass>
         ) : (
@@ -169,7 +161,6 @@ export default function PlayScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   main: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: TAB_BAR_SPACE, gap: 20 },
   track: { height: 8, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: colors.white, overflow: 'hidden' },

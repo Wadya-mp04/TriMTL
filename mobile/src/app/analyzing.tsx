@@ -1,6 +1,7 @@
 /**
  * AI loading (ui-references/.../frosted_mint_ai_loading). Sends the photos to POST /api/scan.
  */
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, View } from 'react-native';
@@ -45,13 +46,16 @@ export default function AnalyzingScreen() {
       const { items, messages } = await scanPhotos(photos, { borough, hasBrownBin }, ctrl.signal);
       if (ctrl.signal.aborted) return;
       if (items.length === 0) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         setPhase({ kind: 'empty', message: messages[0] ?? 'No items to sort were found. Move closer and try again.' });
         return;
       }
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setLastScan(items);
       router.replace('/results');
     } catch (e) {
       if (ctrl.signal.aborted) return;
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setPhase({ kind: 'error', message: (e as Error).message });
     }
   }, [photos, borough, hasBrownBin, router, setLastScan]);

@@ -1,5 +1,5 @@
 /**
- * Floating glass pill tab bar (Scan / Play / Social). The dark highlight follows the swipe position.
+ * Floating glass pill tab bar (Scan / Play / Community). The dark highlight follows the swipe position.
  */
 import type { MaterialTopTabBarProps } from 'expo-router/js-top-tabs';
 import { useState } from 'react';
@@ -12,7 +12,7 @@ import { Icon, Spring, T } from './ui';
 const TABS: Record<string, { label: string; icon: string }> = {
   scan: { label: 'Scan', icon: 'qr-code-scanner' },
   play: { label: 'Play', icon: 'sports-esports' },
-  social: { label: 'Social', icon: 'leaderboard' },
+  community: { label: 'Community', icon: 'groups' },
 };
 
 /** Height the screens should leave free at the bottom so content isn't hidden by the bar. */

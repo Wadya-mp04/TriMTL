@@ -14,7 +14,7 @@ export const colors = {
   white: '#FFFFFF',
 };
 
-/** Background radial gradients. "mint" is most screens; "pearl" is Scan, Social and Profile. */
+/** Background radial gradients. "pearl" is the default on every screen; "mint" is the original design variant. */
 export const canvasGradients: Record<'mint' | 'pearl', string[]> = {
   mint: ['#FFFFFF', '#E5F3EA', '#D4EBDD'],
   pearl: ['#FFFFFF', '#EAF6EE', '#D7EDE0'],
