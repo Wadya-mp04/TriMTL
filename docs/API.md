@@ -43,7 +43,7 @@ This is the canonical example, [`server/src/tests/fixtures/scanResponse.example.
 ```json
 {
   "scanId": "demo-001",
-  "rulesVersion": 4,
+  "rulesVersion": 7,
   "checkedOn": "2026-11-21",
   "context": {
     "lang": "en",
@@ -62,17 +62,17 @@ This is the canonical example, [`server/src/tests/fixtures/scanResponse.example.
       "count": 1,
       "icon": "bottle",
       "confidence": "high",
-      "correctBin": "special",
-      "dropoff": "deposit",
-      "dropoffName": "Deposit return",
-      "explanation": "Drink containers from 100 ml to 2 L go back for the deposit.",
-      "specialInstruction": "Bring it back to get your deposit.",
+      "correctBin": "recycling",
+      "dropoff": null,
+      "dropoffName": null,
+      "explanation": "Plastic drink bottles from 100 ml to 2 L are recyclable. They also carry a 10¢ deposit.",
+      "specialInstruction": "Even better: bring it to a return point to get your 10¢ back.",
       "dropoffNote": null,
       "links": [],
-      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=deposit%20return%20Montr%C3%A9al",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=Consignaction%20return%20point%20Montr%C3%A9al",
       "needsVerification": false,
       "contextApplied": false,
-      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+      "sourceUrl": "https://consignaction.ca/wp-content/uploads/2025/05/bilan-citoyens-15-mai-2025.pdf"
     },
     {
       "id": "item-2",
@@ -232,7 +232,7 @@ Response 200: `ScoreResponse`
 ## GET /health
 
 ```json
-{ "ok": true, "model": "gemini-3.1-flash-lite", "hasKey": true, "rules": 50, "rulesVersion": 4, "rulesCheckedOn": "2026-11-21" }
+{ "ok": true, "model": "gemini-3.1-flash-lite", "hasKey": true, "rules": 50, "rulesVersion": 7, "rulesCheckedOn": "2026-11-21" }
 ```
 
 Check it from the presentation phone's browser before the demo.

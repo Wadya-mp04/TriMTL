@@ -1,7 +1,7 @@
 # TriMTL
 
-**Mission.** Montrealers sort waste wrong because the rules are surprising (drink cans go back for the
-deposit, chip bags go in the recycling since 2025, yard waste depends on your borough). TriMTL turns a
+**Mission.** Montrealers sort waste wrong because the rules are surprising (smoke detectors and mattresses
+go to the écocentre, chip bags go in the recycling since 2025, yard waste depends on your borough). TriMTL turns a
 photo of your trash into a short sorting game. Gemini recognises the objects, and a rules engine built
 from montreal.ca decides each bin. Every answer links to its official source, and anything we're not
 sure about is labelled "Needs verification" instead of guessed. Built in 24 h for the App|ETS Mobile
@@ -32,7 +32,7 @@ user. See [docs/DECISIONS.md](docs/DECISIONS.md) for why.
 | `recycling` | Blue or green recycling bin. Since 2025, *all* packaging, wrappers and coffee cups included. |
 | `compost` | Brown bin (food scraps, soiled paper; yard waste too in the 5 "combined" boroughs). |
 | `garbage` | Household garbage. |
-| `special` | Not a curbside bin. **`dropoff`** says where it goes: `deposit` (consigne), `ecocentre`, `pharmacy`, `donation`, `tree_collection`, `bulky_collection`, `yard_collection`. `dropoffName` is that place's name in the user's language. |
+| `special` | Not a curbside bin. **`dropoff`** says where it goes: `ecocentre`, `pharmacy`, `donation`, `tree_collection`, `bulky_collection`, `yard_collection` (`deposit` still exists in the type but no rule uses it: drink cans and bottles are `recycling`, with the 10¢ deposit as a tip). `dropoffName` is that place's name in the user's language. |
 
 The game has four bins so it stays playable. The real destination for `special` items is the dropoff,
 which the results screen shows.
