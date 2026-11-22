@@ -45,6 +45,7 @@ export default function RootLayout() {
           {/* Pages opened from a tab slide in from the right, the same sideways motion as the tabs. */}
           <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="library" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="friends" options={{ animation: 'slide_from_right' }} />
         </Stack>
       </ThemeProvider>
     </AppProvider>

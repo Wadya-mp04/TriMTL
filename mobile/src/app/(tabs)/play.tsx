@@ -15,13 +15,13 @@ import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, PrimaryButton, T } from '../../components/ui';
-import { CHALLENGE_POOL, SortItem } from '../../data/items';
+import { SortItem } from '../../data/items';
 import { useWorld } from '../../components/World';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
 import { skyInk, streetDark, THEMES } from '../../game/themes';
 import { DAILY_SIZE, dailyItems } from '../../lib/daily';
 import { useApp } from '../../state/AppState';
-import { bins, colors, fonts, radius } from '../../theme';
+import { BinKey, bins, colors, fonts, radius } from '../../theme';
 
 const XP_PER_HIT = 15;
 const ROUND_SIZE = 6;
@@ -29,6 +29,8 @@ const ROUND_SIZE = 6;
 const MAX_YOURS = 4;
 /** Height of the bin labels under the wheels (see SortGame), so the start strip begins below them. */
 const LABELS_H = 56;
+/** Street bins for players without a brown bin (stable array, so the game's layout isn't recomputed). */
+const NO_BROWN_BIN: BinKey[] = ['recycling', 'garbage', 'special'];
 
 const isToday = (iso?: string) => !!iso && new Date(iso).toDateString() === new Date().toDateString();
 const playable = (i: SortItem) => i.bin !== null;
@@ -44,17 +46,24 @@ function shuffle<T>(a: T[]) {
 type Mode = 'daily' | 'practice';
 interface Run { id: number; mode: Mode; deck: DeckEntry[] }
 
-const dailyDeck = (): DeckEntry[] => dailyItems().map((item) => ({ item, origin: 'never' as const }));
+/**
+ * Today's challenge: the same items for everyone (lib/daily), each resolved for this player's borough and brown bin
+ * (the pool from AppState), so only the correct answers adapt to where they live.
+ */
+function dailyDeck(pool: SortItem[], fits: (i: SortItem) => boolean): DeckEntry[] {
+  const resolved = new Map(pool.map((i) => [i.id, i]));
+  return dailyItems().map((i) => resolved.get(i.id) ?? i).filter(fits).map((item) => ({ item, origin: 'never' as const }));
+}
 
 /** Keep sorting: past mistakes first, then your other items (random), topped up with items you haven't scanned. */
-function practiceDeck(lastScan: SortItem[], saved: SortItem[], review: SortItem[]): DeckEntry[] {
+function practiceDeck(lastScan: SortItem[], saved: SortItem[], review: SortItem[], pool: SortItem[], fits: (i: SortItem) => boolean): DeckEntry[] {
   const seen = new Set<string>();
-  const fresh = (i: SortItem) => playable(i) && !seen.has(i.id) && !!seen.add(i.id);
+  const fresh = (i: SortItem) => playable(i) && fits(i) && !seen.has(i.id) && !!seen.add(i.id);
   const mistakes = review.filter(fresh);
   const yours = shuffle([...lastScan, ...saved].filter(fresh));
   const mine = [...mistakes, ...yours].slice(0, MAX_YOURS);
   const known = new Set([...lastScan, ...saved, ...mine].map((i) => i.name.toLowerCase()));
-  const never = shuffle(CHALLENGE_POOL.filter((p) => playable(p) && !known.has(p.name.toLowerCase())));
+  const never = shuffle(pool.filter((p) => playable(p) && fits(p) && !known.has(p.name.toLowerCase())));
   return shuffle([
     ...mine.map((item) => ({ item, origin: (isToday(item.scannedAt) ? 'today' : 'past') as DeckEntry['origin'] })),
     ...never.slice(0, ROUND_SIZE - mine.length).map((item) => ({ item, origin: 'never' as const })),
@@ -62,7 +71,9 @@ function practiceDeck(lastScan: SortItem[], saved: SortItem[], review: SortItem[
 }
 
 export default function PlayScreen() {
-  const { saved, lastScan, addXp, recordGame, playTheme, dailyDone, dailyKnown } = useApp();
+  const { saved, lastScan, challengePool, hasBrownBin, addXp, recordGame, playTheme, dailyDone, dailyKnown } = useApp();
+  // No brown bin: the compost bin is hidden, so leave out anything only it could take.
+  const fits = useCallback((i: SortItem) => hasBrownBin || i.bin !== 'compost', [hasBrownBin]);
   const [run, setRun] = useState<Run | null>(null); // null = start card showing
   const [result, setResult] = useState<RoundResult[] | null>(null);
   const [review, setReview] = useState<SortItem[]>([]); // items got wrong, played again until right
@@ -88,16 +99,18 @@ export default function PlayScreen() {
 
   // What the start card would begin: today's challenge if not done yet, otherwise Keep sorting.
   const upcoming = useMemo<Run>(
-    () => (dailyDone ? { id: 0, mode: 'practice', deck: practiceDeck(lastScan, saved, review) } : { id: 0, mode: 'daily', deck: dailyDeck() }),
-    // Rebuilt when today's status changes; the scanned/saved lists only matter for the next start.
+    () => (dailyDone
+      ? { id: 0, mode: 'practice', deck: practiceDeck(lastScan, saved, review, challengePool, fits) }
+      : { id: 0, mode: 'daily', deck: dailyDeck(challengePool, fits) }),
+    // Rebuilt when today's status or the player's area changes; the scanned/saved lists only matter at the next start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dailyDone],
+    [dailyDone, challengePool, fits],
   );
   const start = (r: Omit<Run, 'id'>) => {
     setResult(null);
     setRun({ ...r, id: nextId.current++ });
   };
-  const keepSorting = () => start({ mode: 'practice', deck: practiceDeck(lastScan, saved, review) });
+  const keepSorting = () => start({ mode: 'practice', deck: practiceDeck(lastScan, saved, review, challengePool, fits) });
 
   // Today's challenge already done: Play is simply the game (Keep sorting), no start card.
   useEffect(() => {
@@ -169,7 +182,7 @@ export default function PlayScreen() {
           />
         ) : (
           <View ref={gameRef} onLayout={measureGame} collapsable={false} style={{ flex: 1 }}>
-            <SortGame key={run?.id ?? `preview-${current.mode}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={onGround} onProgress={onProgress} />
+            <SortGame key={run?.id ?? `preview-${current.mode}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={onGround} onProgress={onProgress} shownBins={hasBrownBin ? undefined : NO_BROWN_BIN} />
             {!run && (
               // Before today's challenge: a plain strip in the ground colour covers the item area (above the game's own
               // layers, so nothing shows through), with just the start button. Bins stay visible above it.
@@ -177,7 +190,7 @@ export default function PlayScreen() {
               <View collapsable={false} style={[StyleSheet.absoluteFill, styles.blocker]}>
                 <View style={[styles.strip, stripTop !== undefined ? { top: stripTop } : { top: '60%' }, { backgroundColor: theme.lane }]}>
                   {dailyKnown && !dailyDone && (
-                    <PrimaryButton label="Start today's challenge" icon="play-arrow" onPress={() => start({ mode: 'daily', deck: dailyDeck() })} style={styles.startButton} />
+                    <PrimaryButton label="Start today's challenge" icon="play-arrow" onPress={() => start({ mode: 'daily', deck: dailyDeck(challengePool, fits) })} style={styles.startButton} />
                   )}
                 </View>
               </View>

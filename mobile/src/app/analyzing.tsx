@@ -71,7 +71,7 @@ export default function AnalyzingScreen() {
   };
 
   const loading = phase.kind === 'loading';
-  const tip = tipOfTheDay();
+  const tip = tipOfTheDay(new Date(), { borough, hasBrownBin });
   const barLeft = sweep.interpolate({ inputRange: [0, 1], outputRange: ['-50%', '100%'] });
 
   return (

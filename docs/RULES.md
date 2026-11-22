@@ -5,7 +5,7 @@ Owner: Waddah. This file is the **only** source of bins in TriMTL. Gemini picks 
 when the server starts and on every `npm run check`, so a typo stops the server instead of teaching a
 wrong answer.
 
-Current state: **version 7**, 50 rules, 19 boroughs, every rule and override verified, checked on montreal.ca, Recyc-Québec and Consignaction on 2026-11-21.
+Current state: **version 8**, 50 rules, 19 boroughs, every rule and all but one override verified, checked on montreal.ca, Recyc-Québec and Consignaction on 2026-11-21.
 
 ## Top-level fields
 
@@ -104,8 +104,11 @@ Use this when a new fact varies by borough, e.g. a hypothetical `glassDropoff: t
 - `ruleId: "none"`, low confidence, or a Gemini category that disagrees with the rule's category also set `needsVerification`. **We never invent an answer.**
 - `npm run validate-rules` lists every unverified rule and override.
 
-Currently unverified: **none** (since v4). The five no-brown-bin overrides, `wrapping_paper` and
-`christmas_lights` were checked and set to `verified: true` in v4 (see below).
+Currently unverified (shown as "Needs verification"):
+
+| What | Status |
+|---|---|
+| `yard_waste` with `{ organics: "combined", hasBrownBin: false }` → `special` + `ecocentre` (v8) | Added so players in the 5 combined-organics boroughs without a brown bin get a playable answer. Not yet confirmed on montreal.ca. |
 
 ## Verified facts: do not "fix" these
 
