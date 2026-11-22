@@ -33,6 +33,9 @@ export interface ScanOutcome {
   messages: string[];
 }
 
+/** Longer than the server's 20 s Gemini limit; without it a wrong server IP spins for over a minute. */
+const TIMEOUT_MS = 25_000;
+
 /** Scans each photo (the endpoint takes one image per request) and merges the items. */
 export async function scanPhotos(
   uris: string[],
@@ -46,23 +49,35 @@ export async function scanPhotos(
   const results = await Promise.all(
     uris.map(async (uri) => {
       const imageBase64 = await toBase64(uri, lang);
-      let res: Response;
+      // Aborts on the caller's cancel or after TIMEOUT_MS, whichever comes first.
+      const ctrl = new AbortController();
+      const cancel = () => ctrl.abort();
+      if (signal?.aborted) cancel();
+      signal?.addEventListener('abort', cancel);
+      const timer = setTimeout(cancel, TIMEOUT_MS);
+      const unreachable = () => new Error(translate(lang, "Can't reach the server at {url}. Is it running, on the same Wi-Fi?", { url: base }));
       try {
-        res = await fetch(`${base}/api/scan`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg', lang, borough: ctx.borough, hasBrownBin: ctx.hasBrownBin }),
-          signal,
-        });
-      } catch (e) {
-        if ((e as Error).name === 'AbortError') throw e;
-        throw new Error(translate(lang, "Can't reach the server at {url}. Is it running, on the same Wi-Fi?", { url: base }));
+        let res: Response;
+        try {
+          res = await fetch(`${base}/api/scan`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg', lang, borough: ctx.borough, hasBrownBin: ctx.hasBrownBin }),
+            signal: ctrl.signal,
+          });
+        } catch (e) {
+          if (signal?.aborted) throw e; // the user left the screen: not an error to show
+          throw unreachable();
+        }
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
+          throw new Error(body?.message ?? body?.error ?? translate(lang, 'Server error {status}', { status: res.status }));
+        }
+        return (await res.json().catch((e) => { if (signal?.aborted) throw e; throw unreachable(); })) as ScanResponseDTO;
+      } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', cancel);
       }
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
-        throw new Error(body?.message ?? body?.error ?? translate(lang, 'Server error {status}', { status: res.status }));
-      }
-      return (await res.json()) as ScanResponseDTO;
     }),
   );
 
