@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findRule, getRule, RULES, toScanItem } from "../services/sortingRules.js";
 import { pointsPerItem, score } from "../services/scoring.js";
-import { totalOf } from "../services/gemini.js";
+import { Detected, totalOf } from "../services/gemini.js";
 
 // Sources must be official: the city or Recyc-Québec.
 // Consignaction runs Québec's official deposit-return system.
@@ -83,4 +83,11 @@ test("score: correct, wrong, missing and unplayable items", () => {
   // The results screen reads /api/score, so the drop-off's note must reach it too.
   const battery = toScanItem({ id: "item-1", name: "AA", rule: getRule("battery"), confidence: "high", lang: "en" });
   assert.match(score("s", [battery], []).results[0].dropoffNote ?? "", /photo ID/);
+});
+
+test("a long item name or too many items is trimmed, never a failed scan", () => {
+  const item = { name: "x".repeat(200), kind: "", category: null, ruleId: "none", count: 1, confidence: 1 };
+  const parsed = Detected.parse({ totalObjects: 1, isEstimate: false, subject: "", notWaste: false, items: Array(100).fill(item) });
+  assert.equal(parsed.items[0].name.length, 80);
+  assert.ok(parsed.items.length < 100);
 });

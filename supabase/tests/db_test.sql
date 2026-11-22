@@ -183,6 +183,11 @@ select pg_temp.ok(not exists (
   select 1 from unnest(array['board(text)', 'borough_board(text)', 'find_players(text)', 'period_start(text)']) f
   where has_function_privilege('anon', 'public.' || f, 'execute')
 ), 'signed-out users cannot call the social functions');
+-- These skip RLS and return every player's id + points (private ones too); only board/borough_board may call them.
+select pg_temp.ok(not exists (
+  select 1 from unnest(array['daily_points(text)', 'period_start(text)']) f
+  where has_function_privilege('authenticated', 'public.' || f, 'execute')
+), 'signed-in users cannot call the raw points helpers');
 select pg_temp.ok(not exists (
   select 1 from unnest(array['profiles', 'scanned_items', 'game_scores', 'friendships']) t
   where has_table_privilege('anon', 'public.' || t, 'select, insert, update, delete')

@@ -91,17 +91,8 @@ export type Visibility = 'public' | 'friends' | 'private';
 export type GameMode = 'mine' | 'daily' | 'challenge';
 const TITLES: Record<GameMode, string> = { mine: 'Your items', daily: 'Daily challenge', challenge: 'Challenge' };
 
-/** The demo profile from the designs, shown when signed out or without Supabase. */
-const DEMO = {
-  username: 'EcoSorter',
-  xp: 320,
-  xpToday: 75,
-  games: [
-    { title: 'My scanned items', items: 4, correct: 4, when: 'Today' },
-    { title: 'Daily challenge', items: 5, correct: 4, when: 'Yesterday' },
-  ] as GameRecord[],
-  stats: { games: 12, answered: 50, correct: 44 },
-};
+/** The guest profile, shown when signed out or without Supabase: starts empty, like a new account. */
+const DEMO = { username: 'EcoSorter', xp: 0, xpToday: 0, games: [] as GameRecord[], stats: { games: 0, answered: 0, correct: 0 } };
 
 function dayLabel(iso: string) {
   const d = new Date(iso);
@@ -193,7 +184,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // shortcut: the newest 200 scans only; page through them if a library ever gets bigger.
         sb.from('scanned_items').select('id, rule_id, category, name, count, client_key, scanned_at')
           .order('scanned_at', { ascending: false }).limit(200),
-        sb.from('game_scores').select('items, correct, played_at').eq('mode', 'daily').order('played_at', { ascending: true }).limit(20),
+        // Montréal midnight is never more than 26 h ago (any DST), so this window always holds today's first round.
+        sb.from('game_scores').select('items, correct, played_at').eq('mode', 'daily')
+          .gte('played_at', new Date(Date.now() - 26 * 3600_000).toISOString()).order('played_at', { ascending: true }).limit(20),
       ]);
       if (loadedFor.current !== id) return; // signed out or switched user while loading: drop the stale reply
       if (profile.data?.username) setUsername(profile.data.username);
