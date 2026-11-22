@@ -1,14 +1,15 @@
 /**
  * Sheet content for the Map tab: legend, list rows, and the lane and drop-off detail views.
  */
+import { useState } from 'react';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 
 import { Glass, Icon, PrimaryButton, Spring, T } from '../components/ui';
-import type { Dropoff, Lane } from '../data/map';
+import type { Dropoff, Zone } from '../data/map';
 import { bins, colors, radius, shadow } from '../theme';
 import { DROPOFF_STYLE, LANE_STYLE } from './mapHtml';
-import { addDays, clock, countdown, humanDay, nextPickup, openStatus, shortWeekday, upcoming, weekdayOf, type Stream } from './schedule';
+import { addDays, clock, countdown, humanDay, openStatus, shortWeekday, upcoming, weekdayOf, weekly, type Stream } from './schedule';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -26,12 +27,11 @@ function Stroke({ streams, width = 22 }: { streams: Stream[]; width?: number }) 
 
 export function Legend() {
   const items: { streams: Stream[]; label: string }[] = [
-    { streams: ['garbage'], label: 'Garbage' },
-    { streams: ['recycling'], label: 'Recycling' },
-    { streams: ['garbage', 'recycling'], label: 'Both' },
+    { streams: ['garbage'], label: 'Garbage sector' },
+    { streams: ['recycling'], label: 'Recycling sector' },
   ];
   return (
-    <View accessible accessibilityLabel="Legend. Solid grey line: garbage. Dashed blue line: recycling. Grey and blue: both on the same day." style={styles.legend}>
+    <View accessible accessibilityLabel="Legend. Solid grey outline: garbage sector. Dashed blue outline: recycling sector." style={styles.legend}>
       {items.map((i) => (
         <View key={i.label} style={styles.legendItem}>
           <Stroke streams={i.streams} />
@@ -98,30 +98,18 @@ export function DropoffRow({ d, now, distance, onPress }: { d: Dropoff; now: Dat
   );
 }
 
-export function LaneRow({ lane, today, onPress }: { lane: Lane; today: string; onPress: () => void }) {
-  const next = upcoming(lane, today, 56)[0];
-  const when = next ? humanDay(next.date, today) : 'No pickup scheduled';
-  const what = next ? next.streams.map((s) => LANE_STYLE[s].label.toLowerCase()).join(' and ') : '';
-  return (
-    <Spring onPress={onPress} pressedScale={0.98} accessibilityRole="button" accessibilityLabel={`${lane.name}. Next pickup ${when}, ${what}`}>
-      <Glass style={styles.listRow}>
-        <View style={styles.strokeCell}>{next && <Stroke streams={next.streams} width={28} />}</View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <T size="sm" weight="semibold" numberOfLines={1}>{lane.name}</T>
-          <T size="xs" color={colors.inkMuted} numberOfLines={1}>
-            <T size="xs" weight="semibold" color={next && next.date === today ? colors.forest : colors.ink}>{when}</T>
-            {what ? ` · ${what[0].toUpperCase()}${what.slice(1)}` : ''}
-          </T>
-        </View>
-        <Icon name="chevron-right" size={18} color={colors.inkMuted} />
-      </Glass>
-    </Spring>
-  );
-}
+export type Area = { garbage?: Zone; recycling?: Zone };
+
+/** Weekly rules for the sectors whose weeks are known; every-other-week sectors cannot be dated. */
+export const areaRules = (a: Area) =>
+  (['garbage', 'recycling'] as Stream[]).flatMap((stream) => {
+    const z = a[stream];
+    return z && !z.biweekly ? z.days.map((d) => ({ stream, rule: weekly(d), exceptions: z.exceptions })) : [];
+  });
 
 /** Seven days from today; a pickup day shows its stream marks, today gets a soft forest ring. */
-function WeekStrip({ lane, today }: { lane: Lane; today: string }) {
-  const days = upcoming(lane, today, 7);
+function WeekStrip({ area, today }: { area: Area; today: string }) {
+  const days = upcoming(areaRules(area), today, 7);
   return (
     <View style={styles.strip} accessibilityLabel="Next seven days" accessibilityRole="summary">
       {Array.from({ length: 7 }, (_, i) => {
@@ -145,10 +133,19 @@ function WeekStrip({ lane, today }: { lane: Lane; today: string }) {
   );
 }
 
-function NextRow({ stream, lane, today }: { stream: Stream; lane: Lane; today: string }) {
-  const p = nextPickup(lane[stream], stream, today, lane.exceptions);
+const dayList = (days: number[]) => days.map((d) => WEEKDAYS[d]).join(' and ');
+
+function NextRow({ stream, zone, today }: { stream: Stream; zone?: Zone; today: string }) {
   const b = bins[stream];
-  const isToday = p?.date === today;
+  const next = zone && !zone.biweekly ? upcoming(areaRules({ [stream]: zone }), today, 56)[0] : undefined;
+  const isToday = next?.date === today;
+  const headline = !zone
+    ? 'No city schedule here'
+    : !zone.days.length
+      ? 'Shared container, any day'
+      : zone.biweekly
+        ? `Every other ${dayList(zone.days)}`
+        : next ? humanDay(next.date, today) : 'None in the next 8 weeks';
   return (
     <View style={[styles.nextRow, isToday && { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: colors.forest }]}>
       <View style={[styles.bubble, { width: 36, height: 36, borderRadius: 18, backgroundColor: b.bg }]}>
@@ -156,49 +153,69 @@ function NextRow({ stream, lane, today }: { stream: Stream; lane: Lane; today: s
       </View>
       <View style={{ flex: 1 }}>
         <T size="xs" weight="semibold" color={colors.inkMuted}>{b.label}</T>
-        <T size="base" weight="bold" color={isToday ? colors.forest : colors.ink}>{p ? humanDay(p.date, today) : 'None in the next 8 weeks'}</T>
-        {p?.note && <T size="xs" color={colors.inkMuted}>{p.note}</T>}
+        <T size="base" weight="bold" color={isToday ? colors.forest : colors.ink}>{headline}</T>
+        {zone?.biweekly && <T size="xs" color={colors.inkMuted}>The city's calendar shows which weeks.</T>}
+        {next?.note && <T size="xs" color={colors.inkMuted}>{next.note}</T>}
       </View>
-      {p && (
+      {next && (
         <View style={[styles.count, isToday && { backgroundColor: colors.forest }]}>
-          <T size="xs" weight="semibold" color={isToday ? colors.white : colors.ink}>{countdown(p.date, today)}</T>
+          <T size="xs" weight="semibold" color={isToday ? colors.white : colors.ink}>{countdown(next.date, today)}</T>
         </View>
       )}
     </View>
   );
 }
 
-const freq = (r: Lane['garbage']) => `${r.every === 1 ? 'Every' : 'Every other'} ${WEEKDAYS[r.weekday]}`;
-
-export function LaneDetails({ lane, today }: { lane: Lane; today: string }) {
-  const ex = (lane.exceptions ?? []).filter((e) => e.date >= today);
+export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area; today: string; fetchedOn: string; sourceUrl: string }) {
+  const [open, setOpen] = useState(false);
+  const zones = (['garbage', 'recycling'] as Stream[]).flatMap((s) => (area[s] ? [area[s]!] : []));
+  const ex = zones.flatMap((z) => z.exceptions.filter((e) => e.date >= today).map((e) => ({ ...e, stream: z.stream })))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const anyBiweekly = zones.some((z) => z.biweekly);
   return (
     <View style={{ gap: 16 }}>
       <Glass style={styles.card}>
         <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Next pickup</T>
-        <NextRow stream="garbage" lane={lane} today={today} />
-        <NextRow stream="recycling" lane={lane} today={today} />
+        <NextRow stream="garbage" zone={area.garbage} today={today} />
+        <NextRow stream="recycling" zone={area.recycling} today={today} />
       </Glass>
-      <WeekStrip lane={lane} today={today} />
-      <Glass style={styles.card}>
-        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>How often</T>
-        <View style={styles.kv}><T size="sm" color={colors.inkMuted}>Garbage</T><T size="sm" weight="semibold">{freq(lane.garbage)}</T></View>
-        <View style={styles.kv}><T size="sm" color={colors.inkMuted}>Recycling</T><T size="sm" weight="semibold">{freq(lane.recycling)}</T></View>
-        <T size="xs" color={colors.inkMuted}>Put bins out after 7 pm the night before, or before 7 am on the day.</T>
-      </Glass>
+      {areaRules(area).length > 0 && <WeekStrip area={area} today={today} />}
       {ex.length > 0 && (
         <Glass style={styles.card}>
           <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Holiday changes</T>
           {ex.map((e) => (
-            <View key={e.date + e.stream} style={styles.row}>
+            <View key={e.stream + e.date} style={styles.row}>
               <Icon name="event" size={16} color={colors.inkMuted} />
               <T size="sm" style={{ flex: 1 }}>
-                <T size="sm" weight="semibold">{humanDay(e.date, today)}</T> · {e.note}
+                <T size="sm" weight="semibold">{humanDay(e.date, today)}</T>
+                {` · ${bins[e.stream as Stream].label}: ${e.moveTo ? `moved to ${humanDay(e.moveTo, today)}` : 'no pickup'}`}
               </T>
             </View>
           ))}
         </Glass>
       )}
+      <Glass style={styles.card}>
+        <Spring onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }} pressedScale={0.98} style={styles.kv}>
+          <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>The city's instructions</T>
+          <Icon name={open ? 'expand-less' : 'expand-more'} size={20} color={colors.inkMuted} />
+        </Spring>
+        {open && zones.map((z) => (
+          <View key={z.stream} style={{ gap: 4 }}>
+            <T size="xs" weight="semibold">{bins[z.stream].label} · sector {z.id}</T>
+            <T size="xs" color={colors.inkMuted}>{z.note}</T>
+          </View>
+        ))}
+        {anyBiweekly && (
+          <Spring onPress={() => Linking.openURL('https://montreal.ca/info-collectes')} accessibilityRole="link" hitSlop={8}>
+            <T size="sm" weight="bold" color={colors.forest}>Open the city's collection calendar</T>
+          </Spring>
+        )}
+        <Spring onPress={() => Linking.openURL(sourceUrl)} accessibilityRole="link" hitSlop={8}>
+          <T size="xs" color={colors.inkMuted}>
+            Ville de Montréal open data, downloaded {new Date(`${fetchedOn}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}.
+          </T>
+        </Spring>
+      </Glass>
     </View>
   );
 }

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { countdown, humanDay, nextPickup, openStatus, upcoming, type CollectionRule } from './schedule.ts';
+import { countdown, humanDay, nextPickup, openStatus, upcoming, weekly, type CollectionRule } from './schedule.ts';
 
 // 2026-11-23 is a Monday.
 const weeklyTue: CollectionRule = { weekday: 2, every: 1, anchor: '2026-11-03' };
@@ -42,7 +42,7 @@ test('DST: the November clock change does not shift a day', () => {
 });
 
 test('upcoming merges both streams on the same day', () => {
-  const days = upcoming({ garbage: { weekday: 4, every: 1, anchor: '2026-11-19' }, recycling: biweeklyThu }, '2026-11-30', 7);
+  const days = upcoming([{ stream: 'garbage', rule: { weekday: 4, every: 1, anchor: '2026-11-19' } }, { stream: 'recycling', rule: biweeklyThu }], '2026-11-30', 7);
   assert.deepEqual(days, [{ date: '2026-12-03', streams: ['garbage', 'recycling'] }]);
 });
 
@@ -62,4 +62,9 @@ test('opening hours: open, before opening, after close, closed days', () => {
   assert.deepEqual(openStatus(hours, mon(17)), { open: false, label: 'Opens tomorrow 9 am' });
   assert.deepEqual(openStatus(hours, new Date(2026, 10, 25, 12)), { open: false, label: 'Opens Mon 9 am' });
   assert.equal(openStatus(Array(7).fill('00:00-24:00'), mon(3)).label, 'Open 24 hours');
+});
+
+test('weekly(): any weekday anchors to a date that is that weekday', () => {
+  for (let d = 0; d < 7; d++) assert.equal(nextPickup(weekly(d), 'garbage', '2026-11-23')?.date.length, 10);
+  assert.equal(nextPickup(weekly(3), 'garbage', '2026-11-23')?.date, '2026-11-25');
 });

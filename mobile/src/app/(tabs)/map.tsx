@@ -1,6 +1,7 @@
 /**
- * Map: eco drop-offs and lane collection days. A Leaflet map in a WebView is the hero; search, filter chips
- * and a draggable sheet float over it. All data comes from src/data/map.ts (sample data for now).
+ * Map: garbage and recycling days for any spot on the island, and eco drop-offs. A 3D MapLibre map in a
+ * WebView is the hero; search, filter chips and a draggable sheet float over it. Data: src/data/map.ts
+ * (collection days are the city's real open data; drop-offs are sample data).
  */
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,14 +22,14 @@ import WebView, { type WebViewMessageEvent } from 'react-native-webview';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { CircleButton, Glass, Icon, IconBubble, PrimaryButton, SecondaryButton, Segmented, Spring, T } from '../../components/ui';
-import { geocode, loadMapData, type DropoffType, type Lane, type MapData } from '../../data/map';
+import { geocode, loadMapData, zoneKey, zonesAt, type DropoffType, type MapData } from '../../data/map';
 import { BottomSheet } from '../../map/BottomSheet';
-import { Chip, DropoffDetails, DropoffRow, LaneDetails, LaneRow, Legend } from '../../map/Details';
+import { AreaDetails, areaRules, Chip, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
 import { DROPOFF_STYLE, mapHtml } from '../../map/mapHtml';
-import { addDays, humanDay, localKey, upcoming } from '../../map/schedule';
+import { localKey, upcoming } from '../../map/schedule';
 import { colors, glass, radius, shadow } from '../../theme';
 
-type Selection = { kind: 'lane' | 'dropoff'; id: string } | null;
+type Selection = { kind: 'dropoff'; id: string } | { kind: 'area'; lat: number; lng: number; label: string; area: Area } | null;
 type Notice = { icon: string; text: string; action?: { label: string; run: () => void } } | null;
 
 const TYPES = Object.keys(DROPOFF_STYLE) as DropoffType[];
@@ -39,7 +40,6 @@ function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }
   const x = (b.lng - a.lng) * r * Math.cos(((a.lat + b.lat) / 2) * r);
   return Math.hypot(x, (b.lat - a.lat) * r) * 6_371_000;
 }
-const laneDistance = (l: Lane, p: { lat: number; lng: number }) => Math.min(...l.path.map(([lat, lng]) => metres(p, { lat, lng })));
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
@@ -91,19 +91,18 @@ export default function MapScreen() {
   const [headerH, setHeaderH] = useState(150);
   const snaps = useMemo(() => [TAB_BAR_SPACE + 28 + headerH, Math.round(height * 0.52), height - insets.top - 64], [height, insets.top, headerH]);
 
-  const laneLook = useMemo(() => {
-    if (!data) return [];
-    return data.lanes.map((l) => {
-      const next = upcoming(l, today, 56)[0];
-      const todays = next?.date === today;
-      const streams = next?.streams ?? ['garbage'];
-      return {
-        id: l.id,
-        kind: streams.length === 2 ? 'both' : streams[0],
-        dim: when === 'today' ? !todays : !next || next.date > addDays(today, 6),
-      };
-    });
-  }, [data, today, when]);
+  // Which sectors collect today, and which are selected; drawn on the map as feature state.
+  const todayKeys = useMemo(
+    () => new Set((data?.zones ?? []).filter((z) => upcoming(areaRules({ [z.stream]: z }), today, 1).length).map(zoneKey)),
+    [data, today],
+  );
+  const zoneStates = useMemo(() => {
+    const out: Record<string, { hot?: boolean; dim?: boolean; sel?: boolean }> = {};
+    if (!data) return out;
+    if (when === 'today') for (const z of data.zones) out[zoneKey(z)] = todayKeys.has(zoneKey(z)) ? { hot: true } : { dim: true };
+    if (selected?.kind === 'area') for (const z of [selected.area.garbage, selected.area.recycling]) if (z) out[zoneKey(z)] = { sel: true };
+    return out;
+  }, [data, when, todayKeys, selected]);
 
   const pins = useMemo(
     () =>
@@ -118,18 +117,17 @@ export default function MapScreen() {
     [data, filter],
   );
 
-  // Push data to the page once it is ready, and again whenever filters or the day change.
+  // The sectors go to the page once per load (they are large); pins and highlight state on every change.
   const pushed = useRef(false);
   useEffect(() => {
-    if (mapState === 'loading' || !data) return;
-    if (!pushed.current) {
-      send({ type: 'motion', reduce: reduceMotion });
-      send({ type: 'pad', top: TOP, bottom: snaps[sheet] });
-      send({ type: 'data', lanes: data.lanes.map((l, i) => ({ ...laneLook[i], name: l.name, path: l.path })), pins });
-      pushed.current = true;
-    } else send({ type: 'data', lanes: data.lanes.map((l, i) => ({ ...laneLook[i], name: l.name, path: l.path })), pins });
-    if (selected) send({ type: 'select', ...selected });
-  }, [mapState, data, pins, laneLook, reduceMotion, send]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (mapState === 'loading' || !data || pushed.current) return;
+    send({ type: 'motion', reduce: reduceMotion });
+    send({ type: 'pad', top: TOP, bottom: snaps[sheet] });
+    send({ type: 'zones', zones: data.zones.map((z) => ({ key: zoneKey(z), stream: z.stream, polygons: z.polygons })) });
+    pushed.current = true;
+  }, [mapState, data, reduceMotion, send]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (mapState !== 'loading') send({ type: 'pins', pins }); }, [mapState, pins, send]);
+  useEffect(() => { if (mapState !== 'loading') send({ type: 'zoneState', states: zoneStates }); }, [mapState, zoneStates, send]);
 
   useEffect(() => send({ type: 'pad', top: TOP, bottom: snaps[sheet] }), [sheet, snaps, TOP, send]);
 
@@ -150,17 +148,29 @@ export default function MapScreen() {
         setSheet(idx);
         send({ type: 'pad', top: TOP, bottom: snaps[idx] });
       }
-      send({ type: 'select', ...(s ?? { id: null }) });
+      send(s?.kind === 'area' ? { type: 'select', kind: 'area', id: 'area', lat: s.lat, lng: s.lng } : { type: 'select', ...(s ?? { id: null }) });
     },
     [sheet, snaps, TOP, send],
   );
+
+  /** Look up the city sectors at a spot; outside them, say why rather than showing an empty card. */
+  const pickSpot = (p: { lat: number; lng: number }, label: string) => {
+    if (!data) return;
+    const area = zonesAt(data.zones, p);
+    if (!area.garbage && !area.recycling) {
+      setNotice({ icon: 'info-outline', text: "No Ville de Montréal schedule here. Westmount, Mount Royal and the island's other cities run their own collection." });
+      return;
+    }
+    setNotice(null);
+    select({ kind: 'area', ...p, label, area });
+  };
 
   const onMessage = (e: WebViewMessageEvent) => {
     const m = JSON.parse(e.nativeEvent.data);
     if (m.type === 'ready') setMapState('ready');
     if (m.type === 'tiles' && !m.ok) setNotice({ icon: 'cloud-off', text: "Map tiles didn't load. The list below still works.", action: { label: 'Retry', run: retryMap } });
     if (m.type === 'tiles' && m.ok) setNotice((n) => (n?.icon === 'cloud-off' ? null : n));
-    if (m.type === 'tap') m.kind ? select({ kind: m.kind, id: m.id }) : selected && select(null);
+    if (m.type === 'tap') m.kind === 'dropoff' ? select({ kind: 'dropoff', id: m.id }) : pickSpot({ lat: m.lat, lng: m.lng }, 'Spot you picked');
   };
 
   const retryMap = () => {
@@ -185,12 +195,8 @@ export default function MapScreen() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setMe(p);
-      const far = data && Math.min(...data.dropoffs.map((d) => metres(p, d))) > 5000;
-      if (far) setNotice({ icon: 'near-me', text: "You're outside the sample area, so the map stays on the Plateau." });
-      else {
-        setNotice(null);
-        send({ type: 'me', ...p });
-      }
+      send({ type: 'me', ...p });
+      pickSpot(p, 'Your location');
     } catch {
       setNotice({ icon: 'location-searching', text: "Couldn't find your location. Try again outside, or search an address." });
     } finally {
@@ -201,11 +207,10 @@ export default function MapScreen() {
   const matches = useMemo(() => {
     const q = fold(query.trim());
     if (!q || !data) return [];
-    const lanes = data.lanes.filter((l) => fold(l.name).includes(q)).map((l) => ({ kind: 'lane' as const, id: l.id, title: l.name, sub: 'Lane', icon: 'route' }));
     const drops = data.dropoffs
       .filter((d) => fold(`${d.name} ${d.address}`).includes(q))
       .map((d) => ({ kind: 'dropoff' as const, id: d.id, title: d.name, sub: d.address, icon: DROPOFF_STYLE[d.type].icon }));
-    return [...lanes, ...drops].slice(0, 6);
+    return drops.slice(0, 4);
   }, [query, data]);
 
   const submitSearch = async () => {
@@ -216,14 +221,10 @@ export default function MapScreen() {
       const hit = await geocode(query.trim());
       if (hit === 'off-island') return setNotice({ icon: 'search-off', text: 'This trial covers the Island of Montréal only. Try a street or address on the island.' });
       if (!hit) return setNotice({ icon: 'search-off', text: `No street or address called "${query.trim()}" on the island. Try a street and number.` });
-      const near = data.lanes.map((l) => ({ l, d: laneDistance(l, hit) })).sort((a, b) => a.d - b.d)[0];
-      if (near && near.d < 150) select({ kind: 'lane', id: near.l.id });
-      else {
-        Keyboard.dismiss();
-        setFocused(false);
-        send({ type: 'place', ...hit });
-        setNotice({ icon: 'info-outline', text: `${hit.label} isn't on a sample lane yet.` });
-      }
+      Keyboard.dismiss();
+      setFocused(false);
+      send({ type: 'place', ...hit });
+      pickSpot(hit, hit.label);
     } catch {
       setNotice({ icon: 'cloud-off', text: "Search couldn't reach the map service. Check your connection and try again.", action: { label: 'Retry', run: submitSearch } });
     } finally {
@@ -231,32 +232,31 @@ export default function MapScreen() {
     }
   };
 
-  const lane = selected?.kind === 'lane' ? data?.lanes.find((l) => l.id === selected.id) : undefined;
+  const area = selected?.kind === 'area' ? selected : undefined;
   const drop = selected?.kind === 'dropoff' ? data?.dropoffs.find((d) => d.id === selected.id) : undefined;
   const visibleDrops = useMemo(() => {
     const list = (data?.dropoffs ?? []).filter((d) => filter === 'all' || d.type === filter);
     return me ? [...list].sort((a, b) => metres(me, a) - metres(me, b)) : list;
   }, [data, filter, me]);
 
-  const todayLanes = data?.lanes.filter((l) => upcoming(l, today, 1).length) ?? [];
-  const nextAny = data?.lanes.map((l) => upcoming(l, today, 56)[0]).filter(Boolean).sort((a, b) => a!.date.localeCompare(b!.date))[0];
+  const todayCount = (stream: 'garbage' | 'recycling') => [...todayKeys].filter((k) => k.startsWith(stream)).length;
   const summary = !data
     ? ' '
     : when === 'today'
-      ? todayLanes.length
-        ? `${todayLanes.length} ${todayLanes.length === 1 ? 'lane is' : 'lanes are'} collected today`
-        : `No pickups today on these lanes. Next: ${nextAny ? humanDay(nextAny.date, today) : 'none scheduled'}.`
-      : `${data.lanes.length} lanes · ${data.dropoffs.length} drop-offs`;
+      ? todayKeys.size
+        ? `Today: garbage in ${todayCount('garbage')} sectors, recycling in ${todayCount('recycling')}.`
+        : 'No collections anywhere in the city today.'
+      : 'Tap any spot on the island, or search an address, to see its days.';
 
   const header = (
     <View style={styles.sheetHeader} onLayout={(e) => !selected && setHeaderH(Math.round(e.nativeEvent.layout.height))}>
-      {lane || drop ? (
+      {area || drop ? (
         <View style={styles.titleRow}>
           <View style={{ flex: 1, gap: 2 }}>
             <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>
-              {lane ? `Lane · ${lane.borough}` : `${DROPOFF_STYLE[drop!.type].label} drop-off`} · Sample
+              {area ? 'Collection days · Ville de Montréal' : `${DROPOFF_STYLE[drop!.type].label} drop-off · Sample`}
             </T>
-            <T display style={styles.title} numberOfLines={2} accessibilityRole="header">{lane ? lane.name : drop!.name}</T>
+            <T display style={styles.title} numberOfLines={2} accessibilityRole="header">{area ? area.label : drop!.name}</T>
           </View>
           <CircleButton icon="close" label="Close details" onPress={() => select(null)} />
         </View>
@@ -264,7 +264,7 @@ export default function MapScreen() {
         <>
           <View style={styles.titleRow}>
             <View style={{ flex: 1, gap: 2 }}>
-              <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Plateau · Sample data</T>
+              <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Island of Montréal</T>
               <T display style={styles.title} accessibilityRole="header">Pickups</T>
             </View>
             <Segmented
@@ -296,7 +296,7 @@ export default function MapScreen() {
         bounces={false}
         overScrollMode="never"
         setSupportMultipleWindows={false}
-        accessibilityLabel="Map of lanes and drop-offs"
+        accessibilityLabel="Map of collection sectors and drop-offs"
       />
 
       {mapState !== 'ready' && <MapCover state={mapState} onRetry={retryMap} top={TOP} bottom={snaps[0]} />}
@@ -387,19 +387,28 @@ export default function MapScreen() {
         <ScrollView contentContainerStyle={[styles.body, { paddingBottom: TAB_BAR_SPACE + 24 }]} showsVerticalScrollIndicator={false}>
           {dataError ? (
             <View style={styles.empty}>
-              <T size="sm" color={colors.inkMuted}>Lanes and drop-offs didn't load.</T>
+              <T size="sm" color={colors.inkMuted}>Collection days and drop-offs didn't load.</T>
               <SecondaryButton label="Try again" icon="refresh" onPress={load} />
             </View>
           ) : !data ? (
             <SkeletonRows />
-          ) : lane ? (
-            <LaneDetails lane={lane} today={today} />
+          ) : area ? (
+            <AreaDetails area={area.area} today={today} fetchedOn={data.fetchedOn} sourceUrl={data.sourceUrl} />
           ) : drop ? (
             <DropoffDetails d={drop} now={now} />
           ) : (
             <>
-              <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>
-                {filter === 'all' ? 'Drop-offs' : `${DROPOFF_STYLE[filter].label} drop-offs`}{me ? ' · nearest first' : ''}
+              <Glass style={styles.emptyCard}>
+                <View style={styles.titleRow}>
+                  <Icon name="touch-app" size={20} color={colors.forest} />
+                  <T size="sm" weight="semibold" style={{ flex: 1 }}>Find your collection days</T>
+                </View>
+                <T size="sm" color={colors.inkMuted}>
+                  Tap your block on the map, search your address, or use your location. Days come from the City of Montréal's own sector data.
+                </T>
+              </Glass>
+              <T size="xs" weight="semibold" color={colors.inkMuted} style={[styles.eyebrow, { marginTop: 12 }]}>
+                {filter === 'all' ? 'Drop-offs' : `${DROPOFF_STYLE[filter].label} drop-offs`} · sample{me ? ' · nearest first' : ''}
               </T>
               {visibleDrops.length ? (
                 visibleDrops.map((d) => <DropoffRow key={d.id} d={d} now={now} distance={me ? metres(me, d) : undefined} onPress={() => select({ kind: 'dropoff', id: d.id })} />)
@@ -411,10 +420,8 @@ export default function MapScreen() {
                   </Spring>
                 </Glass>
               )}
-              <T size="xs" weight="semibold" color={colors.inkMuted} style={[styles.eyebrow, { marginTop: 12 }]}>Lanes</T>
-              {data.lanes.map((l) => <LaneRow key={l.id} lane={l} today={today} onPress={() => select({ kind: 'lane', id: l.id })} />)}
               <T size="xs" color={colors.inkMuted} style={{ marginTop: 8 }}>
-                Street shapes from OpenStreetMap. Schedules, drop-offs and hours are sample data for this trial, not the city's.
+                Collection days: Ville de Montréal open data, {data.fetchedOn}. Drop-offs, addresses and hours are sample data for this trial.
               </T>
             </>
           )}
@@ -446,7 +453,7 @@ function MapCover({ state, onRetry, top, bottom }: { state: 'loading' | 'offline
         <View style={styles.offline}>
           <IconBubble icon="cloud-off" color={colors.inkMuted} />
           <T display style={styles.title}>The map didn't load</T>
-          <T size="sm" color={colors.inkMuted} style={{ textAlign: 'center' }}>You might be offline. Lanes and drop-offs are still listed below.</T>
+          <T size="sm" color={colors.inkMuted} style={{ textAlign: 'center' }}>You might be offline. Drop-offs are still listed below.</T>
           <PrimaryButton label="Try again" icon="refresh" size="md" onPress={onRetry} style={{ width: 200 }} />
         </View>
       )}

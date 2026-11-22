@@ -1,28 +1,16 @@
 /**
- * The Map tab's only data source. Everything the tab shows comes through `loadMapData`, so swapping in real
- * data means changing this file and nothing else.
+ * The Map tab's only data source; swapping a source means changing this file and nothing else.
  *
- * Today it returns map.sample.json: real street shapes from OpenStreetMap with INVENTED schedules and
- * drop-offs, labelled "Sample" in the UI. Real sources to swap in (both CC-BY 4.0, Ville de Montréal):
- * - Collection sectors: donneesquebec.ca/recherche/dataset/vmtl-info-collectes (one GeoJSON of polygons per
- *   stream, with collection days). Sectors are zones, not streets; draw them as polygons.
- * - Écocentres and drop-off points: not verified yet; montreal.ca lists the écocentres with hours.
+ * - Collection days are REAL: collections.json is built by scripts/build-collections.ts from the Ville de
+ *   Montréal "Secteurs Info-collectes" open data (CC-BY 4.0). It covers the city's 19 boroughs; the other
+ *   cities on the island (Westmount, Mount Royal, Dorval…) run their own collection and are not in it.
+ * - Drop-offs are SAMPLE data (map.sample.json), labelled "Sample" in the UI.
  */
+import collections from './collections.json';
 import sample from './map.sample.json';
-import type { CollectionRule, Exception } from '../map/schedule';
+import type { Sector } from '../map/infoCollectes';
 
 export type DropoffType = 'recycling' | 'ewaste' | 'hazardous' | 'compost' | 'donation';
-
-export type Lane = {
-  id: string;
-  name: string;
-  borough: string;
-  /** [lat, lng] points along the street. */
-  path: [number, number][];
-  garbage: CollectionRule;
-  recycling: CollectionRule;
-  exceptions?: Exception[];
-};
 
 export type Dropoff = {
   id: string;
@@ -36,10 +24,43 @@ export type Dropoff = {
   hours: (string | null)[];
 };
 
-export type MapData = { lanes: Lane[]; dropoffs: Dropoff[]; isSample: boolean };
+/** [lng, lat] rings; the first ring is the outline, the rest are holes. */
+export type Zone = Sector & { polygons: [number, number][][][] };
+
+export type MapData = {
+  zones: Zone[];
+  dropoffs: Dropoff[];
+  source: string;
+  sourceUrl: string;
+  fetchedOn: string;
+};
 
 export async function loadMapData(): Promise<MapData> {
-  return { lanes: sample.lanes as Lane[], dropoffs: sample.dropoffs as Dropoff[], isSample: true };
+  return {
+    zones: collections.sectors as Zone[],
+    dropoffs: sample.dropoffs as Dropoff[],
+    source: collections.source,
+    sourceUrl: collections.sourceUrl,
+    fetchedOn: collections.fetchedOn,
+  };
+}
+
+export const zoneKey = (z: Pick<Zone, 'stream' | 'id'>) => `${z.stream}:${z.id}`;
+
+function inRing(lng: number, lat: number, ring: [number, number][]) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[j];
+    if (y1 > lat !== y2 > lat && lng < ((x2 - x1) * (lat - y1)) / (y2 - y1) + x1) inside = !inside;
+  }
+  return inside;
+}
+
+/** The garbage and recycling sectors a point falls in (either may be missing). */
+export function zonesAt(zones: Zone[], p: { lat: number; lng: number }) {
+  const hit = (z: Zone) => z.polygons.some(([outer, ...holes]) => inRing(p.lng, p.lat, outer) && !holes.some((h) => inRing(p.lng, p.lat, h)));
+  return { garbage: zones.find((z) => z.stream === 'garbage' && hit(z)), recycling: zones.find((z) => z.stream === 'recycling' && hit(z)) };
 }
 
 /** OSM tags every address on the island with this county; Laval and the South Shore have their own. */

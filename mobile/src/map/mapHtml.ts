@@ -1,6 +1,6 @@
 /**
  * The MapLibre page the Map tab renders in a WebView: a 3D basemap (extruded buildings, Mont Royal terrain and
- * hillshade) styled from theme.ts, with lanes and drop-off pins on top. The app calls window.receive(msg);
+ * hillshade) styled from theme.ts, with collection sectors and drop-off pins on top. The app calls window.receive(msg);
  * the page posts JSON back.
  * shortcut: MapLibre loads from a CDN and tiles come from OpenFreeMap and the AWS open terrain set, all free
  * with no key; bundle the library and pick a tile host with an SLA before release.
@@ -81,20 +81,21 @@ export function mapHtml() {
   .cluster{width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer}
   .cluster b{min-width:34px;height:34px;border-radius:17px;background:${colors.ink};color:${colors.white};font:700 13px 'Plus Jakarta Sans',system-ui;
     display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px rgba(255,255,255,.7),0 6px 14px -4px rgba(18,41,31,.4)}
+  .spot{width:16px;height:16px;border-radius:8px;background:${colors.ink};border:3px solid ${colors.white};box-shadow:0 0 0 6px ${colors.ink}26,0 4px 10px rgba(18,41,31,.3)}
   .me{width:18px;height:18px;border-radius:9px;background:${colors.forest};border:3px solid ${colors.white};box-shadow:0 0 0 8px ${colors.forest}33}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}`;
 
   const js = `
-  // Looking south-west from the Plateau, so Mont Royal rises behind the lanes.
+  // Looking south-west from the Plateau, so Mont Royal rises behind it.
   const TILT = 62, FACE = 196;
   const post = (m) => window.ReactNativeWebView.postMessage(JSON.stringify(m));
-  let reduce = false, pad = { top: 0, bottom: 0, left: 24, right: 24 }, lanes = [], pins = [], selected = null, me = null, framed = false, ready = false, queue = [];
+  let reduce = false, pad = { top: 0, bottom: 0, left: 24, right: 24 }, pins = [], selected = null, me = null, spot = null, framed = false, ready = false, queue = [], states = {};
   const map = new maplibregl.Map({
     container: 'map', style: ${JSON.stringify(style())},
     center: [-73.5800, 45.5238], zoom: 15, pitch: TILT, bearing: FACE, maxPitch: 70,
     attributionControl: false, dragRotate: true, touchPitch: true,
   });
-  map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'OpenFreeMap' }), 'bottom-right');
+  map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'OpenFreeMap · Ville de Montréal' }), 'bottom-right');
   // Start collapsed to the (i) button on every width; the credits open on tap.
   map.once('load', () => document.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
 
@@ -104,40 +105,28 @@ export function mapHtml() {
 
   const cam = (o) => (reduce ? map.jumpTo(o) : map.flyTo({ ...o, duration: 700, curve: 1.3, essential: false }));
   const padding = () => ({ top: pad.top + 16, bottom: pad.bottom + 16, left: 24, right: 24 });
-
-  function laneFeatures() {
-    return { type: 'FeatureCollection', features: lanes.map((l) => ({
-      type: 'Feature', geometry: { type: 'LineString', coordinates: l.path.map(([a, b]) => [b, a]) },
-      properties: { id: l.id, name: l.name, kind: l.kind, sel: selected && selected.id === l.id ? 1 : 0, dim: l.dim ? 1 : 0 },
-    })) };
-  }
+  const st = (name) => ['boolean', ['feature-state', name], false];
 
   map.on('load', () => {
-    map.addSource('lanes', { type: 'geojson', data: laneFeatures() });
-    const width = ['case', ['==', ['get', 'sel'], 1], 8, 5];
-    const op = ['case', ['all', ['==', ['get', 'dim'], 1], ['==', ['get', 'sel'], 0]], 0.28, 1];
-    map.addLayer({ id: 'lane-glow', type: 'line', source: 'lanes', filter: ['==', ['get', 'sel'], 1],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': ['match', ['get', 'kind'], 'garbage', '${LANE_STYLE.garbage.color}', '${LANE_STYLE.recycling.color}'], 'line-width': 22, 'line-blur': 10, 'line-opacity': 0.35 } });
-    map.addLayer({ id: 'lane-casing', type: 'line', source: 'lanes', layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '${colors.white}', 'line-width': ['+', width, 3], 'line-opacity': ['*', op, 0.9] } });
-    map.addLayer({ id: 'lane-solid', type: 'line', source: 'lanes', filter: ['in', ['get', 'kind'], ['literal', ['garbage', 'both']]],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '${LANE_STYLE.garbage.color}', 'line-width': width, 'line-opacity': op } });
-    map.addLayer({ id: 'lane-dash', type: 'line', source: 'lanes', filter: ['in', ['get', 'kind'], ['literal', ['recycling', 'both']]],
-      layout: { 'line-join': 'round' },
-      paint: { 'line-color': '${LANE_STYLE.recycling.color}', 'line-width': width, 'line-opacity': op, 'line-dasharray': [1.6, 1.4] } });
-    map.addLayer({ id: 'lane-hit', type: 'line', source: 'lanes', paint: { 'line-color': '#000', 'line-width': 30, 'line-opacity': 0 } });
+    // Collection sectors: fills sit under the buildings, outlines over them so a sector reads in 3D.
+    map.addSource('zones', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: 'key' });
+    const G = '${LANE_STYLE.garbage.color}', R = '${LANE_STYLE.recycling.color}';
+    map.addLayer({ id: 'zone-fill', type: 'fill', source: 'zones', filter: ['==', ['get', 'stream'], 'garbage'],
+      paint: { 'fill-color': G, 'fill-opacity': ['case', st('sel'), 0.2, st('hot'), 0.16, st('dim'), 0.015, 0.05] } }, 'buildings');
+    map.addLayer({ id: 'zone-glow', type: 'line', source: 'zones', layout: { 'line-join': 'round' },
+      paint: { 'line-color': ['match', ['get', 'stream'], 'garbage', G, R], 'line-width': 16, 'line-blur': 8, 'line-opacity': ['case', st('sel'), 0.35, 0] } }, 'street-names');
+    map.addLayer({ id: 'zone-garbage', type: 'line', source: 'zones', filter: ['==', ['get', 'stream'], 'garbage'], layout: { 'line-join': 'round' },
+      paint: { 'line-color': G, 'line-width': ['case', st('sel'), 4, st('hot'), 2.5, 1.4], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.25, 0.75] } }, 'street-names');
+    map.addLayer({ id: 'zone-recycling', type: 'line', source: 'zones', filter: ['==', ['get', 'stream'], 'recycling'], layout: { 'line-join': 'round' },
+      paint: { 'line-color': R, 'line-width': ['case', st('sel'), 4, st('hot'), 2.5, 1.6], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.25, 0.85], 'line-dasharray': [2, 1.6] } }, 'street-names');
 
     map.addSource('drops', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, cluster: true, clusterRadius: 44, clusterMaxZoom: 15 });
     map.addLayer({ id: 'drops-anchor', type: 'circle', source: 'drops', paint: { 'circle-radius': 0, 'circle-opacity': 0 } });
     map.on('data', (e) => { if (e.sourceId === 'drops' && e.isSourceLoaded) syncMarkers(); });
     map.on('move', syncMarkers);
 
-    map.on('click', (e) => {
-      const hit = map.queryRenderedFeatures([[e.point.x - 14, e.point.y - 14], [e.point.x + 14, e.point.y + 14]], { layers: ['lane-hit'] })[0];
-      post(hit ? { type: 'tap', kind: 'lane', id: hit.properties.id } : { type: 'tap', kind: null });
-    });
+    // Any tap on the map asks the app which sectors cover that spot.
+    map.on('click', (e) => post({ type: 'tap', kind: null, lat: e.lngLat.lat, lng: e.lngLat.lng }));
     ready = true;
     queue.forEach(window.receive); queue = [];
     post({ type: 'ready' });
@@ -182,40 +171,38 @@ export function mapHtml() {
     m.getElement().style.zIndex = sel ? 2 : 1;
   }
 
-  function frameAll() {
-    const b = new maplibregl.LngLatBounds();
-    lanes.forEach((l) => l.path.forEach(([a, o]) => b.extend([o, a])));
-    map.jumpTo({ center: b.getCenter(), zoom: 15.5, padding: padding() });
+  function setStates(next) {
+    for (const k of Object.keys(states)) map.removeFeatureState({ source: 'zones', id: k });
+    states = next;
+    for (const [k, v] of Object.entries(states)) map.setFeatureState({ source: 'zones', id: k }, v);
+  }
+
+  function dot(lat, lng) {
+    if (!spot) { const el = document.createElement('div'); el.className = 'spot'; el.setAttribute('aria-label', 'Selected spot'); spot = new maplibregl.Marker({ element: el }); }
+    spot.setLngLat([lng, lat]).addTo(map);
   }
 
   window.receive = (m) => {
     if (!ready && m.type !== 'pad' && m.type !== 'motion') return void queue.push(m);
     if (m.type === 'pad') { pad = m; document.documentElement.style.setProperty('--sheet', m.bottom + 'px'); }
     if (m.type === 'motion') reduce = m.reduce;
-    if (m.type === 'data') {
-      lanes = m.lanes; pins = m.pins;
-      map.getSource('lanes').setData(laneFeatures());
+    if (m.type === 'zones') {
+      map.getSource('zones').setData({ type: 'FeatureCollection', features: m.zones.map((z) => ({
+        type: 'Feature', geometry: { type: 'MultiPolygon', coordinates: z.polygons }, properties: { key: z.key, stream: z.stream } })) });
+      if (!framed) { framed = true; map.jumpTo({ center: [-73.5800, 45.5238], zoom: 15.3, padding: padding() }); }
+    }
+    if (m.type === 'pins') {
+      pins = m.pins;
       for (const mk of markers.values()) mk.remove(); markers.clear();
       map.getSource('drops').setData({ type: 'FeatureCollection', features: pins.map((p) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: p })) });
-      if (!framed && lanes.length) { framed = true; frameAll(); }
     }
+    if (m.type === 'zoneState') setStates(m.states);
     if (m.type === 'select') {
       selected = m.id ? m : null;
-      map.getSource('lanes').setData(laneFeatures());
       for (const [k, mk] of markers) paintPin(k, mk);
-      const l = m.kind === 'lane' && lanes.find((x) => x.id === m.id);
+      if (m.kind !== 'area' && spot) spot.remove();
+      if (m.kind === 'area') { dot(m.lat, m.lng); cam({ center: [m.lng, m.lat], zoom: Math.max(map.getZoom(), 16), padding: padding() }); }
       const p = m.kind === 'dropoff' && pins.find((x) => x.id === m.id);
-      if (l) {
-        const b = new maplibregl.LngLatBounds();
-        l.path.forEach(([a, o]) => b.extend([o, a]));
-        // cameraForBounds gives up when the sheet's padding leaves too little room, so fit to the whole
-        // canvas and step out by how much of it the search bar and sheet cover.
-        map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
-        const c = map.cameraForBounds(b, { padding: 40, bearing: map.getBearing() });
-        const h = map.getCanvas().clientHeight, free = Math.max(120, h - pad.top - pad.bottom - 32);
-        const zoom = Math.max(15.8, Math.min(17, (c ? c.zoom : 16.5) - Math.log2(h / free) * 0.45));
-        cam({ center: b.getCenter(), zoom, bearing: map.getBearing(), pitch: map.getPitch(), padding: padding() });
-      }
       if (p) cam({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 16.5), padding: padding() });
     }
     if (m.type === 'place') cam({ center: [m.lng, m.lat], zoom: 16.5, padding: padding() });

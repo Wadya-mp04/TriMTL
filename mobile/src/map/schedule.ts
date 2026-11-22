@@ -51,19 +51,22 @@ export function nextPickup(rule: CollectionRule, stream: Stream, today: string, 
   return occurrences(rule, stream, today, 56, exceptions).sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
 }
 
-/** Both streams merged by day, soonest first. */
-export function upcoming(lane: { garbage: CollectionRule; recycling: CollectionRule; exceptions?: Exception[] }, today: string, days: number): Pickup[] {
+/** One weekday rule per stream (a sector can collect on two days); all merged by day, soonest first. */
+export function upcoming(rules: { stream: Stream; rule: CollectionRule; exceptions?: Exception[] }[], today: string, days: number): Pickup[] {
   const byDate = new Map<string, Pickup>();
-  for (const stream of ['garbage', 'recycling'] as Stream[]) {
-    for (const o of occurrences(lane[stream], stream, today, days, lane.exceptions)) {
+  for (const { stream, rule, exceptions } of rules) {
+    for (const o of occurrences(rule, stream, today, days, exceptions)) {
       const p = byDate.get(o.date) ?? { date: o.date, streams: [] };
-      p.streams.push(stream);
+      if (!p.streams.includes(stream)) p.streams.push(stream);
       if (o.note) p.note = o.note;
       byDate.set(o.date, p);
     }
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
+
+/** A weekly rule for a weekday, anchored on a known date with that weekday (any works for weekly). */
+export const weekly = (weekday: number): CollectionRule => ({ weekday, every: 1, anchor: addDays('2026-11-01', weekday) });
 
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
