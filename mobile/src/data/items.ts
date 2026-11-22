@@ -20,11 +20,21 @@ export interface SortItem {
   art?: string;
   /** When it was scanned (ISO). Drives "today" vs earlier days in the game. */
   scannedAt?: string;
-  /** Set only on items from a real scan (undefined on demo items), so only those get saved to the account. */
+  /**
+   * The rule behind the bin (null = no rule matched). Kept so the bin is re-worked out by the rules engine
+   * whenever the player's area changes; never decide `bin` without it.
+   */
   ruleId?: string | null;
   category?: string | null;
   count?: number;
+  /** What the object physically is ("Canette en aluminium"), from the scan. */
+  kind?: string;
+  /** Built-in sample content: shown and played, never saved to an account. */
+  demo?: boolean;
 }
+
+/** The player's area: which rule overrides apply (e.g. no brown bin -> food scraps go in the garbage). */
+export interface Area { borough: string | null; hasBrownBin: boolean }
 
 /** Subset of server/src/types.ts ScanItem that the app reads. */
 export interface ScanItemDTO {
@@ -112,19 +122,37 @@ export function fromScanItem(it: ScanItemDTO, scanId: string): SortItem {
     ruleId: it.ruleId,
     category: it.category,
     count: it.count,
+    kind: it.kind,
   };
+}
+
+/**
+ * Re-work an item's bin and texts for the player's area with the rules engine. Items without a rule
+ * ("Needs verification") are returned unchanged: there is nothing to decide.
+ */
+export function resolveItem(item: SortItem, area: Area): SortItem {
+  const rule = typeof item.ruleId === 'string' ? rules.getRule(item.ruleId) : null;
+  if (!rule) return item;
+  const it = rules.toScanItem({ id: item.id, name: item.name, rule, confidence: 'high', lang: 'en', ctx: area });
+  const tip = it.dropoffName ?? it.specialInstruction;
+  return { ...item, bin: it.correctBin, note: it.explanation ?? '', detail: [item.kind, tip].filter(Boolean).join(' • ') };
+}
+
+/** A game item from a rule id: demo content, and saved scans loaded back from the account. */
+export function fromRule(id: string, ruleId: string | null, name: string, extra: Partial<SortItem> = {}): SortItem {
+  const rule = ruleId ? rules.getRule(ruleId) : null;
+  const art = rule?.icon ?? 'generic';
+  const item: SortItem = {
+    id, name, detail: rule ? '' : 'Needs verification', icon: ICONS[art] ?? 'help-outline', bin: null, note: '', art,
+    ruleId: rule ? rule.id : null, category: rule?.category ?? null, ...extra,
+  };
+  return resolveItem(item, { borough: null, hasBrownBin: true });
 }
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
 
-/**
- * A demo item resolved by the rules engine (mobile/shared/, a copy of the server's), so its bin and
- * text always match the backend rules. ruleId etc. are cleared so demo items are never saved to an account.
- */
-function demo(id: string, ruleId: string, name: string, scannedAt?: string): SortItem {
-  const it = rules.toScanItem({ id, name, rule: rules.getRule(ruleId), confidence: 'high', lang: 'en' });
-  return { ...fromScanItem(it, 'demo'), id, scannedAt, ruleId: undefined, category: undefined, count: undefined };
-}
+/** A demo item: bin and text come from the rules engine (mobile/shared/, a copy of the server's). */
+const demo = (id: string, ruleId: string, name: string, scannedAt?: string) => fromRule(id, ruleId, name, { scannedAt, demo: true });
 
 /** Saved items on the Scan screen before the user has scanned anything (from the design). */
 export const DEMO_SAVED: SortItem[] = [
@@ -152,11 +180,7 @@ export const DAILY_DECK: SortItem[] = [
 ];
 
 /** Challenge items the player may never have scanned; bin, explanation and tip come from the engine. */
-const pool = (ruleId: string, name: string): SortItem => {
-  const it = demo(`pool:${ruleId}`, ruleId, name);
-  const r = rules.toScanItem({ id: it.id, name, rule: rules.getRule(ruleId), confidence: 'high', lang: 'en' });
-  return { ...it, detail: r.dropoffName ?? r.specialInstruction ?? '' };
-};
+const pool = (ruleId: string, name: string) => demo(`pool:${ruleId}`, ruleId, name);
 export const CHALLENGE_POOL: SortItem[] = [
   pool('pizza_box_greasy', 'Greasy pizza box'),
   pool('coffee_cup', 'Coffee cup'),

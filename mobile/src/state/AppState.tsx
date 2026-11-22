@@ -7,7 +7,7 @@
  */
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { DEMO_SAVED, SortItem } from '../data/items';
+import { CHALLENGE_POOL, DEMO_SAVED, fromRule, resolveItem, SortItem } from '../data/items';
 import { withRetry } from '../lib/retry';
 import { supabase } from '../lib/supabase';
 import { brand } from '../brand';
@@ -55,6 +55,8 @@ interface AppState {
   addXp: (n: number) => void;
   setPhotos: (uris: string[]) => void;
   setLastScan: (items: SortItem[]) => void;
+  /** Challenge-round items the player may never have scanned, answered for their area. */
+  challengePool: SortItem[];
   saveItems: (items: SortItem[]) => void;
   recordGame: (g: Omit<GameRecord, 'when'> & { mode: GameMode; xp: number }) => void;
   setArea: (borough: string | null, hasBrownBin: boolean) => void;
@@ -100,14 +102,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState(DEMO.username);
   const [xp, setXp] = useState(DEMO.xp);
   const [xpToday, setXpToday] = useState(DEMO.xpToday);
-  const [saved, setSaved] = useState<SortItem[]>(DEMO_SAVED);
+  // Raw items keep their rule id; `saved` / `lastScan` below are re-worked for the current area.
+  const [savedRaw, setSaved] = useState<SortItem[]>(DEMO_SAVED);
   const [photos, setPhotos] = useState<string[]>([]);
   const [borough, setBorough] = useState<string | null>(null);
   const [hasBrownBin, setHasBrownBin] = useState(true);
   const [games, setGames] = useState<GameRecord[]>(DEMO.games);
   const [stats, setStats] = useState(DEMO.stats);
   const [playTheme, setPlayThemeState] = useState<ThemeKey>(brand.defaultTheme);
-  const [lastScan, setLastScanRaw] = useState<SortItem[]>([]);
+  const [lastScanRaw, setLastScanRaw] = useState<SortItem[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   // Last user the profile was loaded for (undefined = not loaded yet).
   const loadedFor = useRef<string | null | undefined>(undefined);
@@ -123,14 +126,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUserId(id);
       if (!id) {
         setUsername(DEMO.username); setXp(DEMO.xp); setXpToday(DEMO.xpToday); setGames(DEMO.games); setStats(DEMO.stats);
+        setSaved(DEMO_SAVED); setLastScanRaw([]);
         return;
       }
       // Scoreboard: the signed-in user's own totals, recent rounds and today's XP (RLS limits it to them).
-      const [profile, totals, recent, board] = await Promise.all([
+      const [profile, totals, recent, board, scans] = await Promise.all([
         sb.from('profiles').select('username').eq('id', id).single(),
         sb.from('player_stats').select('games, answered, correct, xp').maybeSingle(),
         sb.from('game_scores').select('mode, items, correct, played_at').order('played_at', { ascending: false }).limit(5),
         sb.rpc('leaderboard', { scope: 'friends' }),
+        // shortcut: the newest 200 scans only; page through them if a library ever gets bigger.
+        sb.from('scanned_items').select('id, rule_id, category, name, count, client_key, scanned_at')
+          .order('scanned_at', { ascending: false }).limit(200),
       ]);
       if (loadedFor.current !== id) return; // signed out or switched user while loading: drop the stale reply
       if (profile.data?.username) setUsername(profile.data.username);
@@ -141,6 +148,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ({ title: TITLES[g.mode] ?? g.mode, items: g.items, correct: g.correct, when: dayLabel(g.played_at) })));
       const me = (board.data as { xp_today: number; is_me: boolean }[] | null)?.find((r) => r.is_me);
       setXpToday(me?.xp_today ?? 0);
+      // The library follows the account: saved scans come back, and the engine decides their bins.
+      type ScanRow = { id: number; rule_id: string | null; category: string | null; name: string; count: number; client_key: string | null; scanned_at: string };
+      if (!scans.error) {
+        setSaved((scans.data as ScanRow[]).map((r) =>
+          fromRule(r.client_key ?? `db:${r.id}`, r.rule_id, r.name, { category: r.category, count: r.count, scannedAt: r.scanned_at })));
+      }
     };
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => { apply(session?.user.id ?? null); });
     return () => sub.subscription.unsubscribe();
@@ -181,7 +194,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
       return [...items.filter((i) => !ids.has(i.id)).map((i) => ({ ...i, scannedAt: i.scannedAt ?? now })), ...prev];
     });
-    const real = items.filter((i) => i.ruleId !== undefined);
+    const real = items.filter((i) => !i.demo && i.ruleId !== undefined);
     if (!supabase || !userId || !real.length) return;
     // Store the rule id and context, not the bin: the rules engine decides the bin when it is played.
     // client_key = the item's scan-unique id, so a retry after a dropped connection can't save it twice.
@@ -212,6 +225,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     withRetry('save score', () => sb.from('game_scores').upsert(row, { onConflict: 'user_id,client_key', ignoreDuplicates: true }));
   }, [userId]);
 
+  // Changing brown bin or borough re-sorts everything at once: saved items, the last scan, the game.
+  const saved = useMemo(() => savedRaw.map((i) => resolveItem(i, { borough, hasBrownBin })), [savedRaw, borough, hasBrownBin]);
+  const lastScan = useMemo(() => lastScanRaw.map((i) => resolveItem(i, { borough, hasBrownBin })), [lastScanRaw, borough, hasBrownBin]);
+  const challengePool = useMemo(() => CHALLENGE_POOL.map((i) => resolveItem(i, { borough, hasBrownBin })), [borough, hasBrownBin]);
+
   const value = useMemo<AppState>(
     () => ({
       username,
@@ -221,6 +239,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saved,
       photos,
       lastScan,
+      challengePool,
       borough,
       hasBrownBin,
       games,
@@ -238,7 +257,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
       setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
-    [username, xp, xpToday, saved, photos, lastScan, borough, hasBrownBin, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, challengePool, borough, hasBrownBin, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

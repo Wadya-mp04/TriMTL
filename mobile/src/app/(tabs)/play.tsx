@@ -15,7 +15,7 @@ import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, PrimaryButton, T } from '../../components/ui';
-import { CHALLENGE_POOL, SortItem } from '../../data/items';
+import { SortItem } from '../../data/items';
 import { Backdrop } from '../../game/Backdrop';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
 import { skyInk, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
@@ -40,7 +40,7 @@ const chunk = <T,>(a: T[], n: number) => Array.from({ length: Math.ceil(a.length
 interface Round { title: string; deck: DeckEntry[] }
 
 /** Round 1: your items. Round 2: earlier scans first, topped up with never-scanned. Then the rest. */
-function buildRounds(lastScan: SortItem[], saved: SortItem[], fromScan: boolean): Round[] {
+function buildRounds(lastScan: SortItem[], saved: SortItem[], fromScan: boolean, pool: SortItem[]): Round[] {
   const seen = new Set<string>();
   const yours = [...lastScan, ...saved].filter((i) => playable(i) && !seen.has(i.id) && seen.add(i.id));
   const scanned = lastScan.filter(playable);
@@ -49,7 +49,7 @@ function buildRounds(lastScan: SortItem[], saved: SortItem[], fromScan: boolean)
   const firstIds = new Set(first.map((i) => i.id));
   const past = shuffle(yours.filter((i) => !firstIds.has(i.id))).map((item) => ({ item, origin: 'past' as const }));
   const known = new Set(yours.map((i) => i.name.toLowerCase()));
-  const never = shuffle(CHALLENGE_POOL.filter((p) => !known.has(p.name.toLowerCase()))).map((item) => ({ item, origin: 'never' as const }));
+  const never = shuffle(pool.filter((p) => !known.has(p.name.toLowerCase()))).map((item) => ({ item, origin: 'never' as const }));
   const r2 = [...past.slice(0, 3), ...never.slice(0, ROUND_SIZE - Math.min(3, past.length))];
   const rest = shuffle([...past.slice(3), ...never.slice(ROUND_SIZE - Math.min(3, past.length))]);
   const rounds: Round[] = [];
@@ -60,7 +60,7 @@ function buildRounds(lastScan: SortItem[], saved: SortItem[], fromScan: boolean)
 
 export default function PlayScreen() {
   const { deck: deckParam } = useLocalSearchParams<{ deck?: string }>();
-  const { saved, lastScan, addXp, recordGame, playTheme, setPlayTheme } = useApp();
+  const { saved, lastScan, challengePool, addXp, recordGame, playTheme, setPlayTheme } = useApp();
   const [seed, setSeed] = useState(0);
   const [roundIdx, setRoundIdx] = useState(0);
   const [result, setResult] = useState<RoundResult[] | null>(null);
@@ -76,10 +76,10 @@ export default function PlayScreen() {
   const measureHeader = () => headerRef.current?.measureInWindow((_x, y, _w, h) => setHeaderBottom(y + h + 12));
 
   const rounds = useMemo(
-    () => buildRounds(lastScan, saved, deckParam === 'scan'),
+    () => buildRounds(lastScan, saved, deckParam === 'scan', challengePool),
     // `seed` reshuffles everything on "Play again".
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deckParam, lastScan, saved, seed],
+    [deckParam, lastScan, saved, challengePool, seed],
   );
   const current = rounds[Math.min(roundIdx, rounds.length - 1)];
   const hasNext = roundIdx < rounds.length - 1;
