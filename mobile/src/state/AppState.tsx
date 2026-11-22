@@ -236,6 +236,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveItems,
       recordGame,
       setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
+      // Immediate, so the tapped tile and the background crossfade respond in the same frame; the heavy
+      // street and game take the change later (useDeferredValue in components/World and Play).
       setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
     [username, xp, xpToday, saved, photos, lastScan, borough, hasBrownBin, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame],

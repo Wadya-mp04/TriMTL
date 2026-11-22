@@ -18,7 +18,7 @@ export default function ResultsScreen() {
     <Screen>
       <View style={styles.header}>
         <CircleButton icon="arrow-back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/scan'))} />
-        <T size="2xl" display>Where it goes</T>
+        <T size="2xl" display color={colors.ink}>Where it goes</T>
         <Pill style={{ paddingHorizontal: 12 }}>
           <T size="xs" weight="semibold" color={colors.forest}>{n} {n === 1 ? 'item' : 'items'}</T>
         </Pill>

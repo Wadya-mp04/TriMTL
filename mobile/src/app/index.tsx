@@ -4,7 +4,7 @@
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { BrandMark, Glass, Icon, PrimaryButton, Screen, Segmented, Spring, T } from '../components/ui';
 import { useApp } from '../state/AppState';
@@ -12,6 +12,16 @@ import { colors, fonts, radius } from '../theme';
 import { brand } from '../brand';
 
 type Mode = 'signin' | 'signup';
+
+/** Close the keyboard and wait until it's gone (max 350 ms), so the layout doesn't jump during the page fade. */
+function hideKeyboard() {
+  if (!Keyboard.isVisible()) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const sub = Keyboard.addListener('keyboardDidHide', () => { sub.remove(); resolve(); });
+    setTimeout(() => { sub.remove(); resolve(); }, 350);
+    Keyboard.dismiss();
+  });
+}
 
 function Field({ label, ...input }: React.ComponentProps<typeof TextInput> & { label: string }) {
   const [focused, setFocused] = useState(false);
@@ -41,11 +51,15 @@ export default function AuthScreen() {
 
   const enter = async () => {
     setBusy(true);
+    const keyboardGone = hideKeyboard();
     setError(null);
     const err = mode === 'signup' ? await signUp(name, email, password) : await signIn(email, password);
     setBusy(false);
     if (err) setError(err);
-    else router.replace('/scan');
+    else {
+      await keyboardGone;
+      router.replace('/scan');
+    }
   };
 
   return (
@@ -55,7 +69,7 @@ export default function AuthScreen() {
           <View style={styles.brand}>
             <BrandMark size={64} />
             <View style={{ alignItems: 'center' }}>
-              <T size="4xl" display style={{ lineHeight: 45 }}>{brand.appName}</T>
+              <T size="4xl" display color={colors.ink} style={{ lineHeight: 45 }}>{brand.appName}</T>
               <T size="sm" color={colors.inkMuted} style={{ marginTop: 4 }}>{brand.tagline}</T>
             </View>
           </View>
@@ -77,9 +91,9 @@ export default function AuthScreen() {
             </View>
           </Glass>
 
-          <Spring onPress={() => router.replace('/scan')} style={styles.demo} accessibilityRole="link">
-            <T size="sm" weight="semibold" color={colors.forest}>Continue demo without account</T>
-            <Icon name="arrow-forward" size={18} color={colors.forest} />
+          <Spring onPress={() => hideKeyboard().then(() => router.replace('/scan'))} style={styles.demo} accessibilityRole="link">
+            <T size="sm" weight="semibold" color={colors.ink}>Continue demo without account</T>
+            <Icon name="arrow-forward" size={18} color={colors.ink} />
           </Spring>
         </ScrollView>
       </KeyboardAvoidingView>

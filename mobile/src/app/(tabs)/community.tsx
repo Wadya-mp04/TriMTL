@@ -4,12 +4,11 @@
  * 3 players have scored today (the podium needs 3); otherwise the demo list plus "You".
  * shortcut: borough standings are demo data plus the user's real XP today (accounts don't store a borough yet).
  */
-import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, ScrollView, Share, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
-import { SkyBackdrop } from '../../game/Backdrop';
 import { skyInk, THEMES } from '../../game/themes';
 import { useRouter } from 'expo-router';
 
@@ -68,6 +67,17 @@ export default function CommunityScreen() {
   const router = useRouter();
   const { xpToday, initials, borough, userId, playTheme } = useApp();
   const [scope, setScope] = useState<Scope>('boroughs');
+  // Switching Boroughs / Players: the new ranking fades in with a slight rise, in step with the switch's highlight.
+  const swap = useRef(new Animated.Value(1)).current;
+  const firstScope = useRef(true);
+  useEffect(() => {
+    if (firstScope.current) { firstScope.current = false; return; }
+    swap.setValue(0);
+    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      Animated.timing(swap, { toValue: 1, duration: reduced ? 1 : 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    });
+  }, [scope, swap]);
+  const swapStyle = { opacity: swap, transform: [{ translateY: swap.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] };
   const unit = scope === 'boroughs' ? 'pts' : 'XP';
   const [live, setLive] = useState<Ranked[] | null>(null);
 
@@ -115,7 +125,7 @@ export default function CommunityScreen() {
   const youTone = (p: Ranked, base: string) => (p.you ? colors.forest : base);
 
   return (
-    <Screen edges={['top']} background={<SkyBackdrop theme={THEMES[playTheme]} />}>
+    <Screen edges={['top']} transparent>
       <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`This week · ${brand.city}`} title="Community" right={<AvatarButton />} />
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
@@ -126,6 +136,7 @@ export default function CommunityScreen() {
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.72)', borderColor: 'rgba(255, 255, 255, 0.88)', boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12)' }}
         />
 
+        <Animated.View style={[{ gap: 20 }, swapStyle]}>
         {scope === 'boroughs' && mine === -1 && (
           <Spring onPress={() => router.push('/profile')} accessibilityRole="button" pressedScale={0.98} style={styles.cta}>
             <Icon name="location-city" size={18} color={colors.forest} />
@@ -202,6 +213,8 @@ export default function CommunityScreen() {
             </Glass>
           ))}
         </View>
+
+        </Animated.View>
 
         <PrimaryButton label="Share this week's podium" icon="ios-share" onPress={share} style={{ gap: 8 }} />
       </ScrollView>

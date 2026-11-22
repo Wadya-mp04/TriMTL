@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AreaSheet } from '../components/AreaSheet';
-import { BentoBackdrop, CircleButton, Glass, Icon, Screen, ScreenHeader, Spring, T } from '../components/ui';
+import { CircleButton, Glass, Icon, Screen, ScreenHeader, Spring, T } from '../components/ui';
 import { boroughName } from '../data/rules';
 import { levelFor, useApp } from '../state/AppState';
 import { THEME_ORDER, THEMES } from '../game/themes';
@@ -22,7 +22,6 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <BentoBackdrop />
       <View style={styles.back}>
         <CircleButton icon="arrow-back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/community'))} />
       </View>
@@ -78,7 +77,7 @@ export default function ProfileScreen() {
 
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-            <T size="sm" weight="bold">Neighbourhood theme</T>
+            <T size="sm" weight="bold" color={colors.ink}>Neighbourhood theme</T>
             <T size="xs" color={colors.inkMuted}>Game and app</T>
           </View>
           <View style={[styles.row, { gap: 10, flexWrap: 'wrap' }]}>
@@ -104,7 +103,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ gap: 8 }}>
-          <T size="sm" weight="bold" style={{ paddingHorizontal: 4 }}>Recent games</T>
+          <T size="sm" weight="bold" color={colors.ink} style={{ paddingHorizontal: 4 }}>Recent games</T>
           {games.slice(0, 3).map((g, i) => {
             const score = Math.round((g.correct / Math.max(1, g.items)) * 100);
             return (

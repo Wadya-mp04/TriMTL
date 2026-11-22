@@ -6,8 +6,7 @@
  * +15 XP per item sorted right on the first try; each round is scored out of 100.
  */
 import { useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { type HostInstance, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -16,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, PrimaryButton, T } from '../../components/ui';
 import { CHALLENGE_POOL, SortItem } from '../../data/items';
-import { Backdrop } from '../../game/Backdrop';
+import { useWorld } from '../../components/World';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
 import { skyInk, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
 import { useApp } from '../../state/AppState';
@@ -65,15 +64,16 @@ export default function PlayScreen() {
   const [roundIdx, setRoundIdx] = useState(0);
   const [result, setResult] = useState<RoundResult[] | null>(null);
   const [picking, setPicking] = useState(false);
-  const [groundY, setGroundY] = useState(0);
-  const theme = THEMES[playTheme];
+  // The street itself is drawn by the shared world (components/World); Play tells it where things are.
+  const world = useWorld();
+  // The game re-renders for a new theme in a later, low-priority pass, so the visible crossfade stays smooth.
+  const theme = THEMES[useDeferredValue(playTheme)];
   const ink = skyInk(theme);
   // Buildings start just below the header, so the title never sits on a facade.
   const headerRef = useRef<HostInstance>(null);
-  const [headerBottom, setHeaderBottom] = useState(150);
   const [progress, setProgress] = useState({ index: 0, total: 0 });
   const onProgress = useCallback((index: number, total: number) => setProgress({ index, total }), []);
-  const measureHeader = () => headerRef.current?.measureInWindow((_x, y, _w, h) => setHeaderBottom(y + h + 12));
+  const measureHeader = () => headerRef.current?.measureInWindow((_x, y, _w, h) => world.setLandmarkTop(y + h + 12));
 
   const rounds = useMemo(
     () => buildRounds(lastScan, saved, deckParam === 'scan'),
@@ -107,9 +107,7 @@ export default function PlayScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.lane }}>
-      <Backdrop theme={theme} groundY={groundY} landmarkTop={headerBottom} />
-      <StatusBar style={theme.key === 'nuit' ? 'light' : 'dark'} />
+    <View style={{ flex: 1 }}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
       {/* Same header as the other tabs (small line + serif title), coloured for the neighbourhood's sky. */}
       <View ref={headerRef} onLayout={measureHeader} style={styles.header}>
@@ -167,7 +165,7 @@ export default function PlayScreen() {
             onAgain={again}
           />
         ) : (
-          <SortGame key={`${seed}-${roundIdx}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={setGroundY} onProgress={onProgress} />
+          <SortGame key={`${seed}-${roundIdx}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={world.setGroundY} onProgress={onProgress} />
         )}
       </View>
       </SafeAreaView>

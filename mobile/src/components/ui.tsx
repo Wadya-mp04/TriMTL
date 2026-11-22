@@ -3,9 +3,11 @@
  */
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
-import { ReactNode, useRef } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
+  Easing,
   Pressable,
   PressableProps,
   StyleProp,
@@ -17,10 +19,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useApp } from '../state/AppState';
-import { canvasGradients, colors, fonts, glass, radius, shadow, text } from '../theme';
+import { CanvasBackground } from './World';
+import { colors, fonts, glass, radius, shadow, text } from '../theme';
 
 export type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -54,63 +56,27 @@ export function T({
   );
 }
 
-/** Full-screen radial mint gradient with safe-area padding. */
+/**
+ * A page with safe-area padding. Opaque by default (the calm gradient), so page transitions crossfade whole
+ * pages; `transparent` for the tabs, which sit on the shared tab background (components/World, TabsWorld).
+ */
 export function Screen({
   children,
-  variant = 'pearl',
   edges = ['top', 'bottom'],
   style,
-  background,
+  transparent,
 }: {
   children: ReactNode;
-  /** Replaces the canvas gradient (Scan and Community draw the Play sky here). */
-  background?: ReactNode;
-  variant?: keyof typeof canvasGradients;
   edges?: Edge[];
   style?: StyleProp<ViewStyle>;
+  transparent?: boolean;
 }) {
-  const stops = canvasGradients[variant];
   return (
-    <View style={{ flex: 1, backgroundColor: stops[1] }}>
-      {background ?? (
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
-        <Defs>
-          {/* CSS: radial-gradient(120% 80% at 15% 0%, ...) */}
-          <RadialGradient id="canvas" cx="0.15" cy="0" rx="1.2" ry="0.8" fx="0.15" fy="0" gradientUnits="objectBoundingBox">
-            <Stop offset="0" stopColor={stops[0]} />
-            <Stop offset="0.48" stopColor={stops[1]} />
-            <Stop offset="1" stopColor={stops[2]} />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#canvas)" />
-      </Svg>
-      )}
+    <View style={{ flex: 1 }}>
+      {!transparent && <CanvasBackground />}
       <SafeAreaView edges={edges} style={[{ flex: 1 }, style]}>
         {children}
       </SafeAreaView>
-    </View>
-  );
-}
-
-/** Faint pearlescent tiles behind the header on Scan and Profile. */
-export function BentoBackdrop({ rows = 2, opacity = 0.6 }: { rows?: 1 | 2; opacity?: number }) {
-  const tile = (h: number, key: string) => (
-    <View key={key} style={[styles.bentoTile, { height: h }]}>
-      <Svg style={StyleSheet.absoluteFill}>
-        <Defs>
-          <RadialGradient id={`b${key}`} cx="0" cy="0" r="1.4" gradientUnits="objectBoundingBox">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.65} />
-            <Stop offset="1" stopColor="#DDF1E4" stopOpacity={0.35} />
-          </RadialGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill={`url(#b${key})`} />
-      </Svg>
-    </View>
-  );
-  return (
-    <View pointerEvents="none" style={[styles.bento, { opacity }]}>
-      <View style={styles.bentoRow}>{[0, 1, 2].map((i) => tile(96, `a${i}`))}</View>
-      {rows === 2 && <View style={styles.bentoRow}>{[0, 1, 2].map((i) => tile(112, `c${i}`))}</View>}
     </View>
   );
 }
@@ -239,7 +205,7 @@ export function ScreenHeader({
 }: {
   eyebrow: string;
   title: string;
-  /** Text colour over a dark sky. */
+  /** Text colour override (default: ink title, muted eyebrow). */
   ink?: string;
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -272,7 +238,7 @@ export function AvatarButton() {
   );
 }
 
-/** Two-option pill switch (Sign in / Sign up, Friends / Montréal, My items / Daily). */
+/** Two-option pill switch (Sign in / Sign up, Boroughs / Players). The dark highlight slides to the choice. */
 export function Segmented<K extends string>({
   options,
   value,
@@ -286,21 +252,49 @@ export function Segmented<K extends string>({
   compact?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const pad = compact ? 2 : 4;
+  const [boxes, setBoxes] = useState<Partial<Record<K, { x: number; w: number }>>>({});
+  const left = useRef(new Animated.Value(0)).current;
+  const width = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
+
+  useEffect(() => {
+    const b = boxes[value];
+    if (!b) return;
+    if (!placed.current) {
+      // First layout: put the highlight in place without animating.
+      left.setValue(b.x);
+      width.setValue(b.w);
+      placed.current = true;
+      return;
+    }
+    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      const cfg = { duration: reduced ? 1 : 280, easing: Easing.out(Easing.cubic), useNativeDriver: false };
+      Animated.parallel([Animated.timing(left, { toValue: b.x, ...cfg }), Animated.timing(width, { toValue: b.w, ...cfg })]).start();
+    });
+  }, [value, boxes, left, width]);
+
   return (
-    <View style={[compact ? [glass, { padding: 2, gap: 2 }] : styles.segmented, { flexDirection: 'row', borderRadius: radius.full }, style]}>
+    <View style={[compact ? [glass, { padding: pad, gap: 2 }] : styles.segmented, { flexDirection: 'row', borderRadius: radius.full }, style]}>
+      {boxes[value] && (
+        <Animated.View
+          pointerEvents="none"
+          style={[{ position: 'absolute', top: pad, bottom: pad, left, width, borderRadius: radius.full, backgroundColor: colors.ink }, !compact && shadow.sm]}
+        />
+      )}
       {options.map((o) => {
         const active = o.key === value;
         return (
           <Pressable
             key={o.key}
             onPress={() => onChange(o.key)}
+            onLayout={(e) => {
+              const { x, width: w } = e.nativeEvent.layout;
+              setBoxes((prev) => (prev[o.key]?.x === x && prev[o.key]?.w === w ? prev : { ...prev, [o.key]: { x, w } }));
+            }}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            style={[
-              compact ? styles.segCompact : styles.segItem,
-              active && { backgroundColor: colors.ink },
-              active && !compact && shadow.sm,
-            ]}
+            style={compact ? styles.segCompact : styles.segItem}
           >
             <T size="xs" weight="semibold" color={active ? colors.white : colors.inkMuted}>{o.label}</T>
           </Pressable>
@@ -333,9 +327,6 @@ export function IconBubble({ icon, size = 64, iconSize = 32, color = colors.fore
 }
 
 const styles = StyleSheet.create({
-  bento: { position: 'absolute', left: 0, right: 0, top: 64, paddingHorizontal: 16, gap: 12 },
-  bentoRow: { flexDirection: 'row', gap: 12 },
-  bentoTile: { flex: 1, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.75)' },
   primary: {
     width: '100%',
     borderRadius: radius.full,

@@ -7,8 +7,6 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
-import { SkyBackdrop } from '../../game/Backdrop';
-import { skyInk, THEMES } from '../../game/themes';
 import {
   CornerBrackets,
   Glass,
@@ -19,6 +17,7 @@ import {
   Spring,
   T,
 } from '../../components/ui';
+import { skyInk, THEMES } from '../../game/themes';
 import { levelFor, useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
 import { brand } from '../../brand';
@@ -68,7 +67,7 @@ export default function ScanScreen() {
   };
 
   return (
-    <Screen edges={['top']} background={<SkyBackdrop theme={THEMES[playTheme]} />}>
+    <Screen edges={['top']} transparent>
       <View style={styles.page}>
         <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`${greeting} · Level ${levelFor(xp).level}`} title={`Welcome back, ${username}`} />
 
