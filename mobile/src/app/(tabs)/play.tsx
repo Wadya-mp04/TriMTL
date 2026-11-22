@@ -117,8 +117,11 @@ export default function PlayScreen() {
   const keepSorting = () => start({ mode: 'practice', deck: practiceDeck(lastScan, saved, reviewNow, challengePool, fits) });
 
   // Today's challenge already done: Play is simply the game (Keep sorting), no start card.
+  // Not done but a Keep sorting run is up (another account signed in, or Montréal midnight): back to the start card.
   useEffect(() => {
-    if (dailyKnown && dailyDone && !run) keepSorting();
+    if (!dailyKnown) return;
+    if (dailyDone && !run) keepSorting();
+    else if (!dailyDone && run?.mode === 'practice') { setRun(null); setResult(null); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dailyKnown, dailyDone, run]);
 
