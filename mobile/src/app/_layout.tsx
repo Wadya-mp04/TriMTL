@@ -42,8 +42,9 @@ export default function RootLayout() {
           <Stack.Screen name="camera" options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: '#000' } }} />
           <Stack.Screen name="analyzing" options={{ gestureEnabled: false }} />
           <Stack.Screen name="results" />
-          <Stack.Screen name="profile" />
-          <Stack.Screen name="library" />
+          {/* Pages opened from a tab slide in from the right, the same sideways motion as the tabs. */}
+          <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="library" options={{ animation: 'slide_from_right' }} />
         </Stack>
       </ThemeProvider>
     </AppProvider>

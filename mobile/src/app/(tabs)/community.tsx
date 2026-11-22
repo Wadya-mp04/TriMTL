@@ -70,7 +70,7 @@ function FirstBlock() {
 export default function CommunityScreen() {
   const router = useRouter();
   const { initials, borough, userId, playTheme, dailyDone } = useApp();
-  const [scope, setScope] = useState<Scope>('boroughs');
+  const [scope, setScope] = useState<Scope>('players');
   // Switching Boroughs / Players: the new ranking fades in with a slight rise, in step with the switch's highlight.
   const swap = useRef(new Animated.Value(1)).current;
   const firstScope = useRef(true);
@@ -147,7 +147,7 @@ export default function CommunityScreen() {
         </Glass>
 
         <Segmented
-          options={[{ key: 'boroughs', label: 'Boroughs' }, { key: 'players', label: 'Players' }]}
+          options={[{ key: 'players', label: 'Players' }, { key: 'boroughs', label: 'Boroughs' }]}
           value={scope}
           onChange={setScope}
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.72)', borderColor: 'rgba(255, 255, 255, 0.88)', boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12)' }}

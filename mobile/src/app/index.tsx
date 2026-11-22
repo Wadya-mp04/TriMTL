@@ -4,7 +4,7 @@
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { BrandMark, Glass, Icon, PrimaryButton, Screen, Segmented, Spring, T } from '../components/ui';
 import { useApp } from '../state/AppState';
@@ -72,6 +72,17 @@ export default function AuthScreen() {
               <T size="4xl" display color={colors.ink} style={{ lineHeight: 45 }}>{brand.appName}</T>
               <T size="sm" color={colors.inkMuted} style={{ marginTop: 4 }}>{brand.tagline}</T>
             </View>
+            {/* White-label partner line, from brand.ts: the client city and where its rules come from. */}
+            <View style={styles.partner} accessible accessibilityLabel={`Made for ${brand.partner.city}. Rules from ${brand.partner.rulesSource}`}>
+              {brand.partner.logo ? (
+                <Image source={brand.partner.logo} style={styles.partnerLogo} resizeMode="contain" />
+              ) : (
+                <Icon name="location-city" size={16} color={colors.forest} />
+              )}
+              <T size="xs" color={colors.inkMuted}>
+                Made for <T size="xs" weight="semibold" color={colors.ink}>{brand.partner.city}</T> · rules from {brand.partner.rulesSource}
+              </T>
+            </View>
           </View>
 
           <Glass style={styles.card}>
@@ -102,6 +113,18 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
+  partner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.88)',
+  },
+  partnerLogo: { width: 20, height: 20 },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 40, gap: 24 },
   brand: { alignItems: 'center', gap: 12 },
   card: { borderRadius: radius['3xl'], padding: 20, gap: 16 },

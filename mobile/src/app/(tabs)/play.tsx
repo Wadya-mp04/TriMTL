@@ -9,8 +9,7 @@
  * +15 XP per item sorted right on the first try; each round is scored out of 100.
  */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { type HostInstance, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { type HostInstance, ScrollView, StyleSheet, View } from 'react-native';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +18,7 @@ import { Icon, PrimaryButton, T } from '../../components/ui';
 import { CHALLENGE_POOL, SortItem } from '../../data/items';
 import { useWorld } from '../../components/World';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
-import { skyInk, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
+import { skyInk, streetDark, THEMES } from '../../game/themes';
 import { DAILY_SIZE, dailyItems } from '../../lib/daily';
 import { useApp } from '../../state/AppState';
 import { bins, colors, fonts, radius } from '../../theme';
@@ -63,11 +62,10 @@ function practiceDeck(lastScan: SortItem[], saved: SortItem[], review: SortItem[
 }
 
 export default function PlayScreen() {
-  const { saved, lastScan, addXp, recordGame, playTheme, setPlayTheme, dailyDone, dailyKnown } = useApp();
+  const { saved, lastScan, addXp, recordGame, playTheme, dailyDone, dailyKnown } = useApp();
   const [run, setRun] = useState<Run | null>(null); // null = start card showing
   const [result, setResult] = useState<RoundResult[] | null>(null);
   const [review, setReview] = useState<SortItem[]>([]); // items got wrong, played again until right
-  const [picking, setPicking] = useState(false);
   const nextId = useRef(1);
   // The street itself is drawn by the shared world (components/World); Play tells it where things are.
   const world = useWorld();
@@ -153,40 +151,10 @@ export default function PlayScreen() {
             <T size="xs" weight="bold" style={{ fontVariant: ['tabular-nums'] }}>{left} left</T>
           </View>
         )}
-        <Pressable
-          onPress={() => setPicking((p) => !p)}
-          accessibilityRole="button"
-          accessibilityLabel={`Theme: ${theme.name.en}, ${theme.name.fr}. Change theme`}
-          accessibilityState={{ expanded: picking }}
-          hitSlop={10}
-        >
-          <Swatch colors={theme.gradient} size={40} ring />
-        </Pressable>
       </View>
 
       <View style={styles.main}>
 
-        {picking && (
-          <View style={styles.picker}>
-            {THEME_ORDER.map((k) => {
-              const t = THEMES[k];
-              const on = k === playTheme;
-              return (
-                <Pressable
-                  key={k}
-                  onPress={() => { setPlayTheme(k); setPicking(false); }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={`${t.name.en}, ${t.name.fr}`}
-                  hitSlop={6}
-                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Swatch colors={t.gradient} size={on ? 40 : 32} accent={t.accent} ring={on} />
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
 
         {result ? (
           <Results
@@ -222,21 +190,6 @@ export default function PlayScreen() {
   );
 }
 
-function Swatch({ colors: [a, b], size, accent, ring }: { colors: [string, string]; size: number; accent?: string; ring?: boolean }) {
-  return (
-    <Svg width={size} height={size}>
-      <Defs>
-        <LinearGradient id={`g${a}${b}`} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={a} />
-          <Stop offset="1" stopColor={b} />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width={size} height={size} rx={size / 2} fill={`url(#g${a}${b})`} />
-      {ring && <Rect x="1.5" y="1.5" width={size - 3} height={size - 3} rx={(size - 3) / 2} fill="none" stroke="#FFFFFF" strokeWidth={3} />}
-      {accent && <Rect x={size * 0.62} y={size * 0.62} width={size * 0.38} height={size * 0.38} rx={size * 0.19} fill={accent} stroke="#FFFFFF" strokeWidth={2} />}
-    </Svg>
-  );
-}
 
 function Results({ results, accent, dark, ink, muted, label, counted, onKeepSorting }: {
   results: RoundResult[]; accent: string; dark: boolean; ink: string; muted: string; label: string; counted: boolean; onKeepSorting: () => void;
@@ -283,8 +236,6 @@ function Results({ results, accent, dark, ink, muted, label, counted, onKeepSort
 }
 
 const styles = StyleSheet.create({
-  // Floats over the game so opening it never reflows the board.
-  picker: { position: 'absolute', top: 0, right: 12, zIndex: 50, flexDirection: 'row', gap: 4 },
   sheet: { borderRadius: 22, paddingHorizontal: 16, paddingBottom: 6 },
   guideRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
   header: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },

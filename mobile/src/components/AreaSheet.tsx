@@ -1,10 +1,12 @@
 /**
  * Bottom sheet to pick the user's borough and brown-bin setting (sent with every scan).
  */
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Switch, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BOROUGHS } from '../data/rules';
+import { motionMs } from '../lib/motion';
 import { useApp } from '../state/AppState';
 import { colors, radius } from '../theme';
 import { Icon, PrimaryButton, T } from './ui';
@@ -13,10 +15,23 @@ export function AreaSheet({ visible, onClose }: { visible: boolean; onClose: () 
   const { borough, hasBrownBin, setArea } = useApp();
   const insets = useSafeAreaInsets();
   const options = [{ slug: null as string | null, name: 'Montréal (city-wide)' }, ...BOROUGHS];
+  const { height } = useWindowDimensions();
+  // The backdrop fades while only the sheet slides up (a sliding Modal would slide the dark backdrop too).
+  const [mounted, setMounted] = useState(visible);
+  const shown = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) setMounted(true);
+    Animated.timing(shown, { toValue: visible ? 1 : 0, duration: motionMs(visible ? 300 : 220), easing: Easing.out(Easing.cubic), useNativeDriver: true })
+      .start(({ finished }) => { if (finished && !visible) setMounted(false); });
+  }, [visible, shown]);
+  const slide = shown.interpolate({ inputRange: [0, 1], outputRange: [height, 0] });
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { backgroundColor: colors.mintCanvas, paddingBottom: insets.bottom + 16 }]}>
+    <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: shown }]}>
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
+      </Animated.View>
+      <View style={{ flex: 1 }} pointerEvents="box-none" />
+      <Animated.View style={[styles.sheet, { backgroundColor: colors.mintCanvas, paddingBottom: insets.bottom + 16, transform: [{ translateY: slide }] }]}>
         <T display style={styles.title}>Your area</T>
         <T size="sm" color={colors.inkMuted} style={{ marginBottom: 12 }}>Some rules change by borough and building.</T>
         <View style={styles.row}>
@@ -35,7 +50,7 @@ export function AreaSheet({ visible, onClose }: { visible: boolean; onClose: () 
           })}
         </ScrollView>
         <PrimaryButton label="Done" size="md" onPress={onClose} style={{ marginTop: 12 }} />
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
