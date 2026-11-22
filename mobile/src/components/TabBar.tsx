@@ -12,7 +12,7 @@ import { Icon, Spring, T } from './ui';
 import { useWorld } from './World';
 
 const TABS: Record<string, { label: TKey; icon: string }> = {
-  scan: { label: 'Scan', icon: 'qr-code-scanner' },
+  scan: { label: 'Scan', icon: 'photo-camera' },
   map: { label: 'Pickups', icon: 'map' },
   play: { label: 'Play', icon: 'sports-esports' },
   community: { label: 'Rankings', icon: 'emoji-events' },
