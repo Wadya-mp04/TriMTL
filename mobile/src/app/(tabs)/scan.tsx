@@ -7,8 +7,9 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
+import { SkyBackdrop } from '../../game/Backdrop';
+import { skyInk, THEMES } from '../../game/themes';
 import {
-  BentoBackdrop,
   CornerBrackets,
   Glass,
   Icon,
@@ -58,7 +59,7 @@ function Viewfinder() {
 
 export default function ScanScreen() {
   const router = useRouter();
-  const { saved, username, xp } = useApp();
+  const { saved, username, xp, playTheme } = useApp();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const openCamera = () => {
@@ -67,10 +68,9 @@ export default function ScanScreen() {
   };
 
   return (
-    <Screen edges={['top']}>
-      <BentoBackdrop />
+    <Screen edges={['top']} background={<SkyBackdrop theme={THEMES[playTheme]} />}>
       <View style={styles.page}>
-        <ScreenHeader eyebrow={`${greeting} · Level ${levelFor(xp).level}`} title={`Welcome back, ${username}`} />
+        <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`${greeting} · Level ${levelFor(xp).level}`} title={`Welcome back, ${username}`} />
 
         <View style={styles.main}>
           <Glass style={styles.finderCard}>

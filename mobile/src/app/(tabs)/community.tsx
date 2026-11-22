@@ -9,9 +9,11 @@ import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
+import { SkyBackdrop } from '../../game/Backdrop';
+import { skyInk, THEMES } from '../../game/themes';
 import { useRouter } from 'expo-router';
 
-import { AvatarButton, BentoBackdrop, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
+import { AvatarButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
 import { CITY, Ranked } from '../../data/items';
 import { BOROUGHS } from '../../data/rules';
 import { supabase } from '../../lib/supabase';
@@ -64,7 +66,7 @@ function FirstBlock() {
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const { xpToday, initials, borough, userId } = useApp();
+  const { xpToday, initials, borough, userId, playTheme } = useApp();
   const [scope, setScope] = useState<Scope>('boroughs');
   const unit = scope === 'boroughs' ? 'pts' : 'XP';
   const [live, setLive] = useState<Ranked[] | null>(null);
@@ -108,12 +110,13 @@ export default function CommunityScreen() {
     Share.share({ message: `This week's ${brand.appName} ${what} ♻️\n${lines.join('\n')}` });
   };
 
+  // Text sitting straight on the page (not on a card) takes the Play ground's ink, so it reads on Nuit too.
+  const ground = THEMES[playTheme];
   const youTone = (p: Ranked, base: string) => (p.you ? colors.forest : base);
 
   return (
-    <Screen edges={['top']}>
-      <BentoBackdrop />
-      <ScreenHeader eyebrow={`This week · ${brand.city}`} title="Community" right={<AvatarButton />} />
+    <Screen edges={['top']} background={<SkyBackdrop theme={THEMES[playTheme]} />}>
+      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`This week · ${brand.city}`} title="Community" right={<AvatarButton />} />
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
         <Segmented
@@ -139,8 +142,8 @@ export default function CommunityScreen() {
               <RankBadge n={2} bg={second.you ? colors.forest : colors.ink} />
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight={second.you ? 'bold' : 'semibold'} numberOfLines={2} style={styles.podiumName}>{second.name}</T>
-              <T weight="semibold" color={youTone(second, colors.inkMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{second.xp} {unit}</T>
+              <T size="xs" weight={second.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{second.name}</T>
+              <T weight="semibold" color={youTone(second, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{second.xp} {unit}</T>
             </View>
             {second.you ? (
               <View style={[styles.block, styles.youBlock, { height: 96, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>2</T></View>
@@ -158,7 +161,7 @@ export default function CommunityScreen() {
               </View>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight="bold" numberOfLines={2} style={styles.podiumName}>{first.name}</T>
+              <T size="xs" weight="bold" numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{first.name}</T>
               <T size="xs" weight="bold" color={colors.forest}>{first.xp} {unit}</T>
             </View>
             <FirstBlock />
@@ -171,8 +174,8 @@ export default function CommunityScreen() {
               <RankBadge n={3} bg={third.you ? colors.forest : colors.ink} />
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight={third.you ? 'bold' : 'semibold'} numberOfLines={2} style={styles.podiumName}>{third.name}</T>
-              <T weight="semibold" color={youTone(third, colors.inkMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{third.xp} {unit}</T>
+              <T size="xs" weight={third.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{third.name}</T>
+              <T weight="semibold" color={youTone(third, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{third.xp} {unit}</T>
             </View>
             {third.you ? (
               <View style={[styles.block, styles.youBlock, { height: 80, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>3</T></View>
@@ -184,8 +187,8 @@ export default function CommunityScreen() {
 
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-            <T size="xs" weight="semibold" color={colors.inkMuted} style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>{scope === 'boroughs' ? 'Other boroughs' : 'Also sorting'}</T>
-            <T size="xs" color={colors.inkMuted}>Resets Monday</T>
+            <T size="xs" weight="semibold" color={ground.laneMuted} style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>{scope === 'boroughs' ? 'Other boroughs' : 'Also sorting'}</T>
+            <T size="xs" color={ground.laneMuted}>Resets Monday</T>
           </View>
           {rest.map((p) => (
             <Glass key={p.name} style={[styles.listRow, p.you && { borderColor: colors.forest }]}>

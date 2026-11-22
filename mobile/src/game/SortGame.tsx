@@ -28,6 +28,7 @@ import {
   BIN_TOP,
   binBackXml,
   binFrontXml,
+  binLidUnderXml,
   binLidXml,
   CART,
   CONFETTI,
@@ -45,6 +46,8 @@ export interface DeckEntry { item: SortItem; origin: Origin }
 export interface RoundResult { item: SortItem; first: boolean }
 
 const S = 104; // item size
+/** Clear sidewalk between the item and the bin labels: room for a thumb to flick. */
+const RUNWAY = 118;
 const THE: Record<BinKey, string> = { recycling: 'the recycling', compost: 'the brown bin', garbage: 'the garbage', special: 'special drop-off' };
 const RIGHT = ['Right bin.', "That's the one.", 'Spot on.'];
 const REVIEW = '#F6C945';
@@ -54,13 +57,6 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const run = (a: Animated.CompositeAnimation) => new Promise<void>((res) => a.start(() => res()));
 const tm = (v: Animated.Value, toValue: number, duration: number, easing = Easing.linear) =>
   Animated.timing(v, { toValue, duration, easing, useNativeDriver: true });
-
-function originLabel(e: DeckEntry) {
-  if (e.origin === 'today') return 'Scanned today';
-  if (e.origin === 'never') return 'Never scanned';
-  const d = e.item.scannedAt ? new Date(e.item.scannedAt) : null;
-  return d ? `Scanned ${d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })}` : 'Scanned before';
-}
 
 type Feedback = { kind: 'idle' | 'good' | 'bad'; title: string; body: string; note?: string };
 
@@ -127,15 +123,16 @@ export function SortGame({
     const { w, h } = size;
     const pad = 10, gap = 6;
     const colW = (w - 2 * pad - 3 * gap) / 4;
-    const binW = Math.min(colW, 96), binH = binW * 1.3, rowTop = h * 0.17, k = binW / 100;
+    const binW = Math.min(colW, 96), binH = binW * 1.3, k = binW / 100;
+    // Stack from the bottom: name under the item, item under the bin labels, bins on the street. Everything above is backdrop.
+    const homeY = h - S / 2 - 64, rowTop = Math.max(h * 0.12, homeY - S / 2 - RUNWAY - binH);
     const box = Object.fromEntries(
       BIN_ORDER.map((b, i) => {
         const left = pad + i * (colW + gap) + (colW - binW) / 2;
-        return [b, { left, cx: left + binW / 2, mouth: rowTop + (BIN_TOP[b] + 8) * k, lidTop: rowTop + (BIN_TOP[b] - 2) * k }];
+        return [b, { left, cx: left + binW / 2, mouth: rowTop + (BIN_TOP[b] + 7) * k, lidTop: rowTop + (BIN_TOP[b] - 2) * k }];
       }),
     ) as Record<BinKey, { left: number; cx: number; mouth: number; lidTop: number }>;
-    // Rest the item above its labels, but never on top of the bins' name tags.
-    return { colW, binW, binH, rowTop, box, home: { x: w / 2, y: Math.max(h - 150, rowTop + binH + 34 + S / 2) } };
+    return { colW, binW, binH, rowTop, box, home: { x: w / 2, y: homeY } };
   }, [size]);
   const geoRef = useRef(geo);
   geoRef.current = geo;
@@ -222,7 +219,7 @@ export function SortGame({
     const lid = per[b].lid;
     const steps: Animated.CompositeAnimation[] = [];
     if (b === 'compost') steps.push(tm(latch, 0.12, ms(110), Easing.in(Easing.quad)));
-    steps.push(tm(lid, -2.9, ms(170), Easing.out(Easing.quad)), tm(lid, -2.4, ms(80)));
+    steps.push(tm(lid, -1.75, ms(170), Easing.out(Easing.quad)), tm(lid, -1.45, ms(80)));
     Animated.sequence(steps).start();
   }
   function closeLid(b: BinKey) {
@@ -230,7 +227,7 @@ export function SortGame({
     if (reduced) { lid.setValue(1); latch.setValue(1); return; }
     Animated.sequence([
       tm(lid, 1, 240, Easing.in(Easing.quad)),
-      tm(lid, -0.9, 110, Easing.out(Easing.quad)),
+      tm(lid, -0.6, 110, Easing.out(Easing.quad)),
       tm(lid, 1, 110, Easing.in(Easing.quad)),
       tm(lid, -0.2, 70, Easing.out(Easing.quad)),
       tm(lid, 1, 70, Easing.in(Easing.quad)),
@@ -416,6 +413,10 @@ export function SortGame({
             <SvgXml xml={binBackXml(b)} width="100%" height="100%" />
             <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: lidOrigin(b), transform: [{ scaleY: per[b].lid }] }]}>
               <SvgXml xml={binLidXml(b)} width="100%" height="100%" />
+              {/* past upright the lid is seen from below */}
+              <Animated.View style={[StyleSheet.absoluteFill, { opacity: per[b].lid.interpolate({ inputRange: [-0.05, 0.05], outputRange: [1, 0], extrapolate: 'clamp' }) }]}>
+                <SvgXml xml={binLidUnderXml(b)} width="100%" height="100%" />
+              </Animated.View>
             </Animated.View>
           </Animated.View>
         ))}
@@ -456,10 +457,6 @@ export function SortGame({
 
         {size.w > 0 && item && (
           <View pointerEvents="none" style={[styles.labels, { top: home.y + S / 2 + 6 }]}>
-            <View style={styles.origin}>
-              <View style={[styles.dot, { backgroundColor: entry.origin === 'never' ? theme.accent : theme.laneMuted }]} />
-              <T size="xs" weight="semibold" color={theme.laneMuted}>{originLabel(entry)}</T>
-            </View>
             <T size="2xl" display color={theme.laneInk} style={{ textAlign: 'center' }} numberOfLines={1}>{item.name}</T>
             {idx === 0 && <T size="xs" color={theme.laneMuted}>Flick it into a bin, or tap a bin.</T>}
           </View>
@@ -577,6 +574,4 @@ const styles = StyleSheet.create({
   mark: { position: 'absolute', width: '46%', aspectRatio: 1, left: '27%', top: '18%' },
   ring: { borderWidth: 3, borderRadius: 18, zIndex: 4 },
   labels: { position: 'absolute', left: 16, right: 16, alignItems: 'center', gap: 2 },
-  origin: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
 });
