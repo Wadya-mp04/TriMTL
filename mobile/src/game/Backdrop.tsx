@@ -9,10 +9,9 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import Svg, { Defs, LinearGradient, Rect, Stop, SvgXml } from 'react-native-svg';
+import { SvgXml } from 'react-native-svg';
 
-import { type GameTheme, isDark, SKY_EXT, skyTopOf, streetDark } from './themes';
+import { type GameTheme, SKY_EXT, skyTopOf, streetDark } from './themes';
 
 /** The bottom 35 of each backdrop's 300 viewBox units is street level, drawn behind the bins.
  *  Landmarks start near the top of the viewBox (y≈20); `landmarkTop` keeps them below the header
@@ -109,28 +108,6 @@ export function Backdrop({ theme, groundY, landmarkTop = 110 }: { theme: GameThe
           </Animated.View>
         );
       })}
-    </View>
-  );
-}
-
-/** Scan and Community: the Play scene's sky image (stars, snow, beams) behind the header, fading into Play's ground. */
-export function SkyBackdrop({ theme }: { theme: GameTheme }) {
-  const { width, height } = useWindowDimensions();
-  const skyH = Math.round(height * 0.5);
-  const xml = theme.backdrop.replace(/viewBox="[^"]*"/, `viewBox="0 -${SKY_EXT} 480 ${SKY_EXT}"`);
-  return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: theme.lane }]}>
-      <StatusBar style={isDark(skyTopOf(theme)) ? 'light' : 'dark'} />
-      <SvgXml xml={xml} width={width} height={skyH} />
-      <Svg style={{ position: 'absolute', left: 0, top: 0 }} width={width} height={skyH + 2}>
-        <Defs>
-          <LinearGradient id="skyfade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0.4" stopColor={theme.lane} stopOpacity={0} />
-            <Stop offset="1" stopColor={theme.lane} stopOpacity={1} />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width={width} height={skyH + 2} fill="url(#skyfade)" />
-      </Svg>
     </View>
   );
 }

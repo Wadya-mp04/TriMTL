@@ -8,41 +8,36 @@
  */
 import { StatusBar } from 'expo-status-bar';
 import { createContext, memo, ReactNode, useContext, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, SvgXml } from 'react-native-svg';
 
 import { Backdrop } from '../game/Backdrop';
 import { type GameTheme, isDark, SKY_EXT, skyTopOf, streetDark, type ThemeKey, THEMES } from '../game/themes';
+import { motionMs } from '../lib/motion';
 import { useApp } from '../state/AppState';
 import { APP_PALETTES } from '../theme';
 
 const THEME_FADE_MS = 350;
 
-/** Reduce Motion, read once and kept current, so starting a fade never waits on an async lookup. */
-let reduceMotion = false;
-AccessibilityInfo.isReduceMotionEnabled().then((v) => { reduceMotion = v; });
-AccessibilityInfo.addEventListener('reduceMotionChanged', (v) => { reduceMotion = v; });
-
 /**
- * On a theme change, keeps the previous theme as a layer on top that fades out. The old layer is derived in
- * the same render as the change and the fade starts before the first paint, so colours never snap first.
+ * On a theme change, the previous theme stays on top as a layer that fades out. Each old layer has its own
+ * fade, so quick successive changes overlap smoothly instead of snapping. Derived in the same render as the
+ * change, with the fade started before the first paint, so colours never snap first.
  */
 function useThemeLayers(key: ThemeKey) {
-  const fade = useRef(new Animated.Value(0)).current;
   const next = useRef(1);
-  const [state, setState] = useState<{ key: ThemeKey; prev: { id: number; key: ThemeKey } | null }>({ key, prev: null });
-  if (state.key !== key) setState({ key, prev: { id: next.current++, key: state.key } });
-  const prevId = state.prev?.id;
+  const [state, setState] = useState<{ key: ThemeKey; fading: { id: number; key: ThemeKey; fade: Animated.Value }[] }>({ key, fading: [] });
+  if (state.key !== key) {
+    setState({ key, fading: [...state.fading, { id: next.current++, key: state.key, fade: new Animated.Value(1) }] });
+  }
+  const newest = state.fading[state.fading.length - 1];
   useLayoutEffect(() => {
-    if (prevId === undefined) return;
-    fade.setValue(1);
-    const anim = Animated.timing(fade, { toValue: 0, duration: reduceMotion ? 1 : THEME_FADE_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true });
-    anim.start(({ finished }) => {
-      if (finished) setState((v) => (v.prev?.id === prevId ? { ...v, prev: null } : v));
-    });
-    return () => anim.stop();
-  }, [prevId, fade]);
-  return { prev: state.prev, fade };
+    if (!newest) return;
+    Animated.timing(newest.fade, { toValue: 0, duration: motionMs(THEME_FADE_MS), easing: Easing.inOut(Easing.quad), useNativeDriver: true }).start(() =>
+      setState((v) => ({ ...v, fading: v.fading.filter((l) => l.id !== newest.id) })),
+    );
+  }, [newest]);
+  return state.fading;
 }
 
 const Gradient = memo(function Gradient({ themeKey }: { themeKey: ThemeKey }) {
@@ -64,16 +59,16 @@ const Gradient = memo(function Gradient({ themeKey }: { themeKey: ThemeKey }) {
 /** The calm page background (opaque). Older theme layers fade out on top of the new one. */
 export function CanvasBackground() {
   const { playTheme } = useApp();
-  const { prev, fade } = useThemeLayers(playTheme);
+  const fading = useThemeLayers(playTheme);
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <StatusBar style="dark" />
       <Gradient themeKey={playTheme} />
-      {prev && (
-        <Animated.View key={prev.id} style={[StyleSheet.absoluteFill, { opacity: fade }]}>
-          <Gradient themeKey={prev.key} />
+      {fading.map((l) => (
+        <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.fade }]}>
+          <Gradient themeKey={l.key} />
         </Animated.View>
-      )}
+      ))}
     </View>
   );
 }
@@ -152,7 +147,13 @@ export function TabsWorld({ children }: { children: ReactNode }) {
     const t = setTimeout(() => setStreetReady(true), 450);
     return () => clearTimeout(t);
   }, []);
-  const { prev, fade } = useThemeLayers(playTheme);
+  const fading = useThemeLayers(playTheme);
+  // The sky is placed from Play's measurements: show it once Play has measured, so it never shifts in view.
+  const skyIn = useRef(new Animated.Value(0)).current;
+  const measured = groundY > 0;
+  useEffect(() => {
+    if (measured) Animated.timing(skyIn, { toValue: 1, duration: motionMs(250), easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [measured, skyIn]);
   // The street is heavy and only seen on Play: it takes a theme change in a later, low-priority pass.
   const streetTheme = THEMES[useDeferredValue(playTheme)];
 
@@ -161,18 +162,19 @@ export function TabsWorld({ children }: { children: ReactNode }) {
   const translateX = tabs
     ? tabs.position.interpolate({ inputRange: [i - 1, i, i + 1], outputRange: [width, 0, -width], extrapolate: 'clamp' })
     : width;
-  const g = groundY || height * 0.42;
   const value = useMemo(() => ({ setGroundY, setLandmarkTop, setTabPosition }), []);
 
   return (
     <Ctx.Provider value={value}>
       <View style={{ flex: 1, backgroundColor: theme.lane }}>
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <SkyAndGround theme={theme} groundY={g} top={landmarkTop} height={height} />
-        </View>
-        {prev && (
-          <Animated.View key={prev.id} pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 1, opacity: fade }]}>
-            <SkyAndGround theme={THEMES[prev.key]} groundY={g} top={landmarkTop} height={height} />
+        {measured && (
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: skyIn }]}>
+            <SkyAndGround theme={theme} groundY={groundY} top={landmarkTop} height={height} />
+            {fading.map((l) => (
+              <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.fade }]}>
+                <SkyAndGround theme={THEMES[l.key]} groundY={groundY} top={landmarkTop} height={height} />
+              </Animated.View>
+            ))}
           </Animated.View>
         )}
         {streetReady && groundY > 0 && (

@@ -5,7 +5,7 @@
  * shortcut: borough standings are demo data plus the user's real XP today (accounts don't store a borough yet).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Animated, Easing, ScrollView, Share, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { AvatarButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
 import { CITY, Ranked } from '../../data/items';
 import { BOROUGHS } from '../../data/rules';
+import { motionMs } from '../../lib/motion';
 import { supabase } from '../../lib/supabase';
 import { useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
@@ -73,9 +74,7 @@ export default function CommunityScreen() {
   useEffect(() => {
     if (firstScope.current) { firstScope.current = false; return; }
     swap.setValue(0);
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      Animated.timing(swap, { toValue: 1, duration: reduced ? 1 : 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    });
+    Animated.timing(swap, { toValue: 1, duration: motionMs(280), easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [scope, swap]);
   const swapStyle = { opacity: swap, transform: [{ translateY: swap.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] };
   const unit = scope === 'boroughs' ? 'pts' : 'XP';

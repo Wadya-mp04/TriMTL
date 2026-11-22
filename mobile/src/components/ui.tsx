@@ -5,7 +5,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
-  AccessibilityInfo,
   Animated,
   Easing,
   Pressable,
@@ -21,6 +20,7 @@ import {
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 
 import { useApp } from '../state/AppState';
+import { motionMs } from '../lib/motion';
 import { CanvasBackground } from './World';
 import { colors, fonts, glass, radius, shadow, text } from '../theme';
 
@@ -238,6 +238,9 @@ export function AvatarButton() {
   );
 }
 
+/** Border width of both Segmented containers (`glass` and `styles.segmented`). */
+const SEG_BORDER = 1;
+
 /** Two-option pill switch (Sign in / Sign up, Boroughs / Players). The dark highlight slides to the choice. */
 export function Segmented<K extends string>({
   options,
@@ -268,10 +271,8 @@ export function Segmented<K extends string>({
       placed.current = true;
       return;
     }
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      const cfg = { duration: reduced ? 1 : 280, easing: Easing.out(Easing.cubic), useNativeDriver: false };
-      Animated.parallel([Animated.timing(left, { toValue: b.x, ...cfg }), Animated.timing(width, { toValue: b.w, ...cfg })]).start();
-    });
+    const cfg = { duration: motionMs(280), easing: Easing.out(Easing.cubic), useNativeDriver: false };
+    Animated.parallel([Animated.timing(left, { toValue: b.x, ...cfg }), Animated.timing(width, { toValue: b.w, ...cfg })]).start();
   }, [value, boxes, left, width]);
 
   return (
@@ -289,7 +290,9 @@ export function Segmented<K extends string>({
             key={o.key}
             onPress={() => onChange(o.key)}
             onLayout={(e) => {
-              const { x, width: w } = e.nativeEvent.layout;
+              // onLayout x includes the pill's 1px border; an absolute child's `left` starts inside it.
+              const { x: bx, width: w } = e.nativeEvent.layout;
+              const x = bx - SEG_BORDER;
               setBoxes((prev) => (prev[o.key]?.x === x && prev[o.key]?.w === w ? prev : { ...prev, [o.key]: { x, w } }));
             }}
             accessibilityRole="tab"

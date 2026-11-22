@@ -51,13 +51,13 @@ export default function AuthScreen() {
 
   const enter = async () => {
     setBusy(true);
-    const keyboardGone = hideKeyboard();
     setError(null);
     const err = mode === 'signup' ? await signUp(name, email, password) : await signIn(email, password);
     setBusy(false);
     if (err) setError(err);
     else {
-      await keyboardGone;
+      // Only on success: after a wrong password the keyboard stays open for retyping.
+      await hideKeyboard();
       router.replace('/scan');
     }
   };
