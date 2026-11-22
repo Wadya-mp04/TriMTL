@@ -24,6 +24,7 @@ import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { CircleButton, Glass, Icon, IconBubble, PrimaryButton, SecondaryButton, Segmented, Spring, T } from '../../components/ui';
 import { BATTERY_LOCATOR, loadMapData, zoneKey, zonesAt, type MapData, type Material } from '../../data/map';
 import { suggest, type Suggestion } from '../../map/addressSearch';
+import { boundsOf } from '../../map/bounds';
 import { BottomSheet } from '../../map/BottomSheet';
 import { AreaDetails, Chip, zonePickups, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
 import { mapHtml, PLACE_STYLE } from '../../map/mapHtml';
@@ -166,7 +167,12 @@ export default function MapScreen() {
         setSheet(idx);
         send({ type: 'pad', top: TOP, bottom: snaps[idx] });
       }
-      send(s?.kind === 'area' ? { type: 'select', kind: 'area', id: 'area', lat: s.lat, lng: s.lng } : { type: 'select', ...(s ?? { id: null }) });
+      send(
+        s?.kind === 'area'
+          // Fit the whole highlighted area, not just the tapped point.
+          ? { type: 'select', kind: 'area', id: 'area', lat: s.lat, lng: s.lng, bounds: boundsOf([s.area.garbage, s.area.recycling].flatMap((z) => (z ? [z] : []))) }
+          : { type: 'select', ...(s ?? { id: null }) },
+      );
     },
     [sheet, snaps, TOP, send],
   );

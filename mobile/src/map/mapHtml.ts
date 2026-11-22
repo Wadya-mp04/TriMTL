@@ -89,7 +89,7 @@ export function mapHtml() {
   // Looking south-west from the Plateau, so Mont Royal rises behind it.
   const TILT = 62, FACE = 196;
   const post = (m) => window.ReactNativeWebView.postMessage(JSON.stringify(m));
-  let reduce = false, pad = { top: 0, bottom: 0, left: 24, right: 24 }, pins = [], selected = null, me = null, spot = null, framed = false, ready = false, queue = [], states = {};
+  let reduce = false, pad = { top: 0, bottom: 0, left: 24, right: 24 }, pins = [], selected = null, me = null, spot = null, framed = false, ready = false, queue = [], states = {}, tiltOn = true, fitToken = 0;
   const map = new maplibregl.Map({
     container: 'map', style: ${JSON.stringify(style())},
     center: [-73.5800, 45.5238], zoom: 15, pitch: TILT, bearing: FACE, maxPitch: 70,
@@ -183,6 +183,35 @@ export function mapHtml() {
     for (const [k, v] of Object.entries(states)) map.setFeatureState({ source: 'zones', id: k }, v);
   }
 
+  // Zoom out until the whole selected area sits between the search bar and the sheet.
+  const mercY = (lat) => 0.5 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / (2 * Math.PI);
+  function allVisible(b) {
+    const W = map.getCanvas().clientWidth, H = map.getCanvas().clientHeight;
+    return [[b[0][0], b[0][1]], [b[0][0], b[1][1]], [b[1][0], b[0][1]], [b[1][0], b[1][1]]].every((c) => {
+      const p = map.project(c);
+      return p.x >= 8 && p.x <= W - 8 && p.y >= pad.top + 8 && p.y <= H - pad.bottom - 8;
+    });
+  }
+  function fitArea(m) {
+    const b = m.bounds;
+    if (!b) return cam({ center: [m.lng, m.lat], zoom: Math.max(map.getZoom(), 16), padding: padding() });
+    const W = map.getCanvas().clientWidth, H = map.getCanvas().clientHeight;
+    const boxW = W - 48, boxH = Math.max(120, H - pad.top - pad.bottom - 48);
+    const fx = Math.max((b[1][0] - b[0][0]) / 360, 1e-9), fy = Math.max(Math.abs(mercY(b[0][1]) - mercY(b[1][1])), 1e-9);
+    // A flat first guess; the check below corrects for the tilt and rotation, which hide the far edge.
+    const zoom = Math.max(10, Math.min(17, Math.log2(Math.min(boxW / (512 * fx), boxH / (512 * fy)))));
+    // Big areas lose their far side to the horizon, so they are viewed from higher up.
+    const pitch = tiltOn ? (zoom < 15 ? 40 : TILT) : 0;
+    cam({ center: [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2], zoom, pitch, padding: padding() });
+    const token = ++fitToken;
+    const settle = (tries) => map.once('moveend', () => {
+      if (token !== fitToken || allVisible(b) || tries >= 5 || map.getZoom() <= 10) return;
+      map.easeTo({ zoom: map.getZoom() - 0.35, duration: reduce ? 0 : 300 });
+      settle(tries + 1);
+    });
+    settle(0);
+  }
+
   function dot(lat, lng) {
     if (!spot) { const el = document.createElement('div'); el.className = 'spot'; el.setAttribute('aria-label', 'Selected spot'); spot = new maplibregl.Marker({ element: el }); }
     spot.setLngLat([lng, lat]).addTo(map);
@@ -207,7 +236,7 @@ export function mapHtml() {
       selected = m.id ? m : null;
       for (const [k, mk] of markers) paintPin(k, mk);
       if (m.kind !== 'area' && spot) spot.remove();
-      if (m.kind === 'area') { dot(m.lat, m.lng); cam({ center: [m.lng, m.lat], zoom: Math.max(map.getZoom(), 16), padding: padding() }); }
+      if (m.kind === 'area') { dot(m.lat, m.lng); fitArea(m); }
       const p = m.kind === 'dropoff' && pins.find((x) => x.id === m.id);
       if (p) cam({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 16.5), padding: padding() });
     }
@@ -217,6 +246,7 @@ export function mapHtml() {
       me.setLngLat([m.lng, m.lat]).addTo(map);
       cam({ center: [m.lng, m.lat], zoom: 16, padding: padding() });
     }
+    if (m.type === 'tilt') tiltOn = m.on;
     if (m.type === 'tilt') cam({ pitch: m.on ? TILT : 0, bearing: m.on ? FACE : 0, padding: padding() });
   };`;
 
