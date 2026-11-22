@@ -1,12 +1,14 @@
 /**
- * Play: throw what you scanned into the right Montréal bin (src/game/SortGame).
- * One continuous game in rounds. Round 1 is your own items (today's scan, or your saved items when
- * nothing was scanned today). Round 2 is the challenge: items from earlier days plus items you have
- * never scanned. Later rounds work through the rest of the items, six at a time.
+ * Play: throw items into the right Montréal bin (src/game/SortGame).
+ * - Today's challenge: the same 6 items for everyone on the same Montréal day (lib/daily). The first one each
+ *   day counts for the leaderboard (saved as mode 'daily').
+ * - Keep sorting (after today's challenge): unlimited rounds of 6 for XP only: your library items (past mistakes
+ *   first), topped up with Montréal items you haven't scanned. Scanning is never required to play.
+ * Before today's challenge, a start card floats over the game (the street and bins stay in place behind it);
+ * once it's done, Play goes straight into Keep sorting and the header reads "Today's challenge ✓ 57/100".
  * +15 XP per item sorted right on the first try; each round is scored out of 100.
  */
-import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { type HostInstance, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -18,11 +20,16 @@ import { CHALLENGE_POOL, SortItem } from '../../data/items';
 import { useWorld } from '../../components/World';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
 import { skyInk, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
+import { DAILY_SIZE, dailyItems } from '../../lib/daily';
 import { useApp } from '../../state/AppState';
-import { bins, fonts } from '../../theme';
+import { bins, colors, fonts, radius } from '../../theme';
 
 const XP_PER_HIT = 15;
 const ROUND_SIZE = 6;
+/** At most this many of your own items per Keep sorting round; the rest are Montréal items you haven't scanned. */
+const MAX_YOURS = 4;
+/** Height of the bin labels under the wheels (see SortGame), so the start strip begins below them. */
+const LABELS_H = 56;
 
 const isToday = (iso?: string) => !!iso && new Date(iso).toDateString() === new Date().toDateString();
 const playable = (i: SortItem) => i.bin !== null;
@@ -34,36 +41,34 @@ function shuffle<T>(a: T[]) {
   }
   return b;
 }
-const chunk = <T,>(a: T[], n: number) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
 
-interface Round { title: string; deck: DeckEntry[] }
+type Mode = 'daily' | 'practice';
+interface Run { id: number; mode: Mode; deck: DeckEntry[] }
 
-/** Round 1: your items. Round 2: earlier scans first, topped up with never-scanned. Then the rest. */
-function buildRounds(lastScan: SortItem[], saved: SortItem[], fromScan: boolean): Round[] {
+const dailyDeck = (): DeckEntry[] => dailyItems().map((item) => ({ item, origin: 'never' as const }));
+
+/** Keep sorting: past mistakes first, then your other items (random), topped up with items you haven't scanned. */
+function practiceDeck(lastScan: SortItem[], saved: SortItem[], review: SortItem[]): DeckEntry[] {
   const seen = new Set<string>();
-  const yours = [...lastScan, ...saved].filter((i) => playable(i) && !seen.has(i.id) && seen.add(i.id));
-  const scanned = lastScan.filter(playable);
-  const today = yours.filter((i) => isToday(i.scannedAt));
-  const first = fromScan && scanned.length ? scanned : today.length ? today : yours;
-  const firstIds = new Set(first.map((i) => i.id));
-  const past = shuffle(yours.filter((i) => !firstIds.has(i.id))).map((item) => ({ item, origin: 'past' as const }));
-  const known = new Set(yours.map((i) => i.name.toLowerCase()));
-  const never = shuffle(CHALLENGE_POOL.filter((p) => !known.has(p.name.toLowerCase()))).map((item) => ({ item, origin: 'never' as const }));
-  const r2 = [...past.slice(0, 3), ...never.slice(0, ROUND_SIZE - Math.min(3, past.length))];
-  const rest = shuffle([...past.slice(3), ...never.slice(ROUND_SIZE - Math.min(3, past.length))]);
-  const rounds: Round[] = [];
-  if (first.length) rounds.push({ title: 'Your items', deck: first.slice(0, 8).map((item) => ({ item, origin: isToday(item.scannedAt) ? 'today' : 'past' })) });
-  for (const d of [shuffle(r2), ...chunk(rest, ROUND_SIZE)]) if (d.length) rounds.push({ title: 'Challenge', deck: d });
-  return rounds;
+  const fresh = (i: SortItem) => playable(i) && !seen.has(i.id) && !!seen.add(i.id);
+  const mistakes = review.filter(fresh);
+  const yours = shuffle([...lastScan, ...saved].filter(fresh));
+  const mine = [...mistakes, ...yours].slice(0, MAX_YOURS);
+  const known = new Set([...lastScan, ...saved, ...mine].map((i) => i.name.toLowerCase()));
+  const never = shuffle(CHALLENGE_POOL.filter((p) => playable(p) && !known.has(p.name.toLowerCase())));
+  return shuffle([
+    ...mine.map((item) => ({ item, origin: (isToday(item.scannedAt) ? 'today' : 'past') as DeckEntry['origin'] })),
+    ...never.slice(0, ROUND_SIZE - mine.length).map((item) => ({ item, origin: 'never' as const })),
+  ]);
 }
 
 export default function PlayScreen() {
-  const { deck: deckParam } = useLocalSearchParams<{ deck?: string }>();
-  const { saved, lastScan, addXp, recordGame, playTheme, setPlayTheme } = useApp();
-  const [seed, setSeed] = useState(0);
-  const [roundIdx, setRoundIdx] = useState(0);
+  const { saved, lastScan, addXp, recordGame, playTheme, setPlayTheme, dailyDone, dailyKnown } = useApp();
+  const [run, setRun] = useState<Run | null>(null); // null = start card showing
   const [result, setResult] = useState<RoundResult[] | null>(null);
+  const [review, setReview] = useState<SortItem[]>([]); // items got wrong, played again until right
   const [picking, setPicking] = useState(false);
+  const nextId = useRef(1);
   // The street itself is drawn by the shared world (components/World); Play tells it where things are.
   const world = useWorld();
   // The game re-renders for a new theme in a later, low-priority pass, so the visible crossfade stays smooth.
@@ -74,37 +79,65 @@ export default function PlayScreen() {
   const [progress, setProgress] = useState({ index: 0, total: 0 });
   const onProgress = useCallback((index: number, total: number) => setProgress({ index, total }), []);
   const measureHeader = () => headerRef.current?.measureInWindow((_x, y, _w, h) => world.setLandmarkTop(y + h + 12));
+  // Where the bins stand and where the game area starts (window px), to place the start strip under the labels.
+  const gameRef = useRef<HostInstance>(null);
+  const [gameTop, setGameTop] = useState(0);
+  const [ground, setGround] = useState(0);
+  const onGround = useCallback((y: number) => { world.setGroundY(y); setGround(y); }, [world]);
+  const measureGame = () => gameRef.current?.measureInWindow((_x, y) => setGameTop(y));
+  // Bin labels sit just under the wheels; the strip starts below them (fallback: lower 40%).
+  const stripTop = ground > 0 && gameTop > 0 ? ground - gameTop + LABELS_H : undefined;
 
-  const rounds = useMemo(
-    () => buildRounds(lastScan, saved, deckParam === 'scan'),
-    // `seed` reshuffles everything on "Play again".
+  // What the start card would begin: today's challenge if not done yet, otherwise Keep sorting.
+  const upcoming = useMemo<Run>(
+    () => (dailyDone ? { id: 0, mode: 'practice', deck: practiceDeck(lastScan, saved, review) } : { id: 0, mode: 'daily', deck: dailyDeck() }),
+    // Rebuilt when today's status changes; the scanned/saved lists only matter for the next start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deckParam, lastScan, saved, seed],
+    [dailyDone],
   );
-  const current = rounds[Math.min(roundIdx, rounds.length - 1)];
-  const hasNext = roundIdx < rounds.length - 1;
+  const start = (r: Omit<Run, 'id'>) => {
+    setResult(null);
+    setRun({ ...r, id: nextId.current++ });
+  };
+  const keepSorting = () => start({ mode: 'practice', deck: practiceDeck(lastScan, saved, review) });
 
-  const next = () => {
-    setResult(null);
-    setRoundIdx((i) => i + 1);
-  };
-  const again = () => {
-    setResult(null);
-    setRoundIdx(0);
-    setSeed((v) => v + 1);
-  };
+  // Today's challenge already done: Play is simply the game (Keep sorting), no start card.
+  useEffect(() => {
+    if (dailyKnown && dailyDone && !run) keepSorting();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyKnown, dailyDone, run]);
+
+
+  const current = run ?? upcoming;
+  const counts = current.mode === 'daily' && !dailyDone;
   const onHit = useCallback(() => addXp(XP_PER_HIT), [addXp]);
   const onFinish = useCallback(
     (r: RoundResult[]) => {
       setResult(r);
       const correct = r.filter((x) => x.first).length;
+      setReview((prev) => {
+        const right = new Set(r.filter((x) => x.first).map((x) => x.item.id));
+        const wrong = r.filter((x) => !x.first).map((x) => x.item);
+        const keep = prev.filter((i) => !right.has(i.id) && !wrong.some((w) => w.id === i.id));
+        return [...wrong, ...keep];
+      });
       recordGame({
-        title: `Round ${roundIdx + 1}: ${current.title}`, items: r.length, correct,
-        mode: current.title === 'Your items' ? 'mine' : 'challenge', xp: correct * XP_PER_HIT, // XP only on a first try
+        title: counts ? "Today's challenge" : 'Keep sorting', items: r.length, correct,
+        // Only the first daily round of the day is saved as 'daily' (it counts for the leaderboard).
+        mode: counts ? 'daily' : 'mine', xp: correct * XP_PER_HIT, // XP only on a first try
       });
     },
-    [roundIdx, current, recordGame],
+    [counts, recordGame],
   );
+
+  const title = current.mode === 'daily' ? "Today's challenge" : 'Keep sorting';
+  const playing = !!run && !result && progress.total > 0;
+  // Items still to place in this round (including the one in hand), shown as a pill in the header.
+  const left = progress.total - progress.index;
+  // Once today's challenge is done, the header always says so in plain words, with the score.
+  const eyebrow = dailyDone && current.mode === 'practice'
+    ? `Today's challenge ✓ ${dailyDone.score}/100`
+    : current.mode === 'daily' ? `${DAILY_SIZE} Montréal items · same for everyone` : 'Your items + tricky ones · XP only';
 
   return (
     <View style={{ flex: 1 }}>
@@ -112,11 +145,14 @@ export default function PlayScreen() {
       {/* Same header as the other tabs (small line + serif title), coloured for the neighbourhood's sky. */}
       <View ref={headerRef} onLayout={measureHeader} style={styles.header}>
         <View style={{ flex: 1, gap: 2 }}>
-          <T size="sm" color={ink} style={{ opacity: 0.75, fontVariant: ['tabular-nums'] }}>
-            Round {roundIdx + 1}{!result && progress.total > 0 ? ` · Item ${progress.index + 1} of ${progress.total}` : ''}
-          </T>
-          <T display color={ink} accessibilityRole="header" style={styles.title}>{current.title}</T>
+          <T size="sm" color={ink} style={{ opacity: 0.75, fontVariant: ['tabular-nums'] }}>{eyebrow}</T>
+          <T display color={ink} accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.title}>{title}</T>
         </View>
+        {playing && (
+          <View style={styles.leftPill} accessible accessibilityLabel={`${left} ${left === 1 ? 'item' : 'items'} left to sort`}>
+            <T size="xs" weight="bold" style={{ fontVariant: ['tabular-nums'] }}>{left} left</T>
+          </View>
+        )}
         <Pressable
           onPress={() => setPicking((p) => !p)}
           accessibilityRole="button"
@@ -159,13 +195,26 @@ export default function PlayScreen() {
             dark={streetDark(theme)}
             ink={theme.laneInk}
             muted={theme.laneMuted}
-            roundNo={roundIdx + 1}
-            nextTitle={hasNext ? rounds[roundIdx + 1].title : null}
-            onNext={next}
-            onAgain={again}
+            label={current.mode === 'daily' ? "Today's challenge" : 'This round'}
+            counted={current.mode === 'daily'}
+            onKeepSorting={keepSorting}
           />
         ) : (
-          <SortGame key={`${seed}-${roundIdx}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={world.setGroundY} onProgress={onProgress} />
+          <View ref={gameRef} onLayout={measureGame} collapsable={false} style={{ flex: 1 }}>
+            <SortGame key={run?.id ?? `preview-${current.mode}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={onGround} onProgress={onProgress} />
+            {!run && (
+              // Before today's challenge: a plain strip in the ground colour covers the item area (above the game's own
+              // layers, so nothing shows through), with just the start button. Bins stay visible above it.
+              // While today's saved result loads, or Keep sorting starts, the strip shows without the button.
+              <View collapsable={false} style={[StyleSheet.absoluteFill, styles.blocker]}>
+                <View style={[styles.strip, stripTop !== undefined ? { top: stripTop } : { top: '60%' }, { backgroundColor: theme.lane }]}>
+                  {dailyKnown && !dailyDone && (
+                    <PrimaryButton label="Start today's challenge" icon="play-arrow" onPress={() => start({ mode: 'daily', deck: dailyDeck() })} style={styles.startButton} />
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
         )}
       </View>
       </SafeAreaView>
@@ -189,23 +238,26 @@ function Swatch({ colors: [a, b], size, accent, ring }: { colors: [string, strin
   );
 }
 
-function Results({ results, accent, dark, ink, muted, roundNo, nextTitle, onNext, onAgain }: {
-  results: RoundResult[]; accent: string; dark: boolean; ink: string; muted: string; roundNo: number; nextTitle: string | null; onNext: () => void; onAgain: () => void;
+function Results({ results, accent, dark, ink, muted, label, counted, onKeepSorting }: {
+  results: RoundResult[]; accent: string; dark: boolean; ink: string; muted: string; label: string; counted: boolean; onKeepSorting: () => void;
 }) {
   const n = results.length, good = results.filter((r) => r.first).length;
   const score = Math.round((good * 100) / n);
+  const wrong = n - good;
   const line = dark ? 'rgba(255,255,255,0.10)' : 'rgba(18,41,31,0.08)';
   return (
-    <ScrollView contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: TAB_BAR_SPACE }} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1 }}>
+    {/* The sorted items scroll; Keep sorting stays pinned just above the tab bar. */}
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
       <View style={[styles.sheet, { backgroundColor: dark ? 'rgba(14,20,30,0.9)' : 'rgba(250,250,246,0.92)' }]}>
         <View style={{ alignItems: 'center', paddingVertical: 12 }}>
           <T size="4xl" display color={ink} style={{ fontSize: 76, lineHeight: 80, fontVariant: ['tabular-nums'] }}>
             {score}<T size="2xl" color={muted}>/100</T>
           </T>
           <T size="sm" weight="semibold" color={ink}>
-            Round {roundNo}: {good === n ? 'every item in the right bin.' : `${good} right first try, ${n - good} to review.`}
+            {label}: {good === n ? 'every item in the right bin.' : `${good} right first try, ${n - good} to review.`}
           </T>
-          <T size="xs" color={muted} style={{ marginTop: 2 }}>+{good * XP_PER_HIT} XP</T>
+          <T size="xs" color={muted} style={{ marginTop: 2 }}>{counted ? "Saved to today's leaderboard" : `+${good * XP_PER_HIT} XP`}</T>
         </View>
         {results.map(({ item, first }) => {
           const b = bins[item.bin!];
@@ -223,15 +275,10 @@ function Results({ results, accent, dark, ink, muted, roundNo, nextTitle, onNext
           );
         })}
       </View>
-      {nextTitle ? (
-        <PrimaryButton label={`Start round ${roundNo + 1}: ${nextTitle}`} icon="arrow-forward" size="md" onPress={onNext} style={{ backgroundColor: accent }} />
-      ) : (
-        <T size="sm" color={muted} style={{ textAlign: 'center' }}>That's every item for now.</T>
-      )}
-      <Pressable onPress={onAgain} accessibilityRole="button" style={{ alignSelf: 'center', padding: 10 }}>
-        <T size="sm" weight="semibold" color={ink}>{nextTitle ? 'Start over' : 'Play again'}</T>
-      </Pressable>
+      {!!wrong && <T size="xs" color={muted} style={{ textAlign: 'center' }}>Items to review come back in your next round.</T>}
     </ScrollView>
+    <PrimaryButton label="Keep sorting" icon="replay" size="md" onPress={onKeepSorting} style={{ backgroundColor: accent, marginTop: 8 }} />
+    </View>
   );
 }
 
@@ -243,4 +290,9 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontFamily: fonts.display, fontSize: 34, lineHeight: 40 },
   main: { flex: 1, paddingHorizontal: 16, paddingTop: 4, paddingBottom: TAB_BAR_SPACE, gap: 10 },
+  // zIndex/elevation above SortGame's item layer (zIndex 30), so the item never draws over the strip.
+  blocker: { zIndex: 100, elevation: 100 },
+  leftPill: { height: 28, paddingHorizontal: 10, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.85)' },
+  strip: { position: 'absolute', left: -16, right: -16, bottom: -TAB_BAR_SPACE, alignItems: 'center', justifyContent: 'center', paddingBottom: TAB_BAR_SPACE },
+  startButton: { width: 'auto', alignSelf: 'center', paddingHorizontal: 28 },
 });

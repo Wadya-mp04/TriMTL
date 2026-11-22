@@ -28,7 +28,10 @@ const initialsOf = (name: string) =>
   name.split(/[\s–'-]+/).filter((w) => /^[A-ZÀ-Ý]/.test(w) && !['Le', 'La', 'L'].includes(w)).slice(0, 2).map((w) => w[0]).join('');
 
 /** Stable demo points per borough, so the standings don't jump between renders. */
-const demoPoints = (slug: string) => 300 + ([...slug].reduce((n, c) => n * 31 + c.charCodeAt(0), 7) % 600);
+/** shortcut: demo average score (out of 100) per borough until accounts store a borough; replace with Supabase. */
+const demoScore = (slug: string) => 45 + ([...slug].reduce((n, c) => n * 31 + c.charCodeAt(0), 7) % 50);
+/** shortcut: demo players' scores on today's challenge, used until the backend returns `score_today`. */
+const DEMO_TODAY = [100, 86, 71, 71, 57];
 
 function Avatar({ p, size, bg, fg }: { p: Ranked; size: number; bg: string; fg: string }) {
   return (
@@ -66,7 +69,7 @@ function FirstBlock() {
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const { xpToday, initials, borough, userId, playTheme } = useApp();
+  const { initials, borough, userId, playTheme, dailyDone } = useApp();
   const [scope, setScope] = useState<Scope>('boroughs');
   // Switching Boroughs / Players: the new ranking fades in with a slight rise, in step with the switch's highlight.
   const swap = useRef(new Animated.Value(1)).current;
@@ -77,36 +80,35 @@ export default function CommunityScreen() {
     Animated.timing(swap, { toValue: 1, duration: motionMs(280), easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [scope, swap]);
   const swapStyle = { opacity: swap, transform: [{ translateY: swap.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] };
-  const unit = scope === 'boroughs' ? 'pts' : 'XP';
   const [live, setLive] = useState<Ranked[] | null>(null);
 
-  // Refetch the player board when it is shown or the player earns XP.
+  // The leaderboard is today's challenge scores (out of 100). Live rows are used once the backend returns
+  // `score_today` (the first daily score per player today); until then, demo scores plus your real one.
   useEffect(() => {
     if (!supabase || !userId || scope !== 'players') return;
     let current = true;
     supabase.rpc('leaderboard', { scope: 'city' }).then(({ data, error }) => {
-      if (!current || error || !data) return;
-      setLive((data as { username: string; xp_today: number; is_me: boolean }[]).map((r) => ({
-        name: r.is_me ? 'You' : r.username, initials: initialsOf(r.username), xp: r.xp_today, you: r.is_me,
+      const rows = data as { username: string; score_today?: number | null; is_me: boolean }[] | null;
+      if (!current || error || !rows || !rows.some((r) => typeof r.score_today === 'number')) return;
+      setLive(rows.filter((r) => typeof r.score_today === 'number').map((r) => ({
+        name: r.is_me ? 'You' : r.username, initials: initialsOf(r.username), xp: r.score_today as number, you: r.is_me,
       })));
     });
     return () => { current = false; };
-  }, [scope, userId, xpToday]);
+  }, [scope, userId, dailyDone]);
 
   const ranking = useMemo(() => {
     if (scope === 'boroughs') {
-      // Your XP today counts for your borough.
-      return BOROUGHS.map((b) => ({
-        name: b.name,
-        initials: initialsOf(b.name),
-        xp: demoPoints(b.slug) + (b.slug === borough ? xpToday : 0),
-        you: b.slug === borough,
-      })).sort((a, b) => b.xp - a.xp);
+      // Average score on today's challenge per borough; yours is highlighted.
+      return BOROUGHS.map((b) => ({ name: b.name, initials: initialsOf(b.name), xp: demoScore(b.slug), you: b.slug === borough }))
+        .sort((a, b) => b.xp - a.xp);
     }
     if (userId && live && live.length >= 3) return live;
-    const me: Ranked = { name: 'You', initials, xp: xpToday, you: true };
-    return [...CITY, me].sort((a, b) => b.xp - a.xp);
-  }, [scope, xpToday, initials, borough, userId, live]);
+    const others = CITY.map((p, i) => ({ ...p, xp: DEMO_TODAY[i] ?? 50 }));
+    // You appear once you've played today's challenge.
+    const me: Ranked[] = dailyDone ? [{ name: 'You', initials, xp: dailyDone.score, you: true }] : [];
+    return [...others, ...me].sort((a, b) => b.xp - a.xp);
+  }, [scope, initials, borough, userId, live, dailyDone]);
 
   const [first, second, third] = ranking;
   // Always show your own row, even if you're outside the top 8.
@@ -114,9 +116,9 @@ export default function CommunityScreen() {
   const rest = ranking.map((r, i) => ({ ...r, rank: i + 1 })).filter((r) => (r.rank > 3 && r.rank <= 8) || (r.you && r.rank > 3));
 
   const share = () => {
-    const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${p.name} ${p.xp} ${unit}`);
+    const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${p.name} ${p.xp}/100`);
     const what = scope === 'boroughs' ? 'borough podium' : 'player podium';
-    Share.share({ message: `This week's ${brand.appName} ${what} ♻️\n${lines.join('\n')}` });
+    Share.share({ message: `Today's ${brand.appName} ${what} ♻️\n${lines.join('\n')}` });
   };
 
   // Text sitting straight on the page (not on a card) takes the Play ground's ink, so it reads on Nuit too.
@@ -125,9 +127,25 @@ export default function CommunityScreen() {
 
   return (
     <Screen edges={['top']} transparent>
-      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`This week · ${brand.city}`} title="Community" right={<AvatarButton />} />
+      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`Today · ${brand.city}`} title="Community" right={<AvatarButton />} />
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
+        {/* Your status on today's challenge, in plain words: the leaderboard only counts that score. */}
+        <Glass style={styles.today}>
+          <Icon name={dailyDone ? 'check-circle' : 'emoji-events'} size={22} color={colors.forest} />
+          <View style={{ flex: 1 }}>
+            <T size="sm" weight="bold">{dailyDone ? "You did today's challenge" : "You haven't played today's challenge"}</T>
+            <T size="xs" color={colors.inkMuted}>{dailyDone ? 'Your score is on the leaderboard until midnight' : 'Play it to get on the leaderboard'}</T>
+          </View>
+          {dailyDone ? (
+            <T size="lg" weight="bold" color={colors.forest} style={{ fontVariant: ['tabular-nums'] }}>{dailyDone.score}/100</T>
+          ) : (
+            <Spring onPress={() => router.navigate('/play')} accessibilityRole="button" style={[styles.playChip, { backgroundColor: colors.forest }]}>
+              <T size="sm" weight="semibold" color={colors.white}>Play</T>
+            </Spring>
+          )}
+        </Glass>
+
         <Segmented
           options={[{ key: 'boroughs', label: 'Boroughs' }, { key: 'players', label: 'Players' }]}
           value={scope}
@@ -153,7 +171,7 @@ export default function CommunityScreen() {
             </View>
             <View style={{ alignItems: 'center' }}>
               <T size="xs" weight={second.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{second.name}</T>
-              <T weight="semibold" color={youTone(second, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{second.xp} {unit}</T>
+              <T weight="semibold" color={youTone(second, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{second.xp}/100</T>
             </View>
             {second.you ? (
               <View style={[styles.block, styles.youBlock, { height: 96, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>2</T></View>
@@ -172,7 +190,7 @@ export default function CommunityScreen() {
             </View>
             <View style={{ alignItems: 'center' }}>
               <T size="xs" weight="bold" numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{first.name}</T>
-              <T size="xs" weight="bold" color={colors.forest}>{first.xp} {unit}</T>
+              <T size="xs" weight="bold" color={colors.forest}>{first.xp}/100</T>
             </View>
             <FirstBlock />
           </View>
@@ -185,7 +203,7 @@ export default function CommunityScreen() {
             </View>
             <View style={{ alignItems: 'center' }}>
               <T size="xs" weight={third.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{third.name}</T>
-              <T weight="semibold" color={youTone(third, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{third.xp} {unit}</T>
+              <T weight="semibold" color={youTone(third, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{third.xp}/100</T>
             </View>
             {third.you ? (
               <View style={[styles.block, styles.youBlock, { height: 80, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>3</T></View>
@@ -197,8 +215,8 @@ export default function CommunityScreen() {
 
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-            <T size="xs" weight="semibold" color={ground.laneMuted} style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>{scope === 'boroughs' ? 'Other boroughs' : 'Also sorting'}</T>
-            <T size="xs" color={ground.laneMuted}>Resets Monday</T>
+            <T size="xs" weight="semibold" color={ground.laneMuted} style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>{scope === 'boroughs' ? 'Average score today' : "Today's scores"}</T>
+            <T size="xs" color={ground.laneMuted}>Resets at midnight</T>
           </View>
           {rest.map((p) => (
             <Glass key={p.name} style={[styles.listRow, p.you && { borderColor: colors.forest }]}>
@@ -208,14 +226,14 @@ export default function CommunityScreen() {
                 </View>
                 <T size="sm" weight="semibold" numberOfLines={1} style={{ marginLeft: 4, flexShrink: 1 }}>{p.name}</T>
               </View>
-              <T size="xs" weight="bold" color={youTone(p, colors.inkMuted)}>{p.xp} {unit}</T>
+              <T size="xs" weight="bold" color={youTone(p, colors.inkMuted)}>{p.xp}/100</T>
             </Glass>
           ))}
         </View>
 
         </Animated.View>
 
-        <PrimaryButton label="Share this week's podium" icon="ios-share" onPress={share} style={{ gap: 8 }} />
+        <PrimaryButton label="Share today's podium" icon="ios-share" onPress={share} style={{ gap: 8 }} />
       </ScrollView>
     </Screen>
   );
@@ -223,6 +241,8 @@ export default function CommunityScreen() {
 
 const styles = StyleSheet.create({
   podiumName: { maxWidth: 100, textAlign: 'center' },
+  today: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius['2xl'], padding: 14 },
+  playChip: { height: 36, paddingHorizontal: 16, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
