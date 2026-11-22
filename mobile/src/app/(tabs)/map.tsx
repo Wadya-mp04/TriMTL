@@ -24,9 +24,9 @@ import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { CircleButton, Glass, Icon, IconBubble, PrimaryButton, SecondaryButton, Segmented, Spring, T } from '../../components/ui';
 import { BATTERY_LOCATOR, geocode, loadMapData, zoneKey, zonesAt, type MapData, type Material } from '../../data/map';
 import { BottomSheet } from '../../map/BottomSheet';
-import { AreaDetails, areaRules, Chip, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
+import { AreaDetails, Chip, zonePickups, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
 import { mapHtml, PLACE_STYLE } from '../../map/mapHtml';
-import { localKey, upcoming } from '../../map/schedule';
+import { localKey } from '../../map/schedule';
 import { colors, glass, radius, shadow } from '../../theme';
 
 type Selection = { kind: 'dropoff'; id: string } | { kind: 'area'; lat: number; lng: number; label: string; area: Area } | null;
@@ -98,22 +98,24 @@ export default function MapScreen() {
   const [headerH, setHeaderH] = useState(150);
   const snaps = useMemo(() => [TAB_BAR_SPACE + 28 + headerH, Math.round(height * 0.52), height - insets.top - 64], [height, insets.top, headerH]);
 
+  // The map draws garbage and recycling sectors only; the other streams show in a spot's details.
+  const mapZones = useMemo(() => (data?.zones ?? []).filter((z) => z.stream === 'garbage' || z.stream === 'recycling'), [data]);
   // Which sectors collect today, and which are selected; drawn on the map as feature state.
   const todayKeys = useMemo(
-    () => new Set((data?.zones ?? []).filter((z) => upcoming(areaRules({ [z.stream]: z }), today, 1).length).map(zoneKey)),
-    [data, today],
+    () => new Set(mapZones.filter((z) => zonePickups(z, today, 1).length).map(zoneKey)),
+    [mapZones, today],
   );
   const zoneStates = useMemo(() => {
     const out: Record<string, { hot?: boolean; dim?: boolean; sel?: boolean }> = {};
     if (!data) return out;
-    if (when === 'today') for (const z of data.zones) out[zoneKey(z)] = todayKeys.has(zoneKey(z)) ? { hot: true } : { dim: true };
+    if (when === 'today') for (const z of mapZones) out[zoneKey(z)] = todayKeys.has(zoneKey(z)) ? { hot: true } : { dim: true };
     if (selected?.kind === 'area') {
       // Everything else recedes so the selected block stands out.
-      for (const z of data.zones) out[zoneKey(z)] = { dim: true };
+      for (const z of mapZones) out[zoneKey(z)] = { dim: true };
       for (const z of [selected.area.garbage, selected.area.recycling]) if (z) out[zoneKey(z)] = { sel: true };
     }
     return out;
-  }, [data, when, todayKeys, selected]);
+  }, [data, mapZones, when, todayKeys, selected]);
 
   const pins = useMemo(
     () =>
@@ -132,7 +134,7 @@ export default function MapScreen() {
     if (mapState === 'loading' || !data || pushed.current) return;
     send({ type: 'motion', reduce: reduceMotion });
     send({ type: 'pad', top: TOP, bottom: snaps[sheet] });
-    send({ type: 'zones', zones: data.zones.map((z) => ({ key: zoneKey(z), stream: z.stream, polygons: z.polygons })) });
+    send({ type: 'zones', zones: mapZones.map((z) => ({ key: zoneKey(z), stream: z.stream, polygons: z.polygons })) });
     pushed.current = true;
   }, [mapState, data, reduceMotion, send]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (mapState !== 'loading') send({ type: 'pins', pins }); }, [mapState, pins, send]);

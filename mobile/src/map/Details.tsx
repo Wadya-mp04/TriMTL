@@ -10,12 +10,12 @@ import type { Dropoff, Zone } from '../data/map';
 import { bins, colors, radius, shadow } from '../theme';
 import { appLabel, chooseAndGo, goTo, useMapsApp } from './directions';
 import { LANE_STYLE, PLACE_STYLE } from './mapHtml';
-import { addDays, countdown, humanDay, shortWeekday, upcoming, weekdayOf, weekly, type Stream } from './schedule';
+import { addDays, countdown, humanDay, monthlyDates, shortWeekday, upcoming, weekdayOf, weekly, type Pickup, type Stream } from './schedule';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 /** A short stroke drawn the way the map draws it. */
-function Stroke({ streams, width = 22 }: { streams: Stream[]; width?: number }) {
+function Stroke({ streams, width = 22 }: { streams: (keyof typeof LANE_STYLE)[]; width?: number }) {
   const both = streams.length === 2;
   const base = LANE_STYLE[streams[0]];
   return (
@@ -27,7 +27,7 @@ function Stroke({ streams, width = 22 }: { streams: Stream[]; width?: number }) 
 }
 
 export function Legend() {
-  const items: { streams: Stream[]; label: string }[] = [
+  const items: { streams: (keyof typeof LANE_STYLE)[]; label: string }[] = [
     { streams: ['garbage'], label: 'Garbage sector' },
     { streams: ['recycling'], label: 'Recycling sector' },
   ];
@@ -95,32 +95,62 @@ export function DropoffRow({ d, distance, onPress }: { d: Dropoff; distance?: nu
   );
 }
 
-export type Area = { garbage?: Zone; recycling?: Zone };
+export type Area = Partial<Record<Stream, Zone>>;
+export const STREAMS: Stream[] = ['garbage', 'recycling', 'food', 'bulky', 'yard'];
 
-/** Weekly rules for the sectors whose weeks are known; every-other-week sectors cannot be dated. */
-export const areaRules = (a: Area) =>
-  (['garbage', 'recycling'] as Stream[]).flatMap((stream) => {
-    const z = a[stream];
-    return z && !z.biweekly ? z.days.map((d) => ({ stream, rule: weekly(d), exceptions: z.exceptions })) : [];
-  });
+/** Each stream's look, from the existing bin tokens: food and yard are the compost bin's, bulky the special one's. */
+export const STREAM_STYLE: Record<Stream, { label: string; icon: string; fg: string; bg: string; deep: string }> = {
+  garbage: bins.garbage,
+  recycling: bins.recycling,
+  food: { ...bins.compost, label: 'Food scraps', icon: 'compost' },
+  yard: { ...bins.compost, label: 'Yard waste and leaves', icon: 'yard', fg: colors.forest, deep: colors.forest },
+  bulky: { ...bins.special, label: 'Bulky items and renovation debris', icon: 'chair' },
+};
 
-/** Seven days from today; a pickup day shows its stream marks, today gets a soft forest ring. */
+/** Every pickup of one sector in [today, today + days): listed dates, nth weekdays, or weekly days. */
+export function zonePickups(z: Zone, today: string, days: number): { date: string; note?: string }[] {
+  const end = addDays(today, days);
+  if (z.dates) return z.dates.filter((d) => d >= today && d < end).map((date) => ({ date }));
+  if (z.biweekly || !z.days.length) return [];
+  if (z.monthly) return z.days.flatMap((d) => monthlyDates(d, z.monthly!, today, days)).sort().map((date) => ({ date }));
+  return upcoming(z.days.map((d) => ({ stream: z.stream, rule: weekly(d), exceptions: z.exceptions })), today, days);
+}
+
+/** All of a spot's pickups, merged by day. */
+export function areaPickups(a: Area, today: string, days: number): Pickup[] {
+  const byDate = new Map<string, Pickup>();
+  for (const s of STREAMS) {
+    const z = a[s];
+    if (!z) continue;
+    for (const o of zonePickups(z, today, days)) {
+      const p = byDate.get(o.date) ?? { date: o.date, streams: [] };
+      p.streams.push(s);
+      byDate.set(o.date, p);
+    }
+  }
+  return [...byDate.values()].sort((x, y) => x.date.localeCompare(y.date));
+}
+
+/** Seven days from today; each pickup day shows one mark per stream, today gets a soft forest ring. */
 function WeekStrip({ area, today }: { area: Area; today: string }) {
-  const days = upcoming(areaRules(area), today, 7);
+  const days = areaPickups(area, today, 7);
   return (
     <View style={styles.strip} accessibilityLabel="Next seven days" accessibilityRole="summary">
       {Array.from({ length: 7 }, (_, i) => {
         const key = addDays(today, i);
         const p = days.find((d) => d.date === key);
         const isToday = i === 0;
-        const label = `${isToday ? 'Today' : WEEKDAYS[weekdayOf(key)]}: ${p ? p.streams.join(' and ') : 'no pickup'}`;
+        const label = `${isToday ? 'Today' : WEEKDAYS[weekdayOf(key)]}: ${p ? p.streams.map((x) => STREAM_STYLE[x].label).join(', ') : 'no pickup'}`;
         return (
           <View key={key} accessible accessibilityLabel={label} style={[styles.day, isToday && { borderColor: colors.forest, backgroundColor: 'rgba(255,255,255,0.9)' }]}>
             <T size="xs" weight={isToday ? 'bold' : 'medium'} color={isToday ? colors.forest : colors.inkMuted}>{shortWeekday(key).slice(0, 2)}</T>
             <T size="sm" weight="bold" style={styles.num} color={p ? colors.ink : colors.inkMuted}>{Number(key.slice(8))}</T>
             <View style={styles.marks}>
-              {p?.streams.includes('garbage') && <View style={[styles.mark, { backgroundColor: bins.garbage.fg }]} />}
-              {p?.streams.includes('recycling') && <View style={[styles.mark, styles.markRing, { borderColor: bins.recycling.fg }]} />}
+              {p?.streams.map((x) =>
+                x === 'recycling'
+                  ? <View key={x} style={[styles.mark, styles.markRing, { borderColor: STREAM_STYLE[x].fg }]} />
+                  : <View key={x} style={[styles.mark, { backgroundColor: STREAM_STYLE[x].fg }]} />,
+              )}
               {!p && <View style={styles.markNone} />}
             </View>
           </View>
@@ -131,18 +161,35 @@ function WeekStrip({ area, today }: { area: Area; today: string }) {
 }
 
 const dayList = (days: number[]) => days.map((d) => WEEKDAYS[d]).join(' and ');
+const NTH = ['', '1st', '2nd', '3rd', '4th', '5th'];
 
-function NextRow({ stream, zone, today }: { stream: Stream; zone?: Zone; today: string }) {
-  const b = bins[stream];
-  const next = zone && !zone.biweekly ? upcoming(areaRules({ [stream]: zone }), today, 56)[0] : undefined;
+function NextRow({ stream, zone: own, today, via }: { stream: Stream; zone?: Zone; today: string; via?: Zone }) {
+  const b = STREAM_STYLE[stream];
+  // "Included in the organics collection": answer with the brown bin's day rather than a dead end.
+  const shared = own?.seeOther && via && !via.seeOther ? via : undefined;
+  const zone = shared ?? own;
+  const next = zone ? zonePickups(zone, today, 120)[0] : undefined;
   const isToday = next?.date === today;
   const headline = !zone
     ? 'No city schedule here'
-    : !zone.days.length
-      ? 'Shared container, any day'
+    : next
+      ? humanDay(next.date, today)
       : zone.biweekly
         ? `Every other ${dayList(zone.days)}`
-        : next ? humanDay(next.date, today) : 'None in the next 8 weeks';
+        : zone.dates
+          ? 'Season is over'
+          : zone.seeOther || !zone.days.length
+            ? "See the city's instructions"
+            : 'None in the next 4 months';
+  const sub = shared
+    ? 'Goes in the brown bin with food scraps.'
+    : zone?.monthly && zone.days.length
+    ? `${zone.monthly.map((n) => NTH[n]).join(' and ')} ${dayList(zone.days)} of the month`
+    : zone?.dates && !next
+      ? `No more dates listed for ${zone.dates.at(-1)!.slice(0, 4)}.`
+      : zone?.biweekly
+        ? "The city's calendar shows which weeks."
+        : next?.note;
   return (
     <View style={[styles.nextRow, isToday && { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: colors.forest }]}>
       <View style={[styles.bubble, { width: 36, height: 36, borderRadius: 18, backgroundColor: b.bg }]}>
@@ -151,8 +198,7 @@ function NextRow({ stream, zone, today }: { stream: Stream; zone?: Zone; today: 
       <View style={{ flex: 1 }}>
         <T size="xs" weight="semibold" color={colors.inkMuted}>{b.label}</T>
         <T size="base" weight="bold" color={isToday ? colors.forest : colors.ink}>{headline}</T>
-        {zone?.biweekly && <T size="xs" color={colors.inkMuted}>The city's calendar shows which weeks.</T>}
-        {next?.note && <T size="xs" color={colors.inkMuted}>{next.note}</T>}
+        {sub && <T size="xs" color={colors.inkMuted}>{sub}</T>}
       </View>
       {next && (
         <View style={[styles.count, isToday && { backgroundColor: colors.forest }]}>
@@ -165,7 +211,7 @@ function NextRow({ stream, zone, today }: { stream: Stream; zone?: Zone; today: 
 
 export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area; today: string; fetchedOn: string; sourceUrl: string }) {
   const [open, setOpen] = useState(false);
-  const zones = (['garbage', 'recycling'] as Stream[]).flatMap((s) => (area[s] ? [area[s]!] : []));
+  const zones = STREAMS.flatMap((s) => (area[s] ? [area[s]!] : []));
   const ex = zones.flatMap((z) => z.exceptions.filter((e) => e.date >= today).map((e) => ({ ...e, stream: z.stream })))
     .sort((a, b) => a.date.localeCompare(b.date));
   const anyBiweekly = zones.some((z) => z.biweekly);
@@ -173,10 +219,11 @@ export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area;
     <View style={{ gap: 16 }}>
       <Glass style={styles.card}>
         <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Next pickup</T>
-        <NextRow stream="garbage" zone={area.garbage} today={today} />
-        <NextRow stream="recycling" zone={area.recycling} today={today} />
+        {STREAMS.filter((st) => st === 'garbage' || st === 'recycling' || area[st]).map((st) => (
+          <NextRow key={st} stream={st} zone={area[st]} today={today} via={st === 'yard' ? area.food : undefined} />
+        ))}
       </Glass>
-      {areaRules(area).length > 0 && <WeekStrip area={area} today={today} />}
+      {areaPickups(area, today, 7).length > 0 && <WeekStrip area={area} today={today} />}
       {ex.length > 0 && (
         <Glass style={styles.card}>
           <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Holiday changes</T>
@@ -185,7 +232,7 @@ export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area;
               <Icon name="event" size={16} color={colors.inkMuted} />
               <T size="sm" style={{ flex: 1 }}>
                 <T size="sm" weight="semibold">{humanDay(e.date, today)}</T>
-                {` · ${bins[e.stream as Stream].label}: ${e.moveTo ? `moved to ${humanDay(e.moveTo, today)}` : 'no pickup'}`}
+                {` · ${STREAM_STYLE[e.stream as Stream].label}: ${e.moveTo ? `moved to ${humanDay(e.moveTo, today)}` : 'no pickup'}`}
               </T>
             </View>
           ))}
@@ -198,7 +245,7 @@ export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area;
         </Spring>
         {open && zones.map((z) => (
           <View key={z.stream} style={{ gap: 4 }}>
-            <T size="xs" weight="semibold">{bins[z.stream].label} · sector {z.id}</T>
+            <T size="xs" weight="semibold">{STREAM_STYLE[z.stream].label} · sector {z.id.replace(/^MO:/, '')}</T>
             <T size="xs" color={colors.inkMuted}>{z.note}</T>
           </View>
         ))}

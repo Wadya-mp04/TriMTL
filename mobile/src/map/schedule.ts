@@ -3,7 +3,7 @@
  * Dates are local calendar days as "YYYY-MM-DD"; arithmetic is done on whole days so DST never shifts a pickup.
  */
 
-export type Stream = 'garbage' | 'recycling';
+export type Stream = 'garbage' | 'recycling' | 'food' | 'yard' | 'bulky';
 
 /** "Every `every` weeks on `weekday`, counting from a known collection day `anchor`." */
 export type CollectionRule = { weekday: number; every: 1 | 2; anchor: string };
@@ -111,4 +111,14 @@ export function openStatus(hours: (string | null)[], now: Date) {
     if (h) return { open: false, label: `Opens ${i === 1 ? 'tomorrow' : WD[(now.getDay() + i) % 7]} ${clock(h.split('-')[0])}` };
   }
   return { open: false, label: 'Hours not listed' };
+}
+
+/** The nth weekdays of each month ("1st and 3rd Wednesday") in [from, from + days). */
+export function monthlyDates(weekday: number, nths: number[], from: string, days: number) {
+  const out: string[] = [];
+  for (let i = 0; i < days; i++) {
+    const key = addDays(from, i);
+    if (weekdayOf(key) === weekday && nths.includes(Math.ceil(Number(key.slice(8)) / 7))) out.push(key);
+  }
+  return out;
 }

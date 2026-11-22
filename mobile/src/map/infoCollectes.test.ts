@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { datesIn, parseDays, parseExceptions, parseSector } from './infoCollectes.ts';
+import { datesIn, parseDateList, parseDays, parseExceptions, parseMonthly, parseSector } from './infoCollectes.ts';
 
 test('days: the many ways the city writes a weekday', () => {
   assert.deepEqual(parseDays('Jour de collecte : MardiHeures de dépôt : entre 19 h la veille'), [2]);
@@ -43,4 +43,38 @@ test('sector: biweekly is flagged from the message or the exception text', () =>
   assert.equal(s.biweekly, true);
   assert.deepEqual(s.days, [1]);
   assert.equal(parseSector({ ID: 'x', MESSAGE_FR: 'La collecte a lieu le LUNDI.' }, 'recycling').biweekly, false);
+});
+
+test('bulky: nth weekday of the month, in digits or words', () => {
+  assert.deepEqual(parseMonthly('Jour(s) de collecte : 1er et 3e mercredi du mois *Collectes supplémentaires'), [1, 3]);
+  assert.deepEqual(parseMonthly('Jour de collecte : 1e et 3e vendredi du mois'), [1, 3]);
+  assert.deepEqual(parseMonthly('Immeubles de 20 logements et moins : 1er vendredi de chaque mois'), [1]);
+  assert.deepEqual(parseMonthly('La collecte a lieu le PREMIER ET TROISIÈME MARDI DU MOIS Déposez'), [1, 3]);
+  assert.equal(parseMonthly('Jour de collecte : Mercredi Heures de dépôt'), null);
+});
+
+test('yard: listed dates in the year the text names', () => {
+  const ac1 = 'Jour(s) de collecte en 2026 : Lundi - 6, 13, 20 et 27 avril; - 2, 9, 16 et 23 novembre. Contenants : sac de 25 kg, longueur 1,5 m';
+  assert.deepEqual(parseDateList(ac1), ['2026-04-06', '2026-04-13', '2026-04-20', '2026-04-27', '2026-11-02', '2026-11-09', '2026-11-16', '2026-11-23']);
+});
+
+test('yard: weekly ranges plus a fortnightly summer list', () => {
+  const rpp = 'Jours de collecte en 2026 : - Printemps : du 8 avril au 27 mai, toutes les semaines le mercredi - Été aux 2 semaines : 3 et 17 juin - Automne : du 30 septembre au 25 novembre, toutes les semaines le mercredi';
+  const d = parseDateList(rpp);
+  assert.equal(d[0], '2026-04-08');
+  assert.ok(d.includes('2026-05-27') && d.includes('2026-06-17') && d.includes('2026-11-25'));
+  assert.ok(!d.includes('2026-06-10'), 'summer is fortnightly, not weekly');
+  assert.ok(d.every((x) => new Date(`${x}T12:00Z`).getUTCDay() === 3), 'all Wednesdays');
+});
+
+test('yard: a listed calendar is not flagged every-other-week', () => {
+  const s = parseSector({ ID: 'RPP-1-RV', MESSAGE_FR: 'Jours de collecte en 2026 : - Été aux 2 semaines : 3 et 17 juin' }, 'yard');
+  assert.equal(s.biweekly, false);
+  assert.deepEqual(s.dates, ['2026-06-03', '2026-06-17']);
+});
+
+test('included elsewhere is marked, not read as a day', () => {
+  const s = parseSector({ ID: 'PMR-1', MESSAGE_FR: 'La collecte des résidus alimentaires est incluse dans la collecte des matières organiques.' }, 'food');
+  assert.equal(s.seeOther, true);
+  assert.deepEqual(s.days, []);
 });

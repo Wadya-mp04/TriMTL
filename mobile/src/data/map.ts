@@ -125,10 +125,17 @@ function inRing(lng: number, lat: number, ring: [number, number][]) {
   return inside;
 }
 
-/** The garbage and recycling sectors a point falls in (either may be missing). */
-export function zonesAt(zones: Zone[], p: { lat: number; lng: number }) {
+/** The sector of each stream a point falls in, preferring one that carries a schedule. */
+export function zonesAt(zones: Zone[], p: { lat: number; lng: number }): Partial<Record<Zone['stream'], Zone>> {
   const hit = (z: Zone) => z.polygons.some(([outer, ...holes]) => inRing(p.lng, p.lat, outer) && !holes.some((h) => inRing(p.lng, p.lat, h)));
-  return { garbage: zones.find((z) => z.stream === 'garbage' && hit(z)), recycling: zones.find((z) => z.stream === 'recycling' && hit(z)) };
+  const scheduled = (z: Zone) => !z.seeOther && (z.days.length > 0 || (z.dates?.length ?? 0) > 0);
+  const out: Partial<Record<Zone['stream'], Zone>> = {};
+  for (const z of zones) {
+    if (!hit(z)) continue;
+    const cur = out[z.stream];
+    if (!cur || (!scheduled(cur) && scheduled(z))) out[z.stream] = z;
+  }
+  return out;
 }
 
 /** OSM tags every address on the island with this county; Laval and the South Shore have their own. */
