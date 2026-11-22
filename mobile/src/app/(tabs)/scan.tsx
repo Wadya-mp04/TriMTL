@@ -5,13 +5,13 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import {
   CornerBrackets,
   Glass,
   Icon,
-  IconBubble,
   Screen,
   ScreenHeader,
   Spring,
@@ -22,6 +22,26 @@ import { useT } from '../../i18n';
 import { levelFor, useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
 import { brand } from '../../brand';
+
+/** Line camera in the theme colour, in the same white bubble the app uses for icons. */
+function CameraMark() {
+  return (
+    <View style={[styles.cameraBubble, shadow.md]}>
+      <Svg width={76} height={76} viewBox="0 0 96 96">
+        <Path
+          d="M26 37a5 5 0 0 1 5-5h6l3-5h16l3 5h6a5 5 0 0 1 5 5v24a5 5 0 0 1-5 5H31a5 5 0 0 1-5-5Z"
+          fill="none"
+          stroke={colors.forest}
+          strokeWidth={2.6}
+          strokeLinejoin="round"
+        />
+        <Circle cx={48} cy={49} r={10} fill="none" stroke={colors.forest} strokeWidth={2.6} />
+        <Circle cx={48} cy={49} r={4.5} fill={colors.forest} />
+        <Circle cx={63.5} cy={39} r={1.8} fill={colors.forest} />
+      </Svg>
+    </View>
+  );
+}
 
 /** Brackets gently "focus" in and out while the icon floats: a calm, camera-like idle state. */
 function Viewfinder() {
@@ -48,7 +68,7 @@ function Viewfinder() {
         <CornerBrackets inset={18} size={26} color={`${colors.forest}8C`} />
       </Animated.View>
       <Animated.View style={float}>
-        <IconBubble icon="qr-code-scanner" size={76} iconSize={38} />
+        <CameraMark />
       </Animated.View>
       <Animated.View style={[{ alignItems: 'center', gap: 6 }, rise]}>
         <T display style={styles.headline}>{tr('Sort your bin!')}</T>
@@ -121,6 +141,7 @@ const styles = StyleSheet.create({
     gap: 14,
     overflow: 'hidden',
   },
+  cameraBubble: { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(255,255,255,0.9)' },
   headline: { fontSize: 30, lineHeight: 36, textAlign: 'center', color: colors.ink },
   scanButton: {
     minHeight: 64,
