@@ -151,6 +151,16 @@ docs/
 | App UI | Melik |
 | Game screens and AI UI | Zayaan |
 
+## Known issues (fix later)
+
+- **Saves made while offline can be lost.** Saved scans and finished rounds are retried every 15 s for
+  about 5 minutes (`mobile/src/lib/retry.ts`), but only in memory: if the phone stays offline longer,
+  or the app is closed, the write is dropped. The phone still shows the result, but the database never
+  gets it. Fix: keep pending writes in an AsyncStorage queue and flush it when the app comes back
+  online / to the foreground. Writes already carry a `client_key`, so replaying them is safe.
+  Testing tip: airplane mode can't be tested while the laptop runs on the phone's hotspot (it also
+  cuts Expo's connection to the laptop); use the iOS Simulator and turn the Mac's Wi-Fi off instead.
+
 ## Contributing
 
 - Contracts (`types.ts`, response JSON) change **additively only**: add fields, never rename or remove them. See [docs/API.md](docs/API.md#contract-changes).
