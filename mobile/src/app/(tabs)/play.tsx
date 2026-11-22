@@ -18,7 +18,7 @@ import { Icon, PrimaryButton, T } from '../../components/ui';
 import { CHALLENGE_POOL, SortItem } from '../../data/items';
 import { Backdrop } from '../../game/Backdrop';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
-import { skyInk, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
+import { isDark, skyInk, skyTopOf, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
 import { useApp } from '../../state/AppState';
 import { bins, fonts } from '../../theme';
 
@@ -109,7 +109,7 @@ export default function PlayScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.lane }}>
       <Backdrop theme={theme} groundY={groundY} landmarkTop={headerBottom} />
-      <StatusBar style={theme.key === 'nuit' ? 'light' : 'dark'} />
+      <StatusBar style={isDark(skyTopOf(theme)) ? 'light' : 'dark'} />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
       {/* Same header as the other tabs (small line + serif title), coloured for the neighbourhood's sky. */}
       <View ref={headerRef} onLayout={measureHeader} style={styles.header}>
