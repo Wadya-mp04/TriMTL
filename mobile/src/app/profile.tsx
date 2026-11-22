@@ -1,5 +1,5 @@
 /**
- * My Profile (ui-references/.../frosted_mint_my_profile): identity, stats, area, theme, recent games.
+ * My Profile (ui-references/.../frosted_mint_my_profile): identity, stats, area and theme.
  * Opened from the avatar on Community; no tab bar here.
  */
 import { useRouter } from 'expo-router';
@@ -9,26 +9,15 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AreaSheet } from '../components/AreaSheet';
 import { CircleButton, Glass, Icon, Screen, ScreenHeader, Segmented, Spring, T } from '../components/ui';
 import { boroughName } from '../data/rules';
-import { TKey, useT } from '../i18n';
+import { useT } from '../i18n';
 import { levelFor, useApp } from '../state/AppState';
 import { THEME_ORDER, THEMES } from '../game/themes';
 import { APP_PALETTES, colors, radius, shadow } from '../theme';
 
-/** Titles and days the app writes for rounds; anything else (a date) is shown as is. */
-const KNOWN: TKey[] = ["Today's challenge", 'Keep sorting', 'Your items', 'Daily challenge', 'Challenge', 'My scanned items', 'Today', 'Yesterday'];
-const ROUND = /^Round (\d+): (.+)$/;
-
 export default function ProfileScreen() {
   const router = useRouter();
-  const { username, initials, xp, stats, games, playTheme, setPlayTheme, signOut, borough, hasBrownBin, lang, setLang } = useApp();
+  const { username, initials, xp, stats, playTheme, setPlayTheme, signOut, borough, hasBrownBin, lang, setLang } = useApp();
   const { t } = useT();
-  // "Round 2: Challenge", "Today": translate the parts the app wrote; a date stays as is.
-  const gameTitle = (s: string) => {
-    const m = ROUND.exec(s);
-    const base = m ? m[2] : s;
-    const known = (KNOWN as string[]).includes(base) ? t(base as TKey) : base;
-    return m ? t('Round {n}: {title}', { n: m[1], title: known }) : known;
-  };
   const [areaOpen, setAreaOpen] = useState(false);
   const { level, next, progress } = levelFor(xp);
   const accuracy = stats.answered ? Math.round((stats.correct / stats.answered) * 100) : 0;
@@ -124,24 +113,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={{ gap: 8 }}>
-          <T size="sm" weight="bold" color={colors.ink} style={{ paddingHorizontal: 4 }}>{t('Recent games')}</T>
-          {games.slice(0, 3).map((g, i) => {
-            const score = Math.round((g.correct / Math.max(1, g.items)) * 100);
-            return (
-              <Glass key={`${g.title}-${i}`} style={styles.game}>
-                <View>
-                  <T size="sm" weight="semibold">{gameTitle(g.title)}</T>
-                  <T size="xs" color={colors.inkMuted}>{t('{n} items • {when}', { n: g.items, when: gameTitle(g.when) })}</T>
-                </View>
-                <T size="xs" weight="bold" color={score === 100 ? colors.forest : colors.inkMuted} style={{ fontVariant: ['tabular-nums'] }}>
-                  {score} / 100
-                </T>
-              </Glass>
-            );
-          })}
-        </View>
-
         <Pressable
           onPress={() => { signOut(); router.replace('/'); }}
           style={styles.signOut}
@@ -188,6 +159,5 @@ const styles = StyleSheet.create({
   },
   areaIcon: { width: 40, height: 40, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
   swatch: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  game: { borderRadius: radius['2xl'], paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   signOut: { alignSelf: 'center', minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
 });

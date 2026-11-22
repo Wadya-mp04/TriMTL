@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { countdown, humanDay, nextPickup, openStatus, upcoming, weekly, type CollectionRule } from './schedule.ts';
+import { clock, countdown, humanDay, nextPickup, openStatus, upcoming, weekly, type CollectionRule } from './schedule.ts';
 
 // 2026-11-23 is a Monday.
 const weeklyTue: CollectionRule = { weekday: 2, every: 1, anchor: '2026-11-03' };
@@ -52,6 +52,18 @@ test('human labels', () => {
   assert.equal(humanDay('2026-11-27', '2026-11-23'), 'Friday');
   assert.equal(humanDay('2026-12-02', '2026-11-23'), 'Wed, Dec 2');
   assert.equal(countdown('2026-11-25', '2026-11-23'), 'in 2 days');
+});
+
+test('French pickup labels and hours follow the selected language', () => {
+  assert.equal(humanDay('2026-11-23', '2026-11-23', 'fr'), "Aujourd'hui");
+  assert.equal(humanDay('2026-11-24', '2026-11-23', 'fr'), 'Demain, mar.');
+  assert.equal(humanDay('2026-11-27', '2026-11-23', 'fr'), 'Vendredi');
+  assert.equal(humanDay('2026-12-02', '2026-11-23', 'fr'), 'mer. 2 déc.');
+  assert.equal(countdown('2026-11-25', '2026-11-23', 'fr'), 'dans 2 jours');
+  assert.equal(clock('17:30', 'fr'), '17 h 30');
+  const hours = [null, '09:00-17:00', '09:00-17:00', null, null, null, null];
+  assert.equal(openStatus(hours, new Date(2026, 10, 23, 10), 'fr').label, 'Ferme à 17 h');
+  assert.equal(openStatus(hours, new Date(2026, 10, 23, 18), 'fr').label, 'Ouvre demain 9 h');
 });
 
 test('opening hours: open, before opening, after close, closed days', () => {

@@ -2,7 +2,7 @@
  * Items grouped by bin (Recycling, Compost, Garbage, Special, then Needs verification), as on the
  * "Where it goes" screen. Tap an item to show why it goes there. Used by Results and the Library.
  */
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { SortItem } from '../data/items';
@@ -33,35 +33,31 @@ function Section({ label, icon, tone, items }: { label: string; icon: string; to
         <T size="xs" weight="semibold" color={tone.deep}>{t(n === 1 ? '{n} item' : '{n} items', { n })}</T>
       </View>
       <View style={{ gap: 8 }}>
-        {items.map((it) => {
-          const expanded = open === it.id;
-          return (
-            <Pressable
-              key={it.id}
-              onPress={() => setOpen(expanded ? null : it.id)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded }}
-              accessibilityHint={t('Shows why it goes in this bin')}
-              style={styles.row}
-            >
-              <View style={styles.rowTop}>
-                <View style={[styles.rowIcon, { backgroundColor: tone.bg }]}>
-                  <Icon name={it.icon} size={20} color={tone.deep} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <T size="sm" weight="semibold">{it.name}</T>
-                  {!!it.detail && <T size="xs" color={colors.inkMuted}>{it.detail === 'Needs verification' ? t('Needs verification') : it.detail}</T>}
-                </View>
-                {!!it.note && <Icon name={expanded ? 'expand-less' : 'expand-more'} size={20} color={colors.inkMuted} />}
-              </View>
-              {expanded && !!it.note && <T size="xs" color={colors.ink} style={styles.note}>{it.note}</T>}
-            </Pressable>
-          );
-        })}
+        {items.map((it) => (
+          <BinItemRow key={it.id} item={it} tone={tone} expanded={open === it.id} onPress={() => setOpen(open === it.id ? null : it.id)} />
+        ))}
       </View>
     </Glass>
   );
 }
+
+/** A controlled row so virtualized library cells keep their expanded state outside the render window. */
+export const BinItemRow = memo(function BinItemRow({ item: it, tone, expanded, onPress }: { item: SortItem; tone: typeof UNSURE; expanded: boolean; onPress: () => void }) {
+  const { t } = useT();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ expanded }} accessibilityHint={t('Shows why it goes in this bin')} style={styles.row}>
+      <View style={styles.rowTop}>
+        <View style={[styles.rowIcon, { backgroundColor: tone.bg }]}><Icon name={it.icon} size={20} color={tone.deep} /></View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <T size="sm" weight="semibold">{it.name}</T>
+          {!!it.detail && <T size="xs" color={colors.inkMuted}>{it.detail === 'Needs verification' ? t('Needs verification') : it.detail}</T>}
+        </View>
+        {!!it.note && <Icon name={expanded ? 'expand-less' : 'expand-more'} size={20} color={colors.inkMuted} />}
+      </View>
+      {expanded && !!it.note && <T size="xs" color={colors.ink} style={styles.note}>{it.note}</T>}
+    </Pressable>
+  );
+});
 
 export function BinSections({ items }: { items: SortItem[] }) {
   const { t } = useT();

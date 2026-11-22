@@ -51,7 +51,7 @@ function Viewfinder() {
         <IconBubble icon="qr-code-scanner" size={76} iconSize={38} />
       </Animated.View>
       <Animated.View style={[{ alignItems: 'center', gap: 6 }, rise]}>
-        <T display style={styles.headline}>{tr('Point at up to 5 items')}</T>
+        <T display style={styles.headline}>{tr('Sort your bin!')}</T>
         <T size="sm" color={colors.inkMuted}>{tr('Instant {city} bin match · 1–3 photos', { city: brand.city })}</T>
       </Animated.View>
     </>

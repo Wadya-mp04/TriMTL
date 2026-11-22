@@ -126,7 +126,7 @@ export default function FriendsScreen() {
             <Icon name="group-add" size={32} color={colors.forest} />
             <T size="sm" weight="semibold" style={{ textAlign: 'center' }}>{t('Sign in to add friends')}</T>
             <T size="xs" color={colors.inkMuted} style={{ textAlign: 'center' }}>
-              {t('Friends see each other on the Community board, even when their scores are not public.')}
+              {t('Friends see each other in Rankings, even when their scores are not public.')}
             </T>
             <PrimaryButton label={t('Sign in')} size="md" onPress={() => router.navigate('/')} style={{ alignSelf: 'stretch' }} />
           </Glass>

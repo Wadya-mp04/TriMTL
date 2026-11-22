@@ -6,13 +6,14 @@ import { Linking, StyleSheet, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 
 import { Glass, Icon, PrimaryButton, Spring, T } from '../components/ui';
+import { useT, type TKey } from '../i18n';
 import type { Dropoff, Zone } from '../data/map';
 import { bins, colors, radius, shadow } from '../theme';
 import { appLabel, chooseAndGo, goTo, useMapsApp } from './directions';
 import { LANE_STYLE, PLACE_STYLE } from './mapHtml';
-import { addDays, countdown, humanDay, monthlyDates, shortWeekday, upcoming, weekdayOf, weekly, type Pickup, type Stream } from './schedule';
+import { addDays, countdown, humanDay, monthlyDates, upcoming, weekly, type Pickup, type Stream } from './schedule';
 
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAYS = { en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], fr: ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'] };
 
 /** A short stroke drawn the way the map draws it. */
 function Stroke({ streams, width = 22 }: { streams: (keyof typeof LANE_STYLE)[]; width?: number }) {
@@ -27,12 +28,13 @@ function Stroke({ streams, width = 22 }: { streams: (keyof typeof LANE_STYLE)[];
 }
 
 export function Legend() {
+  const { t } = useT();
   const items: { streams: (keyof typeof LANE_STYLE)[]; label: string }[] = [
-    { streams: ['garbage'], label: 'Garbage sector' },
-    { streams: ['recycling'], label: 'Recycling sector' },
+    { streams: ['garbage'], label: t('Garbage pickup area') },
+    { streams: ['recycling'], label: t('Recycling pickup area') },
   ];
   return (
-    <View accessible accessibilityLabel="Legend. Solid grey outline: garbage sector. Dashed blue outline: recycling sector." style={styles.legend}>
+    <View accessible accessibilityLabel={t("Legend. Solid grey outline: garbage sector. Dashed blue outline: recycling sector.")} style={styles.legend}>
       {items.map((i) => (
         <View key={i.label} style={styles.legendItem}>
           <Stroke streams={i.streams} />
@@ -53,13 +55,14 @@ function PlaceBubble({ kind, size = 40 }: { kind: Dropoff['kind']; size?: number
 
 /** Pill with the designs' chip press; active chips are ink, like the tab bar highlight. */
 export function Chip({ label, icon, tint, active, onPress }: { label: string; icon?: string; tint?: string; active: boolean; onPress: () => void }) {
+  const { t } = useT();
   return (
     <Spring
       onPress={onPress}
       pressedScale={0.95}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
-      accessibilityLabel={`Show places that take ${label.toLowerCase()}`}
+      accessibilityLabel={t('Show places that take {what}', { what: label.toLowerCase() })}
       hitSlop={{ top: 4, bottom: 4 }}
       style={[styles.chip, active ? { backgroundColor: colors.ink, borderColor: colors.ink } : styles.chipIdle, shadow.sm]}
     >
@@ -72,8 +75,9 @@ export function Chip({ label, icon, tint, active, onPress }: { label: string; ic
 export const distanceLabel = (m: number) => (m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
 
 export function DropoffRow({ d, distance, onPress }: { d: Dropoff; distance?: number; onPress: () => void }) {
+  const { t, lang } = useT();
   return (
-    <Spring onPress={onPress} pressedScale={0.98} accessibilityRole="button" accessibilityLabel={`${d.name}, ${d.area}${distance !== undefined ? `, ${distanceLabel(distance)} away` : ''}`}>
+    <Spring onPress={onPress} pressedScale={0.98} accessibilityRole="button" accessibilityLabel={distance !== undefined ? t('{name}, {area}, {distance} away', { name: d.name, area: d.area, distance: distanceLabel(distance) }) : `${d.name}, ${d.area}`}>
       <Glass style={styles.listRow}>
         <PlaceBubble kind={d.kind} />
         <View style={{ flex: 1, gap: 2 }}>
@@ -82,10 +86,10 @@ export function DropoffRow({ d, distance, onPress }: { d: Dropoff; distance?: nu
         </View>
         {distance !== undefined && <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.num}>{distanceLabel(distance)}</T>}
         <Spring
-          onPress={() => goTo(d)}
+          onPress={() => goTo(d, lang)}
           pressedScale={0.92}
           accessibilityRole="button"
-          accessibilityLabel={`Directions to ${d.name}`}
+          accessibilityLabel={t('Directions to {name}', { name: d.name })}
           style={[styles.go, { backgroundColor: colors.ink }]}
         >
           <Icon name="directions" size={20} color={colors.white} />
@@ -131,39 +135,11 @@ export function areaPickups(a: Area, today: string, days: number): Pickup[] {
   return [...byDate.values()].sort((x, y) => x.date.localeCompare(y.date));
 }
 
-/** Seven days from today; each pickup day shows one mark per stream, today gets a soft forest ring. */
-function WeekStrip({ area, today }: { area: Area; today: string }) {
-  const days = areaPickups(area, today, 7);
-  return (
-    <View style={styles.strip} accessibilityLabel="Next seven days" accessibilityRole="summary">
-      {Array.from({ length: 7 }, (_, i) => {
-        const key = addDays(today, i);
-        const p = days.find((d) => d.date === key);
-        const isToday = i === 0;
-        const label = `${isToday ? 'Today' : WEEKDAYS[weekdayOf(key)]}: ${p ? p.streams.map((x) => STREAM_STYLE[x].label).join(', ') : 'no pickup'}`;
-        return (
-          <View key={key} accessible accessibilityLabel={label} style={[styles.day, isToday && { borderColor: colors.forest, backgroundColor: 'rgba(255,255,255,0.9)' }]}>
-            <T size="xs" weight={isToday ? 'bold' : 'medium'} color={isToday ? colors.forest : colors.inkMuted}>{shortWeekday(key).slice(0, 2)}</T>
-            <T size="sm" weight="bold" style={styles.num} color={p ? colors.ink : colors.inkMuted}>{Number(key.slice(8))}</T>
-            <View style={styles.marks}>
-              {p?.streams.map((x) =>
-                x === 'recycling'
-                  ? <View key={x} style={[styles.mark, styles.markRing, { borderColor: STREAM_STYLE[x].fg }]} />
-                  : <View key={x} style={[styles.mark, { backgroundColor: STREAM_STYLE[x].fg }]} />,
-              )}
-              {!p && <View style={styles.markNone} />}
-            </View>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-const dayList = (days: number[]) => days.map((d) => WEEKDAYS[d]).join(' and ');
+const dayList = (days: number[], lang: 'en' | 'fr') => days.map((d) => WEEKDAYS[lang][d]).join(lang === 'fr' ? ' et ' : ' and ');
 const NTH = ['', '1st', '2nd', '3rd', '4th', '5th'];
 
 function NextRow({ stream, zone: own, today, via }: { stream: Stream; zone?: Zone; today: string; via?: Zone }) {
+  const { t, lang } = useT();
   const b = STREAM_STYLE[stream];
   // "Included in the organics collection": answer with the brown bin's day rather than a dead end.
   const shared = own?.seeOther && via && !via.seeOther ? via : undefined;
@@ -171,24 +147,24 @@ function NextRow({ stream, zone: own, today, via }: { stream: Stream; zone?: Zon
   const next = zone ? zonePickups(zone, today, 120)[0] : undefined;
   const isToday = next?.date === today;
   const headline = !zone
-    ? 'No city schedule here'
+    ? t('No city schedule here')
     : next
-      ? humanDay(next.date, today)
+      ? humanDay(next.date, today, lang)
       : zone.biweekly
-        ? `Every other ${dayList(zone.days)}`
+        ? t('Every other {days}', { days: dayList(zone.days, lang) })
         : zone.dates
-          ? 'Season is over'
+          ? t('Season is over')
           : zone.seeOther || !zone.days.length
-            ? "See the city's instructions"
-            : 'None in the next 4 months';
+            ? t("See the city's instructions")
+            : t('None in the next 4 months');
   const sub = shared
-    ? 'Goes in the brown bin with food scraps.'
+    ? t('Goes in the brown bin with food scraps.')
     : zone?.monthly && zone.days.length
-    ? `${zone.monthly.map((n) => NTH[n]).join(' and ')} ${dayList(zone.days)} of the month`
+    ? t('{nth} {days} of the month', { nth: zone.monthly.map((n) => lang === 'fr' ? `${n}${n === 1 ? 'er' : 'e'}` : NTH[n]).join(lang === 'fr' ? ' et ' : ' and '), days: dayList(zone.days, lang) })
     : zone?.dates && !next
-      ? `No more dates listed for ${zone.dates.at(-1)!.slice(0, 4)}.`
+      ? t('No more dates listed for {year}.', { year: zone.dates.at(-1)!.slice(0, 4) })
       : zone?.biweekly
-        ? "The city's calendar shows which weeks."
+        ? t("The city's calendar shows which weeks.")
         : next?.note;
   return (
     <View style={[styles.nextRow, isToday && { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: colors.forest }]}>
@@ -196,13 +172,13 @@ function NextRow({ stream, zone: own, today, via }: { stream: Stream; zone?: Zon
         <Icon name={b.icon} size={18} color={b.deep} />
       </View>
       <View style={{ flex: 1 }}>
-        <T size="xs" weight="semibold" color={colors.inkMuted}>{b.label}</T>
+        <T size="xs" weight="semibold" color={colors.inkMuted}>{t(b.label as TKey)}</T>
         <T size="base" weight="bold" color={isToday ? colors.forest : colors.ink}>{headline}</T>
         {sub && <T size="xs" color={colors.inkMuted}>{sub}</T>}
       </View>
       {next && (
         <View style={[styles.count, isToday && { backgroundColor: colors.forest }]}>
-          <T size="xs" weight="semibold" color={isToday ? colors.white : colors.ink}>{countdown(next.date, today)}</T>
+          <T size="xs" weight="semibold" color={isToday ? colors.white : colors.ink}>{countdown(next.date, today, lang)}</T>
         </View>
       )}
     </View>
@@ -210,6 +186,7 @@ function NextRow({ stream, zone: own, today, via }: { stream: Stream; zone?: Zon
 }
 
 export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area; today: string; fetchedOn: string; sourceUrl: string }) {
+  const { t, lang } = useT();
   const [open, setOpen] = useState(false);
   const zones = STREAMS.flatMap((s) => (area[s] ? [area[s]!] : []));
   const ex = zones.flatMap((z) => z.exceptions.filter((e) => e.date >= today).map((e) => ({ ...e, stream: z.stream })))
@@ -218,21 +195,20 @@ export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area;
   return (
     <View style={{ gap: 16 }}>
       <Glass style={styles.card}>
-        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Next pickup</T>
+        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>{t("Next pickup")}</T>
         {STREAMS.filter((st) => st === 'garbage' || st === 'recycling' || area[st]).map((st) => (
           <NextRow key={st} stream={st} zone={area[st]} today={today} via={st === 'yard' ? area.food : undefined} />
         ))}
       </Glass>
-      {areaPickups(area, today, 7).length > 0 && <WeekStrip area={area} today={today} />}
       {ex.length > 0 && (
         <Glass style={styles.card}>
-          <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Holiday changes</T>
+          <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>{t("Holiday changes")}</T>
           {ex.map((e) => (
             <View key={e.stream + e.date} style={styles.row}>
               <Icon name="event" size={16} color={colors.inkMuted} />
               <T size="sm" style={{ flex: 1 }}>
-                <T size="sm" weight="semibold">{humanDay(e.date, today)}</T>
-                {` · ${STREAM_STYLE[e.stream as Stream].label}: ${e.moveTo ? `moved to ${humanDay(e.moveTo, today)}` : 'no pickup'}`}
+                <T size="sm" weight="semibold">{humanDay(e.date, today, lang)}</T>
+                {` · ${t(STREAM_STYLE[e.stream as Stream].label as TKey)}: ${e.moveTo ? t('moved to {day}', { day: humanDay(e.moveTo, today, lang) }) : t('no pickup')}`}
               </T>
             </View>
           ))}
@@ -240,23 +216,23 @@ export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area;
       )}
       <Glass style={styles.card}>
         <Spring onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }} pressedScale={0.98} style={styles.kv}>
-          <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>The city's instructions</T>
+          <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>{t("The city's instructions")}</T>
           <Icon name={open ? 'expand-less' : 'expand-more'} size={20} color={colors.inkMuted} />
         </Spring>
         {open && zones.map((z) => (
           <View key={z.stream} style={{ gap: 4 }}>
-            <T size="xs" weight="semibold">{STREAM_STYLE[z.stream].label} · sector {z.id.replace(/^MO:/, '')}</T>
+            <T size="xs" weight="semibold">{t('{stream} · sector {id}', { stream: t(STREAM_STYLE[z.stream].label as TKey), id: z.id.replace(/^MO:/, '') })}</T>
             <T size="xs" color={colors.inkMuted}>{z.note}</T>
           </View>
         ))}
         {anyBiweekly && (
           <Spring onPress={() => Linking.openURL('https://montreal.ca/info-collectes')} accessibilityRole="link" hitSlop={8}>
-            <T size="sm" weight="bold" color={colors.forest}>Open the city's collection calendar</T>
+            <T size="sm" weight="bold" color={colors.forest}>{t("Open the city's collection calendar")}</T>
           </Spring>
         )}
         <Spring onPress={() => Linking.openURL(sourceUrl)} accessibilityRole="link" hitSlop={8}>
           <T size="xs" color={colors.inkMuted}>
-            Ville de Montréal open data, downloaded {new Date(`${fetchedOn}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}.
+            {t('Ville de Montréal open data, downloaded {date}.', { date: new Date(`${fetchedOn}T12:00:00`).toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) })}
           </T>
         </Spring>
       </Glass>
@@ -265,8 +241,9 @@ export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area;
 }
 
 export function DropoffDetails({ d }: { d: Dropoff }) {
+  const { t, lang } = useT();
   const app = useMapsApp();
-  const hoursLink = d.kind === 'ecocentre' ? (d.city === 'Montréal' ? "Check today's hours on montreal.ca" : `Check hours with ${d.city}`) : 'Find more battery drop-offs';
+  const hoursLink = d.kind === 'ecocentre' ? (d.city === 'Montréal' ? t("Check today's hours on montreal.ca") : t('Check hours with {city}', { city: d.city ?? '' })) : t('Find more battery drop-offs');
   return (
     <View style={{ gap: 16 }}>
       {d.address && (
@@ -276,23 +253,23 @@ export function DropoffDetails({ d }: { d: Dropoff }) {
         </View>
       )}
       <View style={{ gap: 8 }}>
-        <PrimaryButton label={app ? `Directions in ${appLabel(app)}` : 'Get directions'} icon="directions" size="md" onPress={() => goTo(d)} />
+        <PrimaryButton label={app ? t('Directions in {app}', { app: appLabel(app) }) : t('Get directions')} icon="directions" size="md" onPress={() => goTo(d, lang)} />
         {app && (
-          <Spring onPress={() => chooseAndGo(d)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'center', minHeight: 32, justifyContent: 'center' }}>
-            <T size="xs" weight="semibold" color={colors.inkMuted}>Use another app</T>
+          <Spring onPress={() => chooseAndGo(d, lang)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'center', minHeight: 32, justifyContent: 'center' }}>
+            <T size="xs" weight="semibold" color={colors.inkMuted}>{t("Use another app")}</T>
           </Spring>
         )}
       </View>
       <Glass style={styles.card}>
-        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Hours</T>
+        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>{t("Hours")}</T>
         {d.hours ? (
           <>
             <T size="sm" weight="semibold" style={styles.num}>{d.hours}</T>
-            <T size="xs" color={colors.inkMuted}>As listed on OpenStreetMap; worth a call before a special trip.</T>
+            <T size="xs" color={colors.inkMuted}>{t("As listed on OpenStreetMap; worth a call before a special trip.")}</T>
           </>
         ) : (
           <T size="sm" color={colors.inkMuted}>
-            {d.kind === 'ecocentre' ? "Hours change with the season and aren't in the open data." : "Hours aren't listed for this one."}
+            {d.kind === 'ecocentre' ? t("Hours change with the season and aren't in the open data.") : t("Hours aren't listed for this one.")}
           </T>
         )}
         {d.infoUrl && (
@@ -302,7 +279,7 @@ export function DropoffDetails({ d }: { d: Dropoff }) {
         )}
       </Glass>
       <Glass style={styles.card}>
-        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Takes</T>
+        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>{t("Takes")}</T>
         {d.items ? (
           <>
             <View style={styles.wrap}>
@@ -313,11 +290,11 @@ export function DropoffDetails({ d }: { d: Dropoff }) {
             {d.note && <T size="xs" color={colors.inkMuted}>{d.note}</T>}
           </>
         ) : (
-          <T size="sm" color={colors.inkMuted}>Run by {d.city}, which sets its own list and who can use it.</T>
+          <T size="sm" color={colors.inkMuted}>{t('Run by {city}, which sets its own list and who can use it.', { city: d.city ?? '' })}</T>
         )}
       </Glass>
       <T size="xs" color={colors.inkMuted}>
-        Location: {d.source}.{d.kind !== 'battery' && d.items ? " Items: TriMTL's Montréal sorting rules." : ''}
+        {t('Location: {source}.', { source: t(d.source as TKey) })}{d.kind !== 'battery' && d.items ? t(" Items: TriMTL's Montréal sorting rules.") : ''}
       </T>
     </View>
   );
@@ -338,12 +315,6 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius['2xl'], padding: 16, gap: 10 },
   nextRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: radius['2xl'], borderWidth: 1, borderColor: 'transparent' },
   count: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: 'rgba(18,41,31,0.08)' },
-  strip: { flexDirection: 'row', gap: 6 },
-  day: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 10, borderRadius: radius['2xl'], backgroundColor: 'rgba(255, 255, 255, 0.6)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.88)' },
-  marks: { flexDirection: 'row', gap: 3, height: 8, alignItems: 'center' },
-  mark: { width: 8, height: 8, borderRadius: 4 },
-  markRing: { backgroundColor: 'transparent', borderWidth: 2, borderStyle: 'dashed' },
-  markNone: { width: 8, height: 2, borderRadius: 1, backgroundColor: 'rgba(18,41,31,0.12)' },
   kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 24 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   material: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: 'rgba(18,41,31,0.08)' },

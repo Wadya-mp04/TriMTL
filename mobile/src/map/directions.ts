@@ -6,6 +6,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { translate } from '../i18n';
 import { Alert, Linking, Platform } from 'react-native';
 
 export type MapsApp = 'apple' | 'google' | 'waze';
@@ -48,17 +49,17 @@ const open = (app: MapsApp, p: Place) =>
   Linking.openURL(directionsUrl(app, p)).catch(() => Linking.openURL(directionsUrl('google', p)));
 
 /** Ask which app to use, remember it, and open directions there. */
-export function chooseAndGo(p: Place) {
-  Alert.alert('Get directions with', undefined, [
+export function chooseAndGo(p: Place, lang: 'en' | 'fr' = 'en') {
+  Alert.alert(translate(lang, 'Get directions with'), undefined, [
     ...MAPS_APPS.map((a) => ({ text: a.label, onPress: () => { remember(a.key); open(a.key, p); } })),
-    { text: 'Cancel', style: 'cancel' as const },
+    { text: translate(lang, 'Cancel'), style: 'cancel' as const },
   ]);
 }
 
 /** Directions in the remembered app, or ask first. */
-export function goTo(p: Place) {
+export function goTo(p: Place, lang: 'en' | 'fr' = 'en') {
   if (saved) open(saved, p);
-  else chooseAndGo(p);
+  else chooseAndGo(p, lang);
 }
 
 export const appLabel = (app: MapsApp) => MAPS_APPS.find((a) => a.key === app)?.label ?? 'Maps';

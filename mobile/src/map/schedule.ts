@@ -68,49 +68,64 @@ export function upcoming(rules: { stream: Stream; rule: CollectionRule; exceptio
 /** A weekly rule for a weekday, anchored on a known date with that weekday (any works for weekly). */
 export const weekly = (weekday: number): CollectionRule => ({ weekday, every: 1, anchor: addDays('2026-11-01', weekday) });
 
-const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const shortWeekday = (key: string) => WD[weekdayOf(key)];
+type Lang = 'en' | 'fr';
+const WD = { en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], fr: ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'] };
+const DAY_NAME = {
+  en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  fr: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
+};
+const MO = {
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  fr: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+};
+export const shortWeekday = (key: string, lang: Lang = 'en') => WD[lang][weekdayOf(key)];
 
-/** "Today", "Tomorrow, Tue", "Friday", "Tue, Dec 2". */
-export function humanDay(key: string, today: string) {
+/** "Today", "Tomorrow, Tue", "Friday", "Tue, Dec 2" (fr: "Aujourd'hui", "Demain, mar.", "Vendredi", "mar. 2 déc."). */
+export function humanDay(key: string, today: string, lang: Lang = 'en') {
   const n = daysBetween(today, key);
-  const wd = WD[weekdayOf(key)];
-  if (n === 0) return 'Today';
-  if (n === 1) return `Tomorrow, ${wd}`;
-  if (n > 1 && n < 7) return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][weekdayOf(key)];
-  return `${wd}, ${MO[Number(key.slice(5, 7)) - 1]} ${Number(key.slice(8, 10))}`;
+  const wd = WD[lang][weekdayOf(key)];
+  const month = MO[lang][Number(key.slice(5, 7)) - 1], day = Number(key.slice(8, 10));
+  if (n === 0) return lang === 'fr' ? "Aujourd'hui" : 'Today';
+  if (n === 1) return lang === 'fr' ? `Demain, ${wd}` : `Tomorrow, ${wd}`;
+  if (n > 1 && n < 7) return DAY_NAME[lang][weekdayOf(key)];
+  return lang === 'fr' ? `${wd} ${day} ${month}` : `${wd}, ${month} ${day}`;
 }
 
-/** "today", "tomorrow", "in 3 days". */
-export function countdown(key: string, today: string) {
+/** "today", "tomorrow", "in 3 days" (fr: "aujourd'hui", "demain", "dans 3 jours"). */
+export function countdown(key: string, today: string, lang: Lang = 'en') {
   const n = daysBetween(today, key);
+  if (lang === 'fr') return n === 0 ? "aujourd'hui" : n === 1 ? 'demain' : `dans ${n} jours`;
   return n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`;
 }
 
-/** "17:00" -> "5 pm", "08:30" -> "8:30 am". */
-export function clock(hhmm: string) {
+/** "17:00" -> "5 pm", "08:30" -> "8:30 am" (fr: "17 h", "8 h 30"). */
+export function clock(hhmm: string, lang: Lang = 'en') {
   const [h, m] = hhmm.split(':').map(Number);
+  if (lang === 'fr') return `${h} h${m ? ` ${String(m).padStart(2, '0')}` : ''}`;
   const h12 = h % 12 || 12;
   return `${h12}${m ? `:${String(m).padStart(2, '0')}` : ''} ${h < 12 || h === 24 ? 'am' : 'pm'}`;
 }
 
 /** Opening status from Sunday-first "HH:MM-HH:MM" hours: { open, label: "Closes at 5 pm" | "Opens Tue 9 am" }. */
-export function openStatus(hours: (string | null)[], now: Date) {
+export function openStatus(hours: (string | null)[], now: Date, lang: Lang = 'en') {
+  const fr = lang === 'fr';
   const mins = now.getHours() * 60 + now.getMinutes();
   const span = (s: string) => s.split('-').map((t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3)));
   const today = hours[now.getDay()];
   if (today) {
     const [o, c] = span(today);
-    if (o === 0 && c === 1440) return { open: true, label: 'Open 24 hours' };
-    if (mins >= o && mins < c) return { open: true, label: `Closes at ${clock(today.split('-')[1])}` };
-    if (mins < o) return { open: false, label: `Opens at ${clock(today.split('-')[0])}` };
+    if (o === 0 && c === 1440) return { open: true, label: fr ? 'Ouvert 24 h' : 'Open 24 hours' };
+    if (mins >= o && mins < c) return { open: true, label: `${fr ? 'Ferme à' : 'Closes at'} ${clock(today.split('-')[1], lang)}` };
+    if (mins < o) return { open: false, label: `${fr ? 'Ouvre à' : 'Opens at'} ${clock(today.split('-')[0], lang)}` };
   }
   for (let i = 1; i <= 7; i++) {
     const h = hours[(now.getDay() + i) % 7];
-    if (h) return { open: false, label: `Opens ${i === 1 ? 'tomorrow' : WD[(now.getDay() + i) % 7]} ${clock(h.split('-')[0])}` };
+    if (h) {
+      const when = i === 1 ? (fr ? 'demain' : 'tomorrow') : WD[lang][(now.getDay() + i) % 7];
+      return { open: false, label: `${fr ? 'Ouvre' : 'Opens'} ${when} ${clock(h.split('-')[0], lang)}` };
+    }
   }
-  return { open: false, label: 'Hours not listed' };
+  return { open: false, label: fr ? 'Horaires non indiqués' : 'Hours not listed' };
 }
 
 /** The nth weekdays of each month ("1st and 3rd Wednesday") in [from, from + days). */

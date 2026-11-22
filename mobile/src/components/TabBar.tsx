@@ -13,9 +13,9 @@ import { useWorld } from './World';
 
 const TABS: Record<string, { label: TKey; icon: string }> = {
   scan: { label: 'Scan', icon: 'qr-code-scanner' },
-  map: { label: 'Map', icon: 'map' },
+  map: { label: 'Pickups', icon: 'map' },
   play: { label: 'Play', icon: 'sports-esports' },
-  community: { label: 'Community', icon: 'groups' },
+  community: { label: 'Rankings', icon: 'emoji-events' },
 };
 
 /** Height the screens should leave free at the bottom so content isn't hidden by the bar. */
@@ -71,7 +71,7 @@ export function FrostedTabBar({ state, navigateToTab, position }: MaterialTopTab
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 18, right: 18, alignItems: 'center' },
-  bar: { width: '100%', maxWidth: 380, borderRadius: radius.full, padding: PAD, flexDirection: 'row', gap: GAP },
+  bar: { width: '100%', maxWidth: 380, borderRadius: radius.full, padding: PAD, flexDirection: 'row', gap: GAP, backgroundColor: 'rgba(255, 255, 255, 0.98)' },
   highlight: { position: 'absolute', top: PAD, bottom: PAD, left: PAD, borderRadius: radius.full, backgroundColor: colors.ink },
   // Four tabs no longer fit icon-beside-label at phone width, so the icon sits above its label.
   tab: { flex: 1, minHeight: 52, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', gap: 1 },

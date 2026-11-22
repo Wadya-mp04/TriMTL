@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { montrealDay } from '../lib/daily';
 import { withRetry } from '../lib/retry';
+import { loadScanHistory } from '../lib/scanHistory';
 import { supabase } from '../lib/supabase';
 import { brand } from '../brand';
 import { applyTheme, ThemeKey } from '../theme';
@@ -40,6 +41,9 @@ interface AppState {
   xpToday: number;
   /** The library: every item the user has scanned, newest first (auto-saved; Supabase will store it per user). */
   saved: SortItem[];
+  libraryLoading: boolean;
+  libraryError: boolean;
+  retryLibrary: () => void;
   photos: string[];
   lastScan: SortItem[];
   /** Borough slug from quebecRules.json, or null for the city-wide default. */
@@ -116,6 +120,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [xpToday, setXpToday] = useState(DEMO.xpToday);
   // Raw items keep their rule id; `saved` / `lastScan` below are re-worked for the current area.
   const [savedRaw, setSaved] = useState<SortItem[]>(DEMO_SAVED);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryError, setLibraryError] = useState(false);
+  const [libraryRetry, setLibraryRetry] = useState(0);
+  const retryLibrary = useCallback(() => { setLibraryLoading(true); setLibraryError(false); setLibraryRetry((n) => n + 1); }, []);
   const [photos, setPhotos] = useState<string[]>([]);
   const [borough, setBorough] = useState<string | null>(null);
   const [hasBrownBin, setHasBrownBin] = useState(true);
@@ -171,20 +179,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (id === loadedFor.current) return;
       loadedFor.current = id;
       setUserId(id);
+      setLibraryLoading(!!id);
+      setLibraryError(false);
       if (!id) {
         setUsername(DEMO.username); setXp(DEMO.xp); setXpToday(DEMO.xpToday); setGames(DEMO.games); setStats(DEMO.stats);
         setSaved(DEMO_SAVED); setLastScanRaw([]);
         return;
       }
+      setSaved([]);
       // Scoreboard: the signed-in user's own totals, recent rounds and today's XP (RLS limits it to them).
-      const [profile, totals, recent, board, scans, daily] = await Promise.all([
+      const [profile, totals, recent, board, daily] = await Promise.all([
         sb.from('profiles').select('username').eq('id', id).single(),
         sb.from('player_stats').select('games, answered, correct, xp').maybeSingle(),
         sb.from('game_scores').select('mode, items, correct, played_at').order('played_at', { ascending: false }).limit(5),
         sb.rpc('leaderboard', { scope: 'friends' }),
-        // shortcut: the newest 200 scans only; page through them if a library ever gets bigger.
-        sb.from('scanned_items').select('id, rule_id, category, name, count, client_key, scanned_at')
-          .order('scanned_at', { ascending: false }).limit(200),
         sb.from('game_scores').select('items, correct, played_at').eq('mode', 'daily').order('played_at', { ascending: true }).limit(20),
       ]);
       if (loadedFor.current !== id) return; // signed out or switched user while loading: drop the stale reply
@@ -205,16 +213,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setDailyResult(r);
         AsyncStorage.setItem(`trimtl.daily.${id}`, JSON.stringify(r)).catch(() => {}); // this user's key (not a stale closure)
       }
-      // The library follows the account: saved scans come back, and the engine decides their bins.
-      type ScanRow = { id: number; rule_id: string | null; category: string | null; name: string; count: number; client_key: string | null; scanned_at: string };
-      if (!scans.error) {
-        setSaved((scans.data as ScanRow[]).map((r) =>
-          fromRule(r.client_key ?? `db:${r.id}`, r.rule_id, r.name, { category: r.category, count: r.count, scannedAt: r.scanned_at })));
-      }
+
     };
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => { apply(session?.user.id ?? null); });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // Keep the full library separate from profile loading; slow history requests must not block sign-in.
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    const controller = new AbortController();
+    loadScanHistory(supabase, userId, controller.signal).then((rows) => {
+      if (controller.signal.aborted || loadedFor.current !== userId) return;
+      const restored = rows.map((r) => fromRule(r.client_key ?? `db:${r.id}`, r.rule_id, r.name, { category: r.category, count: r.count, scannedAt: r.scanned_at }));
+      setSaved((current) => {
+        const ids = new Set(current.map((item) => item.id));
+        return [...current, ...restored.filter((item) => !ids.has(item.id))];
+      });
+      setLibraryLoading(false);
+    }).catch(() => {
+      if (!controller.signal.aborted && loadedFor.current === userId) { setLibraryLoading(false); setLibraryError(true); }
+    });
+    return () => controller.abort();
+  }, [userId, libraryRetry]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) return null; // demo mode: any input enters
@@ -296,6 +317,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       xp,
       xpToday,
       saved,
+      libraryLoading, libraryError, retryLibrary,
       photos,
       lastScan,
       challengePool,
@@ -322,7 +344,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // street and game take the change later (useDeferredValue in components/World and Play).
       setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
-    [username, xp, xpToday, saved, photos, lastScan, challengePool, borough, hasBrownBin, lang, setLang, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame, dailyResult, dailyKnown, day],
+    [username, xp, xpToday, saved, libraryLoading, libraryError, retryLibrary, photos, lastScan, challengePool, borough, hasBrownBin, lang, setLang, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame, dailyResult, dailyKnown, day],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

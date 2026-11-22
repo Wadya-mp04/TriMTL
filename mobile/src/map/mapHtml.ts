@@ -123,9 +123,9 @@ export function mapHtml(theme: ThemeKey) {
     map.addLayer({ id: 'zone-casing', type: 'line', source: 'zones', layout: { 'line-join': 'round' },
       paint: { 'line-color': '${colors.white}', 'line-width': 9, 'line-opacity': ['case', st('sel'), 0.95, 0] } }, 'street-names');
     map.addLayer({ id: 'zone-garbage', type: 'line', source: 'zones', filter: ['==', ['get', 'stream'], 'garbage'], layout: { 'line-join': 'round' },
-      paint: { 'line-color': G, 'line-width': ['case', st('sel'), 5, st('hot'), 2.5, 1.4], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.18, 0.75] } }, 'street-names');
+      paint: { 'line-color': G, 'line-width': ['case', st('sel'), 5, st('hot'), 2.5, 2], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.18, 0.9] } }, 'street-names');
     map.addLayer({ id: 'zone-recycling', type: 'line', source: 'zones', filter: ['==', ['get', 'stream'], 'recycling'], layout: { 'line-join': 'round' },
-      paint: { 'line-color': R, 'line-width': ['case', st('sel'), 5, st('hot'), 2.5, 1.6], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.18, 0.85], 'line-dasharray': [2, 1.6] } }, 'street-names');
+      paint: { 'line-color': R, 'line-width': ['case', st('sel'), 5, st('hot'), 2.5, 2.2], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.18, 0.95], 'line-dasharray': [2, 1.6] } }, 'street-names');
 
     map.addSource('drops', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, cluster: true, clusterRadius: 44, clusterMaxZoom: 15 });
     map.addLayer({ id: 'drops-anchor', type: 'circle', source: 'drops', paint: { 'circle-radius': 0, 'circle-opacity': 0 } });
@@ -152,7 +152,7 @@ export function mapHtml(theme: ThemeKey) {
       if (!m) {
         const el = document.createElement('div');
         if (p.cluster) {
-          el.className = 'cluster'; el.setAttribute('role', 'button'); el.setAttribute('aria-label', p.point_count + ' drop-offs, zoom in');
+          el.className = 'cluster'; el.setAttribute('role', 'button'); el.setAttribute('aria-label', p.point_count + ' ' + labels.cluster);
           el.innerHTML = '<b>' + p.point_count + '</b>';
           el.onclick = (ev) => { ev.stopPropagation(); map.getSource('drops').getClusterExpansionZoom(p.cluster_id).then((z) => cam({ center: c, zoom: z + 0.5, padding: padding() })); };
         } else {
@@ -213,13 +213,20 @@ export function mapHtml(theme: ThemeKey) {
     settle(0);
   }
 
+  let labels = { spot: 'Selected spot', location: 'Your location', cluster: 'drop-offs, zoom in' };
   function dot(lat, lng) {
-    if (!spot) { const el = document.createElement('div'); el.className = 'spot'; el.setAttribute('aria-label', 'Selected spot'); spot = new maplibregl.Marker({ element: el }); }
+    if (!spot) { const el = document.createElement('div'); el.className = 'spot'; el.setAttribute('aria-label', labels.spot); spot = new maplibregl.Marker({ element: el }); }
     spot.setLngLat([lng, lat]).addTo(map);
   }
 
   window.receive = (m) => {
     if (!ready && m.type !== 'pad' && m.type !== 'motion') return void queue.push(m);
+    if (m.type === 'language') {
+      labels = m; document.documentElement.lang = m.lang;
+      if (spot) spot.getElement().setAttribute('aria-label', m.spot);
+      if (me) me.getElement().setAttribute('aria-label', m.location);
+      for (const mk of markers.values()) if (mk.getElement().className === 'cluster') mk.getElement().setAttribute('aria-label', mk.getElement().textContent + ' ' + m.cluster);
+    }
     if (m.type === 'pad') { pad = m; document.documentElement.style.setProperty('--sheet', m.bottom + 'px'); }
     if (m.type === 'motion') reduce = m.reduce;
     if (m.type === 'zones') {
@@ -243,7 +250,7 @@ export function mapHtml(theme: ThemeKey) {
     }
     if (m.type === 'place') cam({ center: [m.lng, m.lat], zoom: 16.5, padding: padding() });
     if (m.type === 'me') {
-      if (!me) { const el = document.createElement('div'); el.className = 'me'; el.setAttribute('aria-label', 'Your location'); me = new maplibregl.Marker({ element: el }); }
+      if (!me) { const el = document.createElement('div'); el.className = 'me'; el.setAttribute('aria-label', labels.location); me = new maplibregl.Marker({ element: el }); }
       me.setLngLat([m.lng, m.lat]).addTo(map);
       cam({ center: [m.lng, m.lat], zoom: 16, padding: padding() });
     }

@@ -172,7 +172,7 @@ export default function CommunityScreen() {
 
   return (
     <Screen edges={['top']} transparent>
-      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`${t(when)} · ${brand.city}`} title={t('Community')} right={
+      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`${t(when)} · ${brand.city}`} title={t('Game rankings')} right={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <CircleButton icon="group-add" label={t('Friends')} onPress={() => router.push('/friends')} />
           <AvatarButton />

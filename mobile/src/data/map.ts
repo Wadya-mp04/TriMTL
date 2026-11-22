@@ -14,6 +14,7 @@
 import eco from './ecocentres.json';
 import osm from './osmPoints.json';
 import rulesFile from '../../shared/data/quebecRules.json';
+import { translate } from '../i18n';
 import type { Sector } from '../map/infoCollectes';
 
 export type PlaceKind = 'ecocentre' | 'pharmacy' | 'battery';
@@ -42,7 +43,7 @@ export type Dropoff = {
   source: string;
 };
 
-const R = rulesFile as unknown as { items: { name: { en: string }; category: string; dropoff?: string | null }[]; dropoffs: Record<string, { note: { en: string } | null }> };
+const R = rulesFile as unknown as { items: { name: { en: string; fr: string }; category: string; dropoff?: string | null }[]; dropoffs: Record<string, { note: { en: string; fr: string } | null }> };
 const itemsTo = (dropoff: string) => R.items.filter((r) => r.dropoff === dropoff);
 /** Rule categories -> filter keys. */
 const CATEGORY_MATERIAL: Record<string, Material> = { battery: 'batteries', hazardous: 'hazardous', automotive: 'hazardous', electronics: 'electronics', appliance: 'electronics', medical: 'medicines' };
@@ -51,15 +52,20 @@ const materialsOf = (dropoff: string) => [...new Set(itemsTo(dropoff).map((r) =>
 const MONTREAL_LIST = 'https://montreal.ca/lieux?mtl_content.lieux.type.code=ECOC&orderBy=dc_title';
 export const BATTERY_LOCATOR = 'https://recycleyourbatteries.ca/find-a-drop-off-location/';
 
-function places(): Dropoff[] {
+const BATTERY_ITEMS_FR: Record<string, string> = {
+  batteries: 'Piles', cables: 'Câbles', 'cooking oil': 'Huile de cuisson', 'electrical appliances': 'Appareils électriques',
+  electronics: 'Électronique', metal: 'Métal', phones: 'Téléphones', plexiglas: 'Plexiglas', 'water filter cartridges': "Cartouches de filtre à eau", wood: 'Bois',
+};
+
+function places(lang: 'en' | 'fr'): Dropoff[] {
   const ecocentres: Dropoff[] = eco.ecocentres.map((e) => {
     const mtl = e.city === 'Montréal';
     return {
       ...e,
       kind: 'ecocentre',
       takes: mtl ? materialsOf('ecocentre') : [],
-      items: mtl ? itemsTo('ecocentre').map((r) => r.name.en) : null,
-      note: mtl ? R.dropoffs.ecocentre?.note?.en ?? null : null,
+      items: mtl ? itemsTo('ecocentre').map((r) => r.name[lang]) : null,
+      note: mtl ? R.dropoffs.ecocentre?.note?.[lang] ?? null : null,
       hours: null,
       // shortcut: other island cities are linked by search; add each city's own page if more appear.
       infoUrl: mtl ? MONTREAL_LIST : `https://www.google.com/search?q=${encodeURIComponent(`${e.name} ${e.city} horaire`)}`,
@@ -69,10 +75,10 @@ function places(): Dropoff[] {
   const pharmacies: Dropoff[] = osm.pharmacies.map((p) => ({
     ...p,
     kind: 'pharmacy',
-    area: 'Pharmacy',
+    area: translate(lang, 'Pharmacy'),
     city: null,
     takes: materialsOf('pharmacy'),
-    items: itemsTo('pharmacy').map((r) => r.name.en),
+    items: itemsTo('pharmacy').map((r) => r.name[lang]),
     note: null,
     infoUrl: null,
     source: 'OpenStreetMap, community-mapped',
@@ -80,10 +86,10 @@ function places(): Dropoff[] {
   const batteries: Dropoff[] = osm.batteryPoints.map((b) => ({
     ...b,
     kind: 'battery',
-    area: 'Community-mapped drop-off',
+    area: translate(lang, 'Community-mapped drop-off'),
     city: null,
     takes: b.takes as Material[],
-    items: b.accepted.map((a) => a[0].toUpperCase() + a.slice(1)),
+    items: b.accepted.map((a) => lang === 'fr' ? BATTERY_ITEMS_FR[a] ?? a : a[0].toUpperCase() + a.slice(1)),
     note: null,
     infoUrl: BATTERY_LOCATOR,
     source: 'OpenStreetMap, community-mapped',
@@ -106,12 +112,11 @@ export type MapData = {
  * The collection data is ~1.9 MB: it's read the first time the Map tab needs it (this lazy require), not parsed
  * at every app start like a top-level import would be.
  */
-export async function loadMapData(): Promise<MapData> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+export async function loadMapData(lang: 'en' | 'fr' = 'en'): Promise<MapData> {
   const collections: typeof import('./collections.json') = require('./collections.json');
   return {
     zones: collections.sectors as Zone[],
-    dropoffs: places(),
+    dropoffs: places(lang),
     source: collections.source,
     sourceUrl: collections.sourceUrl,
     fetchedOn: collections.fetchedOn,
