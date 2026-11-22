@@ -101,18 +101,18 @@ select pg_temp.ok((
 ), 'week vs today totals');
 
 -- Search: substring, case-insensitive, 2+ characters, never yourself, status from your side.
-select pg_temp.ok((select array_agg(username || ':' || status order by username) = '{alice:friends}' from public.find_players('ALI')), 'bob finds his friend');
+select pg_temp.ok((select array_agg(username || ':' || friendship_status order by username) = '{alice:friends}' from public.find_players('ALI')), 'bob finds his friend');
 select pg_temp.ok((select count(*) = 0 from public.find_players('b')), 'one letter finds nothing');
 select pg_temp.ok((select count(*) = 0 from public.find_players('bob')), 'search skips yourself');
 select pg_temp.ok((select count(*) = 0 from public.find_players('%%')), 'wildcards are plain text');
 select set_config('request.jwt.claim.sub', :'carol', false);
-select pg_temp.ok((select status = 'none' from public.find_players('alice')), 'carol finds friends-only alice');
-select pg_temp.ok((select status = 'received' from public.find_players('dave')), 'carol sees dave asked her');
+select pg_temp.ok((select friendship_status = 'none' from public.find_players('alice')), 'carol finds friends-only alice');
+select pg_temp.ok((select friendship_status = 'received' from public.find_players('dave')), 'carol sees dave asked her');
 -- Carol can read Dave's profile because of the request, but not Alice's or Bob's.
 select pg_temp.ok((select array_agg(username order by username) = '{dave,user_33333333}' from public.profiles), 'request makes the sender visible');
 select pg_temp.refused(format($$insert into public.friendships (user_id, friend_id) values (%L, '44444444-4444-4444-4444-444444444444')$$, :'carol'), 'second request for the same pair');
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', false);
-select pg_temp.ok((select status = 'sent' from public.find_players('user_3')), 'dave sees his request sent');
+select pg_temp.ok((select friendship_status = 'sent' from public.find_players('user_3')), 'dave sees his request sent');
 
 -- Alice goes public: on Carol's board and city leaderboard, and her profile is readable.
 select set_config('request.jwt.claim.sub', :'alice', false);
@@ -122,15 +122,18 @@ update public.profiles set borough = 'verdun' where id = auth.uid();
 select pg_temp.ok((select array_agg(username || ':' || is_friend order by xp desc) = '{alice:false,user_33333333:false}' from public.board('today')), 'public player on a stranger board');
 select pg_temp.ok((select array_agg(username order by xp_today desc) = '{alice,user_33333333}' from public.leaderboard('city')), 'public player on the city leaderboard');
 select pg_temp.ok(exists (select 1 from public.profiles where username = 'alice'), 'public profile readable');
+-- Friends and you first, then everyone else: Carol (15) is listed before the stranger Alice (135).
+select pg_temp.ok((select array_agg(username order by n) = '{user_33333333,alice}' from public.board('today') with ordinality b(username, xp, is_me, is_friend, n)), 'board lists you and friends first');
 
--- Private: Carol vanishes from search; Dave (private) vanishes from his friend Bob's board but Bob can still find him.
+-- Private hides scores, never the username: Carol (private) can still be found to add; Dave (private) is off
+-- his friend Bob's board but still in Bob's search.
 update public.profiles set visibility = 'private' where id = auth.uid();
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', false);
-select pg_temp.ok((select count(*) = 0 from public.find_players('user_3')), 'private player hidden from search');
+select pg_temp.ok((select friendship_status = 'sent' from public.find_players('user_3')), 'private player still found in search');
 update public.profiles set visibility = 'private' where id = auth.uid();
 select set_config('request.jwt.claim.sub', :'bob', false);
 select pg_temp.ok(not exists (select 1 from public.board('today') where username = 'dave'), 'private friend off the board');
-select pg_temp.ok((select status = 'friends' from public.find_players('dave')), 'private friend still found by friends');
+select pg_temp.ok((select friendship_status = 'friends' from public.find_players('dave')), 'private friend still found by friends');
 
 -- Borough totals count everyone with a borough, private players too. Today: Verdun = Bob 30 (+20 on Mondays)
 -- + private Carol 15; Plateau = Alice 135.
@@ -138,9 +141,9 @@ select pg_temp.ok((
   select array_agg(borough || ':' || players || ':' || active || ':' || is_mine order by borough)
        = '{plateau-mont-royal:1:1:false,verdun:2:2:true}' from public.borough_board('today')
 ), 'borough players and is_mine');
-select pg_temp.ok((select xp = 135 from public.borough_board('today') where borough = 'plateau-mont-royal'), 'plateau total');
-select pg_temp.ok((select xp - 45 = case when :'monday' then 20 else 0 end from public.borough_board('today') where borough = 'verdun'), 'verdun total today');
-select pg_temp.ok((select xp = 65 from public.borough_board('week') where borough = 'verdun'), 'verdun total this week');
+select pg_temp.ok((select points = 135 from public.borough_board('today') where borough = 'plateau-mont-royal'), 'plateau total');
+select pg_temp.ok((select points - 45 = case when :'monday' then 20 else 0 end from public.borough_board('today') where borough = 'verdun'), 'verdun total today');
+select pg_temp.ok((select points = 65 from public.borough_board('week') where borough = 'verdun'), 'verdun total this week');
 
 reset role;
 delete from public.game_scores where client_key in ('j1-week', 'j1-old');

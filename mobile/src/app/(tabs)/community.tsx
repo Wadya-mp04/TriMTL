@@ -13,7 +13,7 @@ import { SkyBackdrop } from '../../game/Backdrop';
 import { skyInk, THEMES } from '../../game/themes';
 import { useRouter } from 'expo-router';
 
-import { AvatarButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
+import { AvatarButton, CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
 import { CITY, Ranked } from '../../data/items';
 import { BOROUGHS } from '../../data/rules';
 import { supabase } from '../../lib/supabase';
@@ -116,7 +116,12 @@ export default function CommunityScreen() {
 
   return (
     <Screen edges={['top']} background={<SkyBackdrop theme={THEMES[playTheme]} />}>
-      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`This week · ${brand.city}`} title="Community" right={<AvatarButton />} />
+      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`This week · ${brand.city}`} title="Community" right={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <CircleButton icon="group-add" label="Friends" onPress={() => router.push('/friends')} />
+          <AvatarButton />
+        </View>
+      } />
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
         <Segmented
