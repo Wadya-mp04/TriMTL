@@ -7,13 +7,13 @@
  * Boroughs: real totals from public.borough_board(period) for all 19 boroughs (0 where nobody lives).
  * Signed out, both boards are demo data plus your own XP.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, ScrollView, Share, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { skyInk, THEMES } from '../../game/themes';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import { AvatarButton, CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
 import { CITY, Ranked } from '../../data/items';
@@ -99,12 +99,17 @@ export default function CommunityScreen() {
   const [live, setLive] = useState<{ period: Period; rows: Row[] } | null>(null);
   const [areas, setAreas] = useState<{ period: Period; points: Map<string, number> } | null>(null);
 
+  // Counts how often this screen came into view: coming back from Friends (a new friend) refetches the board.
+  const [shown, setShown] = useState(0);
+  useFocusEffect(useCallback(() => { setShown((n) => n + 1); }, []));
+
   // Refetch the board on show, on a period switch, and when the player earns XP.
   useEffect(() => {
     if (!supabase || !userId) return;
     let current = true;
     if (scope === 'players') {
       supabase.rpc('board', { period }).then(({ data, error }) => {
+        if (error) console.warn('board failed:', error.message); // otherwise a missing migration just shows the demo list
         if (!current || error || !data) return;
         setLive({ period, rows: (data as { username: string; xp: number; is_me: boolean; is_friend: boolean }[]).map((r) => ({
           name: r.is_me ? 'You' : r.username, initials: r.is_me ? initials : userInitials(r.username), xp: r.xp, you: r.is_me, friend: r.is_friend,
@@ -112,12 +117,13 @@ export default function CommunityScreen() {
       });
     } else {
       supabase.rpc('borough_board', { period }).then(({ data, error }) => {
+        if (error) console.warn('borough_board failed:', error.message);
         if (!current || error || !data) return;
         setAreas({ period, points: new Map((data as { borough: string; points: number }[]).map((r) => [r.borough, r.points])) });
       });
     }
     return () => { current = false; };
-  }, [scope, period, userId, dailyDone, initials]);
+  }, [scope, period, userId, dailyDone, initials, shown]);
 
   const ranking = useMemo((): Row[] => {
     const byXp = (a: Row, b: Row) => b.xp - a.xp || a.name.localeCompare(b.name);

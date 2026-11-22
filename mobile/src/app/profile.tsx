@@ -10,7 +10,7 @@ import { AreaSheet } from '../components/AreaSheet';
 import { CircleButton, Glass, Icon, Screen, ScreenHeader, Segmented, Spring, T } from '../components/ui';
 import { boroughName } from '../data/rules';
 import { TKey, useT } from '../i18n';
-import { levelFor, useApp } from '../state/AppState';
+import { levelFor, useApp, Visibility } from '../state/AppState';
 import { THEME_ORDER, THEMES } from '../game/themes';
 import { APP_PALETTES, colors, radius, shadow } from '../theme';
 
@@ -18,9 +18,16 @@ import { APP_PALETTES, colors, radius, shadow } from '../theme';
 const KNOWN: TKey[] = ["Today's challenge", 'Keep sorting', 'Your items', 'Daily challenge', 'Challenge', 'My scanned items', 'Today', 'Yesterday'];
 const ROUND = /^Round (\d+): (.+)$/;
 
+/** What each visibility means (supabase/migrations/…_social_contract.sql and …_daily_boards.sql). */
+const VISIBILITY_HINT: Record<Visibility, TKey> = {
+  public: 'Anyone signed in sees your scores on the boards.',
+  friends: 'Only your friends see your scores. Others can still find you to send a request.',
+  private: 'Nobody sees your scores. People can still find you to send a request, and your points count for your borough.',
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
-  const { username, initials, xp, stats, games, playTheme, setPlayTheme, signOut, borough, hasBrownBin, lang, setLang } = useApp();
+  const { username, initials, xp, stats, games, playTheme, setPlayTheme, signOut, borough, hasBrownBin, lang, setLang, userId, visibility, setVisibility } = useApp();
   const { t } = useT();
   // "Round 2: Challenge", "Today": translate the parts the app wrote; a date stays as is.
   const gameTitle = (s: string) => {
@@ -88,6 +95,18 @@ export default function ProfileScreen() {
           </View>
           <Icon name="chevron-right" size={20} color={colors.inkMuted} />
         </Spring>
+
+        {!!userId && (
+          <View style={{ gap: 8 }}>
+            <T size="sm" weight="bold" color={colors.ink} style={{ paddingHorizontal: 4 }}>{t('Who sees my scores')}</T>
+            <Segmented
+              options={[{ key: 'public', label: t('Everyone') }, { key: 'friends', label: t('Friends') }, { key: 'private', label: t('Only me') }]}
+              value={visibility}
+              onChange={setVisibility}
+            />
+            <T size="xs" color={colors.inkMuted} style={{ paddingHorizontal: 4 }}>{t(VISIBILITY_HINT[visibility])}</T>
+          </View>
+        )}
 
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
