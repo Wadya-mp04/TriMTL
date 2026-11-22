@@ -1,6 +1,7 @@
 /**
- * Map: garbage and recycling days for any spot on the island, and its écocentres. A 3D MapLibre map in a
- * WebView is the hero; search and a draggable sheet float over it. Data: src/data/map.ts (all open data).
+ * Map: garbage and recycling days for any spot on the island, and where to take what the bins can't.
+ * A 3D MapLibre map in a WebView is the hero; search, material chips and a draggable sheet float over it.
+ * Data: src/data/map.ts (all open data).
  */
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,16 +22,24 @@ import WebView, { type WebViewMessageEvent } from 'react-native-webview';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { CircleButton, Glass, Icon, IconBubble, PrimaryButton, SecondaryButton, Segmented, Spring, T } from '../../components/ui';
-import { geocode, loadMapData, zoneKey, zonesAt, type MapData } from '../../data/map';
+import { BATTERY_LOCATOR, geocode, loadMapData, zoneKey, zonesAt, type MapData, type Material } from '../../data/map';
 import { BottomSheet } from '../../map/BottomSheet';
-import { AreaDetails, areaRules, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
-import { ECOCENTRE_STYLE, mapHtml } from '../../map/mapHtml';
+import { AreaDetails, areaRules, Chip, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
+import { mapHtml, PLACE_STYLE } from '../../map/mapHtml';
 import { localKey, upcoming } from '../../map/schedule';
 import { colors, glass, radius, shadow } from '../../theme';
 
 type Selection = { kind: 'dropoff'; id: string } | { kind: 'area'; lat: number; lng: number; label: string; area: Area } | null;
 type Notice = { icon: string; text: string; action?: { label: string; run: () => void } } | null;
 
+/** Filters by what you are carrying; icons and tints reuse the place colours. */
+const MATERIALS: { key: Material; label: string; icon: string; tint: string }[] = [
+  { key: 'batteries', label: 'Batteries', icon: 'battery-full', tint: PLACE_STYLE.battery.color },
+  { key: 'hazardous', label: 'Hazardous', icon: 'warning', tint: PLACE_STYLE.ecocentre.color },
+  { key: 'electronics', label: 'Electronics', icon: 'devices', tint: PLACE_STYLE.ecocentre.color },
+  { key: 'medicines', label: 'Medicines', icon: 'medication', tint: PLACE_STYLE.pharmacy.color },
+];
+const LIST_CAP = 25;
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -57,6 +66,7 @@ export default function MapScreen() {
   const [focused, setFocused] = useState(false);
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
+  const [filter, setFilter] = useState<Material | 'all'>('all');
   const [tilt, setTilt] = useState(true);
   const [notice, setNotice] = useState<Notice>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -84,7 +94,7 @@ export default function MapScreen() {
   const send = useCallback((m: object) => web.current?.injectJavaScript(`window.receive && window.receive(${JSON.stringify(m)});true;`), []);
 
   // Sheet heights: peek clears the floating tab bar; full stops below the search bar.
-  const TOP = insets.top + 72;
+  const TOP = insets.top + 112;
   const [headerH, setHeaderH] = useState(150);
   const snaps = useMemo(() => [TAB_BAR_SPACE + 28 + headerH, Math.round(height * 0.52), height - insets.top - 64], [height, insets.top, headerH]);
 
@@ -97,19 +107,23 @@ export default function MapScreen() {
     const out: Record<string, { hot?: boolean; dim?: boolean; sel?: boolean }> = {};
     if (!data) return out;
     if (when === 'today') for (const z of data.zones) out[zoneKey(z)] = todayKeys.has(zoneKey(z)) ? { hot: true } : { dim: true };
-    if (selected?.kind === 'area') for (const z of [selected.area.garbage, selected.area.recycling]) if (z) out[zoneKey(z)] = { sel: true };
+    if (selected?.kind === 'area') {
+      // Everything else recedes so the selected block stands out.
+      for (const z of data.zones) out[zoneKey(z)] = { dim: true };
+      for (const z of [selected.area.garbage, selected.area.recycling]) if (z) out[zoneKey(z)] = { sel: true };
+    }
     return out;
   }, [data, when, todayKeys, selected]);
 
   const pins = useMemo(
     () =>
-      (data?.dropoffs ?? []).map((d) => ({
+      (data?.dropoffs ?? []).filter((d) => filter === 'all' || d.takes.includes(filter)).map((d) => ({
           id: d.id, lat: d.lat, lng: d.lng, name: d.name,
-          icon: ECOCENTRE_STYLE.icon.replace(/-/g, '_'),
-          color: ECOCENTRE_STYLE.color,
+          icon: PLACE_STYLE[d.kind].icon.replace(/-/g, '_'),
+          color: PLACE_STYLE[d.kind].color,
           a11y: `${d.name}, ${d.area}`,
         })),
-    [data],
+    [data, filter],
   );
 
   // The sectors go to the page once per load (they are large); pins and highlight state on every change.
@@ -205,7 +219,7 @@ export default function MapScreen() {
     if (!q || !data) return [];
     const drops = data.dropoffs
       .filter((d) => fold(`${d.name} ${d.address}`).includes(q))
-      .map((d) => ({ kind: 'dropoff' as const, id: d.id, title: d.name, sub: d.address, icon: ECOCENTRE_STYLE.icon }));
+      .map((d) => ({ kind: 'dropoff' as const, id: d.id, title: d.name, sub: d.address, icon: PLACE_STYLE[d.kind].icon }));
     return drops.slice(0, 4);
   }, [query, data]);
 
@@ -231,9 +245,9 @@ export default function MapScreen() {
   const area = selected?.kind === 'area' ? selected : undefined;
   const drop = selected?.kind === 'dropoff' ? data?.dropoffs.find((d) => d.id === selected.id) : undefined;
   const visibleDrops = useMemo(() => {
-    const list = data?.dropoffs ?? [];
+    const list = (data?.dropoffs ?? []).filter((d) => filter === 'all' || d.takes.includes(filter));
     return me ? [...list].sort((a, b) => metres(me, a) - metres(me, b)) : list;
-  }, [data, me]);
+  }, [data, filter, me]);
 
   const todayCount = (stream: 'garbage' | 'recycling') => [...todayKeys].filter((k) => k.startsWith(stream)).length;
   const summary = !data
@@ -250,7 +264,7 @@ export default function MapScreen() {
         <View style={styles.titleRow}>
           <View style={{ flex: 1, gap: 2 }}>
             <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>
-              {area ? 'Collection days · Ville de Montréal' : `Écocentre · ${drop!.area}`}
+              {area ? 'Collection days · Ville de Montréal' : `${PLACE_STYLE[drop!.kind].label} · ${drop!.area}`}
             </T>
             <T display style={styles.title} numberOfLines={2} accessibilityRole="header">{area ? area.label : drop!.name}</T>
           </View>
@@ -345,6 +359,15 @@ export default function MapScreen() {
         )}
 
 
+        {!focused && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            <Chip label="All" active={filter === 'all'} onPress={() => setFilter('all')} />
+            {MATERIALS.map((m) => (
+              <Chip key={m.key} label={m.label} icon={m.icon} tint={m.tint} active={filter === m.key} onPress={() => setFilter(filter === m.key ? 'all' : m.key)} />
+            ))}
+          </ScrollView>
+        )}
+
         {notice && !focused && (
           <Glass style={[styles.notice, shadow.md]}>
             <Icon name={notice.icon} size={18} color={colors.inkMuted} />
@@ -396,11 +419,24 @@ export default function MapScreen() {
                 </T>
               </Glass>
               <T size="xs" weight="semibold" color={colors.inkMuted} style={[styles.eyebrow, { marginTop: 12 }]}>
-                Écocentres on the island{me ? ' · nearest first' : ''}
+                {filter === 'all' ? 'Drop-off places' : `Takes ${MATERIALS.find((m) => m.key === filter)!.label.toLowerCase()}`} · {visibleDrops.length}{me ? ' · nearest first' : ''}
               </T>
-              {visibleDrops.map((d) => <DropoffRow key={d.id} d={d} distance={me ? metres(me, d) : undefined} onPress={() => select({ kind: 'dropoff', id: d.id })} />)}
+              {filter === 'batteries' && (
+                <Glass style={styles.emptyCard}>
+                  <T size="sm" color={colors.inkMuted}>Many shops host battery bins that aren't mapped here yet.</T>
+                  <Spring onPress={() => Linking.openURL(BATTERY_LOCATOR)} accessibilityRole="link" hitSlop={8}>
+                    <T size="sm" weight="bold" color={colors.forest}>Open the official battery locator</T>
+                  </Spring>
+                </Glass>
+              )}
+              {visibleDrops.slice(0, LIST_CAP).map((d) => <DropoffRow key={d.id} d={d} distance={me ? metres(me, d) : undefined} onPress={() => select({ kind: 'dropoff', id: d.id })} />)}
+              {visibleDrops.length > LIST_CAP && (
+                <T size="xs" color={colors.inkMuted}>
+                  Showing {LIST_CAP} of {visibleDrops.length}.{me ? '' : ' Use your location to see the nearest first.'}
+                </T>
+              )}
               <T size="xs" color={colors.inkMuted} style={{ marginTop: 8 }}>
-                Collection days: Ville de Montréal open data, {data.fetchedOn}. Écocentres: RECYC-QUÉBEC open data.
+                Collection days: Ville de Montréal open data, {data.fetchedOn}. Écocentres: RECYC-QUÉBEC. Pharmacies and battery points: OpenStreetMap contributors.
               </T>
             </>
           )}
@@ -432,7 +468,7 @@ function MapCover({ state, onRetry, top, bottom }: { state: 'loading' | 'offline
         <View style={styles.offline}>
           <IconBubble icon="cloud-off" color={colors.inkMuted} />
           <T display style={styles.title}>The map didn't load</T>
-          <T size="sm" color={colors.inkMuted} style={{ textAlign: 'center' }}>You might be offline. The écocentres are still listed below.</T>
+          <T size="sm" color={colors.inkMuted} style={{ textAlign: 'center' }}>You might be offline. Drop-off places are still listed below.</T>
           <PrimaryButton label="Try again" icon="refresh" size="md" onPress={onRetry} style={{ width: 200 }} />
         </View>
       )}

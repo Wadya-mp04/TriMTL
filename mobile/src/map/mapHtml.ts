@@ -7,8 +7,13 @@
  */
 import { bins, canvasGradients, colors, radius } from '../theme';
 
-/** Écocentres take what the "special" bin means in the rest of the app, so they wear its colour. */
-export const ECOCENTRE_STYLE = { label: 'Écocentre', icon: 'warehouse', color: bins.special.fg } as const;
+/** Drop-off places take what the "special" bin means in the rest of the app, so they wear its colours;
+ * the icon tells them apart, and pharmacies take the app's forest. */
+export const PLACE_STYLE = {
+  ecocentre: { label: 'Écocentre', icon: 'warehouse', color: bins.special.fg },
+  battery: { label: 'Battery drop-off', icon: 'battery-charging-full', color: bins.special.deep },
+  pharmacy: { label: 'Pharmacy', icon: 'local-pharmacy', color: colors.forest },
+} as const;
 
 /** Garbage is a solid line, recycling a dashed one, a shared day both: shape carries the meaning, not only colour. */
 export const LANE_STYLE = {
@@ -106,14 +111,20 @@ export function mapHtml() {
     // Collection sectors: fills sit under the buildings, outlines over them so a sector reads in 3D.
     map.addSource('zones', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: 'key' });
     const G = '${LANE_STYLE.garbage.color}', R = '${LANE_STYLE.recycling.color}';
-    map.addLayer({ id: 'zone-fill', type: 'fill', source: 'zones', filter: ['==', ['get', 'stream'], 'garbage'],
-      paint: { 'fill-color': G, 'fill-opacity': ['case', st('sel'), 0.2, st('hot'), 0.16, st('dim'), 0.015, 0.05] } }, 'buildings');
+    // A selected sector has to win against 3D buildings and every other outline: both streams get a tinted
+    // fill (they overlap on the block itself), a white casing under a heavy outline, and a wide glow, while
+    // every other sector fades back.
+    map.addLayer({ id: 'zone-fill', type: 'fill', source: 'zones',
+      paint: { 'fill-color': ['match', ['get', 'stream'], 'garbage', G, R],
+        'fill-opacity': ['case', st('sel'), 0.3, ['==', ['get', 'stream'], 'recycling'], 0, st('hot'), 0.16, st('dim'), 0.015, 0.05] } }, 'buildings');
     map.addLayer({ id: 'zone-glow', type: 'line', source: 'zones', layout: { 'line-join': 'round' },
-      paint: { 'line-color': ['match', ['get', 'stream'], 'garbage', G, R], 'line-width': 16, 'line-blur': 8, 'line-opacity': ['case', st('sel'), 0.35, 0] } }, 'street-names');
+      paint: { 'line-color': ['match', ['get', 'stream'], 'garbage', G, R], 'line-width': 26, 'line-blur': 12, 'line-opacity': ['case', st('sel'), 0.55, 0] } }, 'street-names');
+    map.addLayer({ id: 'zone-casing', type: 'line', source: 'zones', layout: { 'line-join': 'round' },
+      paint: { 'line-color': '${colors.white}', 'line-width': 9, 'line-opacity': ['case', st('sel'), 0.95, 0] } }, 'street-names');
     map.addLayer({ id: 'zone-garbage', type: 'line', source: 'zones', filter: ['==', ['get', 'stream'], 'garbage'], layout: { 'line-join': 'round' },
-      paint: { 'line-color': G, 'line-width': ['case', st('sel'), 4, st('hot'), 2.5, 1.4], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.25, 0.75] } }, 'street-names');
+      paint: { 'line-color': G, 'line-width': ['case', st('sel'), 5, st('hot'), 2.5, 1.4], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.18, 0.75] } }, 'street-names');
     map.addLayer({ id: 'zone-recycling', type: 'line', source: 'zones', filter: ['==', ['get', 'stream'], 'recycling'], layout: { 'line-join': 'round' },
-      paint: { 'line-color': R, 'line-width': ['case', st('sel'), 4, st('hot'), 2.5, 1.6], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.25, 0.85], 'line-dasharray': [2, 1.6] } }, 'street-names');
+      paint: { 'line-color': R, 'line-width': ['case', st('sel'), 5, st('hot'), 2.5, 1.6], 'line-opacity': ['case', st('sel'), 1, st('dim'), 0.18, 0.85], 'line-dasharray': [2, 1.6] } }, 'street-names');
 
     map.addSource('drops', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, cluster: true, clusterRadius: 44, clusterMaxZoom: 15 });
     map.addLayer({ id: 'drops-anchor', type: 'circle', source: 'drops', paint: { 'circle-radius': 0, 'circle-opacity': 0 } });

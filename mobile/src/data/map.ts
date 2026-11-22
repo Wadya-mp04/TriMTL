@@ -6,33 +6,91 @@
  *   the island (Westmount, Mount Royal, Dorval…) run their own collection and are not in it.
  * - Écocentres: ecocentres.json, built by scripts/build-ecocentres.ts from RECYC-QUÉBEC's open data
  *   (CC-BY 4.0). It has no hours or accepted items, so those come from elsewhere or are linked, never made up.
+ * - Pharmacies and battery drop-offs: osmPoints.json, built by scripts/build-osm-points.ts from
+ *   OpenStreetMap (ODbL). Community-mapped: pharmacies are well covered, battery points are not, so the
+ *   app points to the official battery locator alongside them.
+ * - What each place takes comes from the app's own Montréal sorting rules (quebecRules.json).
  */
 import collections from './collections.json';
 import eco from './ecocentres.json';
-import { rules } from './rules';
+import osm from './osmPoints.json';
 import rulesFile from '../../shared/data/quebecRules.json';
 import type { Sector } from '../map/infoCollectes';
 
+export type PlaceKind = 'ecocentre' | 'pharmacy' | 'battery';
+/** The map's filters: what someone is carrying, not what kind of place it is. */
+export type Material = 'batteries' | 'hazardous' | 'electronics' | 'medicines';
+
 export type Dropoff = {
   id: string;
+  kind: PlaceKind;
   name: string;
-  /** Borough, or the city for a municipal écocentre. */
+  /** Borough, city, or a short description. */
   area: string;
-  city: string;
-  address: string;
+  city: string | null;
+  address: string | null;
   lat: number;
   lng: number;
-  /** What it takes, from the app's Montréal rules; null when it is run by another city. */
-  materials: string[] | null;
-  /** Where to check hours and conditions; no open data publishes them. */
-  infoUrl: string;
-  /** What to bring, from the rules file; null when it is run by another city. */
+  /** Filter keys this place answers to; empty when unknown (shown under "All" only). */
+  takes: Material[];
+  /** Item names to show; null when unknown. */
+  items: string[] | null;
   note: string | null;
+  /** Hours as published by the source (OSM opening_hours text); null when not published. */
+  hours: string | null;
+  /** Where to check hours and conditions. */
+  infoUrl: string | null;
+  source: string;
 };
 
-/** Items Montréal's rules send to an écocentre (the same list the Scan tab answers with). */
-const ECOCENTRE_ITEMS = rules.RULES.filter((r) => r.dropoff === 'ecocentre').map((r) => r.name.en);
+const R = rulesFile as unknown as { items: { name: { en: string }; category: string; dropoff?: string | null }[]; dropoffs: Record<string, { note: { en: string } | null }> };
+const itemsTo = (dropoff: string) => R.items.filter((r) => r.dropoff === dropoff);
+/** Rule categories -> filter keys. */
+const CATEGORY_MATERIAL: Record<string, Material> = { battery: 'batteries', hazardous: 'hazardous', automotive: 'hazardous', electronics: 'electronics', appliance: 'electronics', medical: 'medicines' };
+const materialsOf = (dropoff: string) => [...new Set(itemsTo(dropoff).map((r) => CATEGORY_MATERIAL[r.category]).filter(Boolean))];
+
 const MONTREAL_LIST = 'https://montreal.ca/lieux?mtl_content.lieux.type.code=ECOC&orderBy=dc_title';
+export const BATTERY_LOCATOR = 'https://recycleyourbatteries.ca/find-a-drop-off-location/';
+
+function places(): Dropoff[] {
+  const ecocentres: Dropoff[] = eco.ecocentres.map((e) => {
+    const mtl = e.city === 'Montréal';
+    return {
+      ...e,
+      kind: 'ecocentre',
+      takes: mtl ? materialsOf('ecocentre') : [],
+      items: mtl ? itemsTo('ecocentre').map((r) => r.name.en) : null,
+      note: mtl ? R.dropoffs.ecocentre?.note?.en ?? null : null,
+      hours: null,
+      // shortcut: other island cities are linked by search; add each city's own page if more appear.
+      infoUrl: mtl ? MONTREAL_LIST : `https://www.google.com/search?q=${encodeURIComponent(`${e.name} ${e.city} horaire`)}`,
+      source: 'RECYC-QUÉBEC open data',
+    };
+  });
+  const pharmacies: Dropoff[] = osm.pharmacies.map((p) => ({
+    ...p,
+    kind: 'pharmacy',
+    area: 'Pharmacy',
+    city: null,
+    takes: materialsOf('pharmacy'),
+    items: itemsTo('pharmacy').map((r) => r.name.en),
+    note: null,
+    infoUrl: null,
+    source: 'OpenStreetMap, community-mapped',
+  }));
+  const batteries: Dropoff[] = osm.batteryPoints.map((b) => ({
+    ...b,
+    kind: 'battery',
+    area: 'Community-mapped drop-off',
+    city: null,
+    takes: b.takes as Material[],
+    items: b.accepted.map((a) => a[0].toUpperCase() + a.slice(1)),
+    note: null,
+    infoUrl: BATTERY_LOCATOR,
+    source: 'OpenStreetMap, community-mapped',
+  }));
+  return [...ecocentres, ...batteries, ...pharmacies];
+}
 
 /** [lng, lat] rings; the first ring is the outline, the rest are holes. */
 export type Zone = Sector & { polygons: [number, number][][][] };
@@ -48,13 +106,7 @@ export type MapData = {
 export async function loadMapData(): Promise<MapData> {
   return {
     zones: collections.sectors as Zone[],
-    dropoffs: eco.ecocentres.map((e) => ({
-      ...e,
-      materials: e.city === 'Montréal' ? ECOCENTRE_ITEMS : null,
-      note: e.city === 'Montréal' ? rulesFile.dropoffs.ecocentre.note?.en ?? null : null,
-      // shortcut: other island cities are linked by search; add each city's own page if more appear.
-      infoUrl: e.city === 'Montréal' ? MONTREAL_LIST : `https://www.google.com/search?q=${encodeURIComponent(`${e.name} ${e.city} horaire`)}`,
-    })),
+    dropoffs: places(),
     source: collections.source,
     sourceUrl: collections.sourceUrl,
     fetchedOn: collections.fetchedOn,

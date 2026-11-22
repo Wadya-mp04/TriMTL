@@ -2,13 +2,14 @@
  * Sheet content for the Map tab: legend, list rows, and the lane and drop-off detail views.
  */
 import { useState } from 'react';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 
 import { Glass, Icon, PrimaryButton, Spring, T } from '../components/ui';
 import type { Dropoff, Zone } from '../data/map';
 import { bins, colors, radius, shadow } from '../theme';
-import { ECOCENTRE_STYLE, LANE_STYLE } from './mapHtml';
+import { appLabel, chooseAndGo, goTo, useMapsApp } from './directions';
+import { LANE_STYLE, PLACE_STYLE } from './mapHtml';
 import { addDays, countdown, humanDay, shortWeekday, upcoming, weekdayOf, weekly, type Stream } from './schedule';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -42,11 +43,29 @@ export function Legend() {
   );
 }
 
-function EcoBubble({ size = 40 }: { size?: number }) {
+function PlaceBubble({ kind, size = 40 }: { kind: Dropoff['kind']; size?: number }) {
   return (
     <View style={[styles.bubble, shadow.sm, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Icon name={ECOCENTRE_STYLE.icon} size={size * 0.5} color={ECOCENTRE_STYLE.color} />
+      <Icon name={PLACE_STYLE[kind].icon} size={size * 0.5} color={PLACE_STYLE[kind].color} />
     </View>
+  );
+}
+
+/** Pill with the designs' chip press; active chips are ink, like the tab bar highlight. */
+export function Chip({ label, icon, tint, active, onPress }: { label: string; icon?: string; tint?: string; active: boolean; onPress: () => void }) {
+  return (
+    <Spring
+      onPress={onPress}
+      pressedScale={0.95}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={`Show places that take ${label.toLowerCase()}`}
+      hitSlop={{ top: 4, bottom: 4 }}
+      style={[styles.chip, active ? { backgroundColor: colors.ink, borderColor: colors.ink } : styles.chipIdle, shadow.sm]}
+    >
+      {icon && <Icon name={icon} size={16} color={active ? colors.white : tint} />}
+      <T size="xs" weight="semibold" color={active ? colors.white : colors.ink}>{label}</T>
+    </Spring>
   );
 }
 
@@ -56,13 +75,21 @@ export function DropoffRow({ d, distance, onPress }: { d: Dropoff; distance?: nu
   return (
     <Spring onPress={onPress} pressedScale={0.98} accessibilityRole="button" accessibilityLabel={`${d.name}, ${d.area}${distance !== undefined ? `, ${distanceLabel(distance)} away` : ''}`}>
       <Glass style={styles.listRow}>
-        <EcoBubble />
+        <PlaceBubble kind={d.kind} />
         <View style={{ flex: 1, gap: 2 }}>
           <T size="sm" weight="semibold" numberOfLines={1}>{d.name}</T>
           <T size="xs" color={colors.inkMuted} numberOfLines={1}>{d.area}</T>
         </View>
         {distance !== undefined && <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.num}>{distanceLabel(distance)}</T>}
-        <Icon name="chevron-right" size={18} color={colors.inkMuted} />
+        <Spring
+          onPress={() => goTo(d)}
+          pressedScale={0.92}
+          accessibilityRole="button"
+          accessibilityLabel={`Directions to ${d.name}`}
+          style={[styles.go, { backgroundColor: colors.ink }]}
+        >
+          <Icon name="directions" size={20} color={colors.white} />
+        </Spring>
       </Glass>
     </Spring>
   );
@@ -190,36 +217,49 @@ export function AreaDetails({ area, today, fetchedOn, sourceUrl }: { area: Area;
   );
 }
 
-export function openDirections(d: Dropoff) {
-  const q = encodeURIComponent(d.name);
-  const url = Platform.select({
-    ios: `http://maps.apple.com/?daddr=${d.lat},${d.lng}&q=${q}`,
-    default: `geo:0,0?q=${d.lat},${d.lng}(${q})`,
-  });
-  Linking.openURL(url).catch(() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}`));
-}
-
 export function DropoffDetails({ d }: { d: Dropoff }) {
+  const app = useMapsApp();
+  const hoursLink = d.kind === 'ecocentre' ? (d.city === 'Montréal' ? "Check today's hours on montreal.ca" : `Check hours with ${d.city}`) : 'Find more battery drop-offs';
   return (
     <View style={{ gap: 16 }}>
-      <View style={styles.row}>
-        <Icon name="place" size={16} color={colors.inkMuted} />
-        <T size="sm" color={colors.inkMuted} style={{ flex: 1 }}>{d.address}</T>
+      {d.address && (
+        <View style={styles.row}>
+          <Icon name="place" size={16} color={colors.inkMuted} />
+          <T size="sm" color={colors.inkMuted} style={{ flex: 1 }}>{d.address}</T>
+        </View>
+      )}
+      <View style={{ gap: 8 }}>
+        <PrimaryButton label={app ? `Directions in ${appLabel(app)}` : 'Get directions'} icon="directions" size="md" onPress={() => goTo(d)} />
+        {app && (
+          <Spring onPress={() => chooseAndGo(d)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'center', minHeight: 32, justifyContent: 'center' }}>
+            <T size="xs" weight="semibold" color={colors.inkMuted}>Use another app</T>
+          </Spring>
+        )}
       </View>
-      <PrimaryButton label="Get directions" icon="directions" size="md" onPress={() => openDirections(d)} />
       <Glass style={styles.card}>
         <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Hours</T>
-        <T size="sm" color={colors.inkMuted}>Hours change with the season and aren't in the open data.</T>
-        <Spring onPress={() => Linking.openURL(d.infoUrl)} accessibilityRole="link" hitSlop={8}>
-          <T size="sm" weight="bold" color={colors.forest}>{d.city === 'Montréal' ? "Check today's hours on montreal.ca" : `Check hours with ${d.city}`}</T>
-        </Spring>
+        {d.hours ? (
+          <>
+            <T size="sm" weight="semibold" style={styles.num}>{d.hours}</T>
+            <T size="xs" color={colors.inkMuted}>As listed on OpenStreetMap; worth a call before a special trip.</T>
+          </>
+        ) : (
+          <T size="sm" color={colors.inkMuted}>
+            {d.kind === 'ecocentre' ? "Hours change with the season and aren't in the open data." : "Hours aren't listed for this one."}
+          </T>
+        )}
+        {d.infoUrl && (
+          <Spring onPress={() => Linking.openURL(d.infoUrl!)} accessibilityRole="link" hitSlop={8}>
+            <T size="sm" weight="bold" color={colors.forest}>{hoursLink}</T>
+          </Spring>
+        )}
       </Glass>
       <Glass style={styles.card}>
         <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Takes</T>
-        {d.materials ? (
+        {d.items ? (
           <>
             <View style={styles.wrap}>
-              {d.materials.map((m) => (
+              {d.items.map((m) => (
                 <View key={m} style={styles.material}><T size="xs" weight="semibold">{m}</T></View>
               ))}
             </View>
@@ -229,7 +269,9 @@ export function DropoffDetails({ d }: { d: Dropoff }) {
           <T size="sm" color={colors.inkMuted}>Run by {d.city}, which sets its own list and who can use it.</T>
         )}
       </Glass>
-      <T size="xs" color={colors.inkMuted}>Location: RECYC-QUÉBEC open data.{d.materials ? " Items: TriMTL's Montréal sorting rules." : ''}</T>
+      <T size="xs" color={colors.inkMuted}>
+        Location: {d.source}.{d.kind !== 'battery' && d.items ? " Items: TriMTL's Montréal sorting rules." : ''}
+      </T>
     </View>
   );
 }
@@ -240,6 +282,9 @@ const styles = StyleSheet.create({
   eyebrow: { textTransform: 'uppercase', letterSpacing: 0.6 },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1 },
+  chipIdle: { backgroundColor: 'rgba(255, 255, 255, 0.86)', borderColor: 'rgba(255, 255, 255, 0.95)' },
+  go: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   bubble: { backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
   listRow: { borderRadius: radius['2xl'], paddingHorizontal: 14, paddingVertical: 12, minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12 },
   strokeCell: { width: 40, alignItems: 'center' },
