@@ -4,9 +4,10 @@
  * With Supabase configured (src/lib/supabase.ts), sign in / sign up use real accounts, and saved scans
  * and finished rounds are also written to the user's rows. Without it, everything stays local (demo mode).
  */
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { DEMO_SAVED, SortItem } from '../data/items';
+import { withRetry } from '../lib/retry';
 import { supabase } from '../lib/supabase';
 
 export interface GameRecord {
@@ -94,12 +95,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [stats, setStats] = useState(DEMO.stats);
   const [theme, setTheme] = useState<AppState['theme']>('forest');
   const [userId, setUserId] = useState<string | null>(null);
+  // Last user the profile was loaded for (undefined = not loaded yet).
+  const loadedFor = useRef<string | null | undefined>(undefined);
 
-  // Restore the saved session on launch and follow sign-in / sign-out / token refresh.
+  // Follow sign-in / sign-out; INITIAL_SESSION on subscribe restores a saved login at launch.
   useEffect(() => {
     if (!supabase) return;
     const sb = supabase;
     const apply = async (id: string | null) => {
+      // Token refreshes re-send the same user: reloading would reset the XP of a round in progress.
+      if (id === loadedFor.current) return;
+      loadedFor.current = id;
       setUserId(id);
       if (!id) {
         setUsername(DEMO.username); setXp(DEMO.xp); setXpToday(DEMO.xpToday); setGames(DEMO.games); setStats(DEMO.stats);
@@ -112,6 +118,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         sb.from('game_scores').select('mode, items, correct, played_at').order('played_at', { ascending: false }).limit(5),
         sb.rpc('leaderboard', { scope: 'friends' }),
       ]);
+      if (loadedFor.current !== id) return; // signed out or switched user while loading: drop the stale reply
       if (profile.data?.username) setUsername(profile.data.username);
       const t = totals.data;
       setXp(t?.xp ?? 0);
@@ -121,7 +128,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const me = (board.data as { xp_today: number; is_me: boolean }[] | null)?.find((r) => r.is_me);
       setXpToday(me?.xp_today ?? 0);
     };
-    sb.auth.getSession().then(({ data }) => apply(data.session?.user.id ?? null));
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => { apply(session?.user.id ?? null); });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -164,18 +170,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!supabase || !userId || !real.length) return;
     // Store the rule id and context, not the bin: the rules engine decides the bin when it is played.
     // borough/has_brown_bin use the table defaults (null, true), which is what api/scan.ts sends today.
-    supabase.from('scanned_items')
-      .insert(real.map((i) => ({ rule_id: i.ruleId, category: i.category, name: i.name, count: i.count ?? 1 })))
-      .then(({ error }) => { if (error) console.warn('save scans failed:', error.message); });
+    // client_key = the item's scan-unique id, so a retry after a dropped connection can't save it twice.
+    const rows = real.map((i) => ({ rule_id: i.ruleId, category: i.category, name: i.name, count: i.count ?? 1, client_key: i.id }));
+    const sb = supabase;
+    withRetry('save scans', () => sb.from('scanned_items').upsert(rows, { onConflict: 'user_id,client_key', ignoreDuplicates: true }));
   }, [userId]);
 
   const recordGame = useCallback((g: Omit<GameRecord, 'when'> & { mode: 'daily' | 'mine'; xp: number }) => {
     setGames((prev) => [{ title: g.title, items: g.items, correct: g.correct, when: 'Today' }, ...prev].slice(0, 5));
     setStats((s) => ({ games: s.games + 1, answered: s.answered + g.items, correct: s.correct + g.correct }));
     if (!supabase || !userId) return;
-    supabase.from('game_scores')
-      .insert({ mode: g.mode, items: g.items, correct: g.correct, xp: g.xp })
-      .then(({ error }) => { if (error) console.warn('save score failed:', error.message); });
+    // One key per round, reused by every retry, so a round is never counted twice.
+    const row = { mode: g.mode, items: g.items, correct: g.correct, xp: g.xp, client_key: `${Date.now()}-${Math.random().toString(36).slice(2)}` };
+    const sb = supabase;
+    withRetry('save score', () => sb.from('game_scores').upsert(row, { onConflict: 'user_id,client_key', ignoreDuplicates: true }));
   }, [userId]);
 
   const value = useMemo<AppState>(

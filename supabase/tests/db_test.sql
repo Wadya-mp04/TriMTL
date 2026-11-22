@@ -31,6 +31,15 @@ insert into public.game_scores (mode, items, correct, xp) values ('mine', 4, 3, 
 insert into public.friendships (user_id, friend_id) values (:'alice', :'bob');
 select pg_temp.ok((select games = 2 and answered = 8 and correct = 7 and xp = 105 from public.player_stats), 'alice scoreboard');
 select pg_temp.ok((select items = 3 from public.category_stats where category = 'drink_container'), 'category stats');
+-- A retried save with the same client_key is ignored, so a round or scan is never counted twice.
+insert into public.game_scores (mode, items, correct, xp, client_key) values ('mine', 2, 2, 30, 'round-1')
+  on conflict (user_id, client_key) do nothing;
+insert into public.game_scores (mode, items, correct, xp, client_key) values ('mine', 2, 2, 30, 'round-1')
+  on conflict (user_id, client_key) do nothing;
+insert into public.scanned_items (name, client_key) values ('Pile', 'scan-1:item-1'), ('Pile', 'scan-1:item-1')
+  on conflict (user_id, client_key) do nothing;
+select pg_temp.ok((select count(*) = 1 from public.game_scores where client_key = 'round-1'), 'retried score stored once');
+select pg_temp.ok((select count(*) = 1 from public.scanned_items where client_key = 'scan-1:item-1'), 'retried scan stored once');
 
 -- Bob plays once and accepts Alice's request; Carol plays once and has no friends.
 select set_config('request.jwt.claim.sub', :'bob', false);
@@ -51,7 +60,7 @@ select pg_temp.ok((select array_agg(username order by xp_today desc) = '{alice,b
 select pg_temp.ok((select is_me from public.leaderboard('city') where username = 'user_33333333'), 'is_me flag');
 select set_config('request.jwt.claim.sub', :'bob', false);
 select pg_temp.ok((select array_agg(username order by xp_today desc) = '{alice,bob}' from public.leaderboard('friends')), 'bob friends board');
-select pg_temp.ok((select xp_today = 105 from public.leaderboard('friends') where username = 'alice'), 'today xp summed');
+select pg_temp.ok((select xp_today = 135 from public.leaderboard('friends') where username = 'alice'), 'today xp summed');
 
 -- Things that must be refused.
 select pg_temp.refused(format($$insert into public.scanned_items (user_id, name) values (%L, 'x')$$, :'alice'), 'bob writes a scan as alice');
