@@ -14,12 +14,12 @@ import { SvgXml } from 'react-native-svg';
 import { type GameTheme, skyTopOf } from './themes';
 
 /** The bottom 35 of each backdrop's 300 viewBox units is street level, drawn behind the bins.
- *  Landmarks start near the top of the viewBox (y≈20); LANDMARK_TOP keeps them below the title row
+ *  Landmarks start near the top of the viewBox (y≈20); `landmarkTop` keeps them below the header
  *  instead of under the status bar, and the space above is filled with the theme's own sky. */
-const STREET = 35, TOP_UNITS = 20, LANDMARK_TOP = 110;
+const STREET = 35, TOP_UNITS = 20;
 
-function Layer({ theme, groundY, height }: { theme: GameTheme; groundY: number; height: number }) {
-  const scale = Math.max(0.6, (groundY - LANDMARK_TOP) / (300 - STREET - TOP_UNITS));
+function Layer({ theme, groundY, height, top }: { theme: GameTheme; groundY: number; height: number; top: number }) {
+  const scale = Math.max(0.6, (groundY - top) / (300 - STREET - TOP_UNITS));
   const skyH = 300 * scale, skyTop = groundY + STREET * scale - skyH;
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.lane }]}>
@@ -36,7 +36,8 @@ function Layer({ theme, groundY, height }: { theme: GameTheme; groundY: number; 
   );
 }
 
-export function Backdrop({ theme, groundY }: { theme: GameTheme; groundY: number }) {
+/** `landmarkTop`: px from the top of the screen where buildings may start (below the screen's header). */
+export function Backdrop({ theme, groundY, landmarkTop = 110 }: { theme: GameTheme; groundY: number; landmarkTop?: number }) {
   const { height } = useWindowDimensions();
   const [layers, setLayers] = useState<{ id: number; theme: GameTheme }[]>([]);
   const fill = useRef(new Animated.Value(1)).current;
@@ -61,13 +62,13 @@ export function Backdrop({ theme, groundY }: { theme: GameTheme; groundY: number
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {layers.map((l, i) => {
         const top = i === layers.length - 1;
-        if (!top) return <Layer key={l.id} theme={l.theme} groundY={g} height={height} />;
+        if (!top) return <Layer key={l.id} theme={l.theme} groundY={g} height={height} top={landmarkTop} />;
         const up = fill.interpolate({ inputRange: [0, 1], outputRange: [height, 0] });
         const down = fill.interpolate({ inputRange: [0, 1], outputRange: [-height, 0] });
         return (
           <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { overflow: 'hidden', transform: [{ translateY: up }] }]}>
             <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: down }] }]}>
-              <Layer theme={l.theme} groundY={g} height={height} />
+              <Layer theme={l.theme} groundY={g} height={height} top={landmarkTop} />
             </Animated.View>
             {/* the rising edge: a soft band of the new theme's snow, so the fill reads as a surface */}
             <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 6, backgroundColor: l.theme.snow, opacity: fill.interpolate({ inputRange: [0, 0.9, 1], outputRange: [0.9, 0.9, 0] }) }} />

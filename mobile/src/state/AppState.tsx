@@ -10,7 +10,6 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import { DEMO_SAVED, DEMO_SCAN, SortItem } from '../data/items';
 import { withRetry } from '../lib/retry';
 import { supabase } from '../lib/supabase';
-import type { ThemeKey as PlayThemeKey } from '../game/themes';
 import { brand } from '../brand';
 import { applyTheme, ThemeKey } from '../theme';
 
@@ -46,9 +45,8 @@ interface AppState {
   hasBrownBin: boolean;
   games: GameRecord[];
   stats: { games: number; answered: number; correct: number };
-  theme: ThemeKey;
-  /** Neighbourhood theme for the Play screen. */
-  playTheme: PlayThemeKey;
+  /** Neighbourhood theme: the game's street scene and the app's colours. */
+  playTheme: ThemeKey;
   /** Supabase user id, or null when signed out or in demo mode. */
   userId: string | null;
   /** Each returns an error message to show, or null on success. */
@@ -60,9 +58,8 @@ interface AppState {
   setLastScan: (items: SortItem[]) => void;
   saveItems: (items: SortItem[]) => void;
   recordGame: (g: Omit<GameRecord, 'when'> & { mode: GameMode; xp: number }) => void;
-  setTheme: (t: AppState['theme']) => void;
   setArea: (borough: string | null, hasBrownBin: boolean) => void;
-  setPlayTheme: (t: PlayThemeKey) => void;
+  setPlayTheme: (t: ThemeKey) => void;
 }
 
 // Apply the white-label default before the first render.
@@ -112,8 +109,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [hasBrownBin, setHasBrownBin] = useState(true);
   const [games, setGames] = useState<GameRecord[]>(DEMO.games);
   const [stats, setStats] = useState(DEMO.stats);
-  const [theme, setThemeState] = useState<ThemeKey>(brand.defaultTheme);
-  const [playTheme, setPlayTheme] = useState<PlayThemeKey>('plateau');
+  const [playTheme, setPlayThemeState] = useState<ThemeKey>(brand.defaultTheme);
   const [lastScan, setLastScanRaw] = useState<SortItem[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   // Last user the profile was loaded for (undefined = not loaded yet).
@@ -232,7 +228,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       hasBrownBin,
       games,
       stats,
-      theme,
       playTheme,
       userId,
       signIn,
@@ -243,11 +238,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLastScan,
       saveItems,
       recordGame,
-      setTheme: (t) => { applyTheme(t); setThemeState(t); },
       setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
-      setPlayTheme,
+      setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
-    [username, xp, xpToday, saved, photos, lastScan, history, borough, hasBrownBin, games, stats, theme, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, history, borough, hasBrownBin, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
