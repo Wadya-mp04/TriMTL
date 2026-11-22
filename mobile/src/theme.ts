@@ -12,15 +12,33 @@ export const colors = {
   ink: '#12291F',
   inkMuted: '#415E52',
   white: '#FFFFFF',
-  ocean: '#0E7490',
-  lavender: '#7C3AED',
 };
 
-/** Background radial gradients. "mint" is most screens; "pearl" is Scan, Social and Profile. */
-export const canvasGradients = {
+/** Background radial gradients. "pearl" is the default on every screen; "mint" is the original design variant. */
+export const canvasGradients: Record<'mint' | 'pearl', string[]> = {
   mint: ['#FFFFFF', '#E5F3EA', '#D4EBDD'],
   pearl: ['#FFFFFF', '#EAF6EE', '#D7EDE0'],
-} as const;
+};
+
+export type ThemeKey = 'forest' | 'ocean' | 'lavender';
+
+/** User-selectable themes: the accent and the canvas change, bins and ink stay the same. */
+export const THEMES: Record<ThemeKey, { label: string; forest: string; forestDeep: string; mintCanvas: string; mint: string[]; pearl: string[] }> = {
+  forest: { label: 'Forest', forest: '#176B4D', forestDeep: '#123629', mintCanvas: '#E5F3EA', mint: ['#FFFFFF', '#E5F3EA', '#D4EBDD'], pearl: ['#FFFFFF', '#EAF6EE', '#D7EDE0'] },
+  ocean: { label: 'Ocean', forest: '#0E7490', forestDeep: '#0B3A47', mintCanvas: '#E3F1F5', mint: ['#FFFFFF', '#E3F1F5', '#CFE6EE'], pearl: ['#FFFFFF', '#E8F4F8', '#D3E9F0'] },
+  lavender: { label: 'Lavender', forest: '#6D28D9', forestDeep: '#2E1065', mintCanvas: '#EEEAF8', mint: ['#FFFFFF', '#EEEAF8', '#DFD6F3'], pearl: ['#FFFFFF', '#F2EFFA', '#E2DAF5'] },
+};
+
+/**
+ * Switch theme by updating the shared tokens in place. Screens read `colors` while rendering and all
+ * re-render on theme change (they use the app state), so styles must not copy accents into StyleSheet.create.
+ */
+export function applyTheme(key: ThemeKey) {
+  const t = THEMES[key];
+  Object.assign(colors, { forest: t.forest, forestDeep: t.forestDeep, mintCanvas: t.mintCanvas });
+  canvasGradients.mint = t.mint;
+  canvasGradients.pearl = t.pearl;
+}
 
 export type BinKey = 'recycling' | 'compost' | 'garbage' | 'special';
 

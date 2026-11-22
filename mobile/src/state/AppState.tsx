@@ -1,14 +1,18 @@
 /**
  * App state: profile, XP, saved items, the photos being scanned and the last scan result.
  * Starts with the demo profile from the designs (EcoSorter, 320 XP).
- * With Supabase configured (src/lib/supabase.ts), sign in / sign up use real accounts, and saved scans
- * and finished rounds are also written to the user's rows. Without it, everything stays local (demo mode).
+ * With Supabase configured (src/lib/supabase.ts), sign in / sign up use real accounts, the profile shows
+ * the user's own totals, and saved scans and finished rounds are written to their rows (retried when the
+ * network drops). Without it, everything stays local (demo mode).
  */
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { DEMO_SAVED, SortItem } from '../data/items';
+import { DEMO_SAVED, DEMO_SCAN, SortItem } from '../data/items';
 import { withRetry } from '../lib/retry';
 import { supabase } from '../lib/supabase';
+import type { ThemeKey as PlayThemeKey } from '../game/themes';
+import { brand } from '../brand';
+import { applyTheme, ThemeKey } from '../theme';
 
 export interface GameRecord {
   title: string;
@@ -35,9 +39,16 @@ interface AppState {
   saved: SortItem[];
   photos: string[];
   lastScan: SortItem[];
+  /** Every item ever scanned, newest first: the Scan page analytics read this. */
+  history: SortItem[];
+  /** Borough slug from quebecRules.json, or null for the city-wide default. */
+  borough: string | null;
+  hasBrownBin: boolean;
   games: GameRecord[];
   stats: { games: number; answered: number; correct: number };
-  theme: 'forest' | 'ocean' | 'lavender';
+  theme: ThemeKey;
+  /** Neighbourhood theme for the Play screen. */
+  playTheme: PlayThemeKey;
   /** Supabase user id, or null when signed out or in demo mode. */
   userId: string | null;
   /** Each returns an error message to show, or null on success. */
@@ -48,18 +59,20 @@ interface AppState {
   setPhotos: (uris: string[]) => void;
   setLastScan: (items: SortItem[]) => void;
   saveItems: (items: SortItem[]) => void;
-  recordGame: (g: Omit<GameRecord, 'when'> & { mode: 'daily' | 'mine'; xp: number }) => void;
+  recordGame: (g: Omit<GameRecord, 'when'> & { mode: GameMode; xp: number }) => void;
   setTheme: (t: AppState['theme']) => void;
+  setArea: (borough: string | null, hasBrownBin: boolean) => void;
+  setPlayTheme: (t: PlayThemeKey) => void;
 }
+
+// Apply the white-label default before the first render.
+applyTheme(brand.defaultTheme);
 
 const Ctx = createContext<AppState | null>(null);
 
-/** Two-letter avatar initials: "EcoSorter" -> "ES", "alice" -> "AL". */
-export function initialsOf(name: string) {
-  const caps = name.match(/[A-Z]/g);
-  if (caps && caps.length >= 2) return (caps[0] + caps[1]).toUpperCase();
-  return name.slice(0, 2).toUpperCase() || 'ES';
-}
+/** Round types stored in game_scores.mode. */
+export type GameMode = 'mine' | 'daily' | 'challenge';
+const TITLES: Record<GameMode, string> = { mine: 'Your items', daily: 'Daily challenge', challenge: 'Challenge' };
 
 /** The demo profile from the designs, shown when signed out or without Supabase. */
 const DEMO = {
@@ -73,15 +86,18 @@ const DEMO = {
   stats: { games: 12, answered: 50, correct: 44 },
 };
 
-const TITLES = { mine: 'My scanned items', daily: 'Daily challenge' } as const;
-
 function dayLabel(iso: string) {
   const d = new Date(iso);
-  const today = new Date();
-  const yesterday = new Date(Date.now() - 86_400_000);
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  if (d.toDateString() === new Date().toDateString()) return 'Today';
+  if (d.toDateString() === new Date(Date.now() - 86_400_000).toDateString()) return 'Yesterday';
   return d.toLocaleDateString();
+}
+
+/** Two-letter avatar initials: "EcoSorter" -> "ES", "alice" -> "AL". */
+export function initialsOf(name: string) {
+  const caps = name.match(/[A-Z]/g);
+  if (caps && caps.length >= 2) return (caps[0] + caps[1]).toUpperCase();
+  return name.slice(0, 2).toUpperCase() || 'ES';
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -90,10 +106,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [xpToday, setXpToday] = useState(DEMO.xpToday);
   const [saved, setSaved] = useState<SortItem[]>(DEMO_SAVED);
   const [photos, setPhotos] = useState<string[]>([]);
-  const [lastScan, setLastScan] = useState<SortItem[]>([]);
+  // Demo profile starts with the design's sample scans.
+  const [history, setHistory] = useState<SortItem[]>([...DEMO_SCAN, ...DEMO_SAVED]);
+  const [borough, setBorough] = useState<string | null>(null);
+  const [hasBrownBin, setHasBrownBin] = useState(true);
   const [games, setGames] = useState<GameRecord[]>(DEMO.games);
   const [stats, setStats] = useState(DEMO.stats);
-  const [theme, setTheme] = useState<AppState['theme']>('forest');
+  const [theme, setThemeState] = useState<ThemeKey>(brand.defaultTheme);
+  const [playTheme, setPlayTheme] = useState<PlayThemeKey>('plateau');
+  const [lastScan, setLastScanRaw] = useState<SortItem[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   // Last user the profile was loaded for (undefined = not loaded yet).
   const loadedFor = useRef<string | null | undefined>(undefined);
@@ -123,8 +144,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const t = totals.data;
       setXp(t?.xp ?? 0);
       setStats({ games: t?.games ?? 0, answered: t?.answered ?? 0, correct: t?.correct ?? 0 });
-      setGames((recent.data ?? []).map((g: { mode: 'mine' | 'daily'; items: number; correct: number; played_at: string }) =>
-        ({ title: TITLES[g.mode], items: g.items, correct: g.correct, when: dayLabel(g.played_at) })));
+      setGames((recent.data ?? []).map((g: { mode: GameMode; items: number; correct: number; played_at: string }) =>
+        ({ title: TITLES[g.mode] ?? g.mode, items: g.items, correct: g.correct, when: dayLabel(g.played_at) })));
       const me = (board.data as { xp_today: number; is_me: boolean }[] | null)?.find((r) => r.is_me);
       setXpToday(me?.xp_today ?? 0);
     };
@@ -156,6 +177,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!supabase) setUsername(DEMO.username);
   }, []);
 
+  // Stamp scan time so the game can tell today's items from earlier ones; every scan also feeds history.
+  const setLastScan = useCallback((items: SortItem[]) => {
+    const now = new Date().toISOString();
+    const stamped = items.map((i) => ({ ...i, scannedAt: i.scannedAt ?? now }));
+    setLastScanRaw(stamped);
+    setHistory((h) => [...stamped, ...h]);
+  }, []);
+
   const addXp = useCallback((n: number) => {
     setXp((v) => v + n);
     setXpToday((v) => v + n);
@@ -164,19 +193,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const saveItems = useCallback((items: SortItem[]) => {
     setSaved((prev) => {
       const ids = new Set(prev.map((p) => p.id));
-      return [...items.filter((i) => !ids.has(i.id)), ...prev];
+      const now = new Date().toISOString();
+      return [...items.filter((i) => !ids.has(i.id)).map((i) => ({ ...i, scannedAt: i.scannedAt ?? now })), ...prev];
     });
     const real = items.filter((i) => i.ruleId !== undefined);
     if (!supabase || !userId || !real.length) return;
     // Store the rule id and context, not the bin: the rules engine decides the bin when it is played.
-    // borough/has_brown_bin use the table defaults (null, true), which is what api/scan.ts sends today.
     // client_key = the item's scan-unique id, so a retry after a dropped connection can't save it twice.
-    const rows = real.map((i) => ({ rule_id: i.ruleId, category: i.category, name: i.name, count: i.count ?? 1, client_key: i.id }));
+    const rows = real.map((i) => ({
+      rule_id: i.ruleId, category: i.category, name: i.name, count: i.count ?? 1,
+      borough, has_brown_bin: hasBrownBin, client_key: i.id,
+    }));
     const sb = supabase;
     withRetry('save scans', () => sb.from('scanned_items').upsert(rows, { onConflict: 'user_id,client_key', ignoreDuplicates: true }));
-  }, [userId]);
+  }, [userId, borough, hasBrownBin]);
 
-  const recordGame = useCallback((g: Omit<GameRecord, 'when'> & { mode: 'daily' | 'mine'; xp: number }) => {
+  const recordGame = useCallback((g: Omit<GameRecord, 'when'> & { mode: GameMode; xp: number }) => {
     setGames((prev) => [{ title: g.title, items: g.items, correct: g.correct, when: 'Today' }, ...prev].slice(0, 5));
     setStats((s) => ({ games: s.games + 1, answered: s.answered + g.items, correct: s.correct + g.correct }));
     if (!supabase || !userId) return;
@@ -195,9 +227,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saved,
       photos,
       lastScan,
+      history,
+      borough,
+      hasBrownBin,
       games,
       stats,
       theme,
+      playTheme,
       userId,
       signIn,
       signUp,
@@ -207,9 +243,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLastScan,
       saveItems,
       recordGame,
-      setTheme,
+      setTheme: (t) => { applyTheme(t); setThemeState(t); },
+      setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
+      setPlayTheme,
     }),
-    [username, xp, xpToday, saved, photos, lastScan, games, stats, theme, userId, signIn, signUp, signOut, addXp, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, history, borough, hasBrownBin, games, stats, theme, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -33,7 +33,11 @@ export interface ScanOutcome {
 }
 
 /** Scans each photo (the endpoint takes one image per request) and merges the items. */
-export async function scanPhotos(uris: string[], signal?: AbortSignal): Promise<ScanOutcome> {
+export async function scanPhotos(
+  uris: string[],
+  ctx: { borough: string | null; hasBrownBin: boolean },
+  signal?: AbortSignal,
+): Promise<ScanOutcome> {
   const base = apiBaseUrl();
   if (!base) throw new Error('No server URL. Set EXPO_PUBLIC_API_URL in mobile/.env.');
 
@@ -45,7 +49,7 @@ export async function scanPhotos(uris: string[], signal?: AbortSignal): Promise<
         res = await fetch(`${base}/api/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg', lang: 'en', borough: null, hasBrownBin: true }),
+          body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg', lang: 'en', borough: ctx.borough, hasBrownBin: ctx.hasBrownBin }),
           signal,
         });
       } catch (e) {

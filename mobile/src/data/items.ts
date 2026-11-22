@@ -16,6 +16,10 @@ export interface SortItem {
   bin: BinKey | null;
   /** Why it goes in that bin, shown after answering in the game. */
   note: string;
+  /** Rules-engine icon key (quebecRules.json `icon`), used for the game's clip-art. */
+  art?: string;
+  /** When it was scanned (ISO). Drives "today" vs earlier days in the game. */
+  scannedAt?: string;
   /** Set only on items from a real scan (undefined on demo items), so only those get saved to the account. */
   ruleId?: string | null;
   category?: string | null;
@@ -104,27 +108,30 @@ export function fromScanItem(it: ScanItemDTO, scanId: string): SortItem {
     icon: ICONS[it.icon] ?? 'help-outline',
     bin: it.correctBin,
     note: it.explanation ?? '',
+    art: it.icon,
     ruleId: it.ruleId,
     category: it.category,
     count: it.count,
   };
 }
 
+const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+
 /**
- * A demo item resolved by the rules engine, so its bin and text always match the backend rules.
- * ruleId etc. are cleared so demo items are never saved to an account.
+ * A demo item resolved by the rules engine (mobile/shared/, a copy of the server's), so its bin and
+ * text always match the backend rules. ruleId etc. are cleared so demo items are never saved to an account.
  */
-function demo(id: string, ruleId: string, name: string): SortItem {
+function demo(id: string, ruleId: string, name: string, scannedAt?: string): SortItem {
   const it = rules.toScanItem({ id, name, rule: rules.getRule(ruleId), confidence: 'high', lang: 'en' });
-  return { ...fromScanItem(it, 'demo'), id, ruleId: undefined, category: undefined, count: undefined };
+  return { ...fromScanItem(it, 'demo'), id, scannedAt, ruleId: undefined, category: undefined, count: undefined };
 }
 
 /** Saved items on the Scan screen before the user has scanned anything (from the design). */
 export const DEMO_SAVED: SortItem[] = [
-  demo('d1', 'drink_bottle', 'Plastic bottle'),
-  demo('d2', 'drink_can', 'Energy can'),
-  demo('d3', 'chip_bag', 'Snack wrapper'),
-  demo('d4', 'battery', 'Battery'),
+  demo('d1', 'drink_bottle', 'Plastic bottle', daysAgo(1)),
+  demo('d2', 'drink_can', 'Energy can', daysAgo(2)),
+  demo('d3', 'chip_bag', 'Snack wrapper', daysAgo(3)),
+  demo('d4', 'battery', 'Battery', daysAgo(5)),
 ];
 
 /** Result shown by "See demo results" when the server can't be reached (Sorted breakdown design). */
@@ -144,19 +151,37 @@ export const DAILY_DECK: SortItem[] = [
   demo('q4', 'food_scraps', 'Banana peel'),
 ];
 
+/** Challenge items the player may never have scanned; bin, explanation and tip come from the engine. */
+const pool = (ruleId: string, name: string): SortItem => {
+  const it = demo(`pool:${ruleId}`, ruleId, name);
+  const r = rules.toScanItem({ id: it.id, name, rule: rules.getRule(ruleId), confidence: 'high', lang: 'en' });
+  return { ...it, detail: r.dropoffName ?? r.specialInstruction ?? '' };
+};
+export const CHALLENGE_POOL: SortItem[] = [
+  pool('pizza_box_greasy', 'Greasy pizza box'),
+  pool('coffee_cup', 'Coffee cup'),
+  pool('aerosol', 'Aerosol can'),
+  pool('eggshells', 'Eggshells'),
+  pool('milk_carton', 'Milk carton'),
+  pool('glass_jar', 'Glass jar'),
+  pool('smoke_detector', 'Smoke detector'),
+  pool('broken_glassware', 'Broken plate'),
+  pool('plastic_bags', 'Plastic bag'),
+  pool('bulb_regular', 'LED bulb'),
+  pool('paint', 'Paint can'),
+  pool('paper_towel', 'Paper towel'),
+  pool('food_can', 'Food can'),
+  pool('plastic_utensils', 'Plastic fork and straw'),
+  pool('cardboard', 'Cardboard box'),
+  pool('paper', 'Newspaper'),
+];
+
 export interface Ranked {
   name: string;
   initials: string;
   xp: number;
   you?: boolean;
 }
-
-export const FRIENDS: Ranked[] = [
-  { name: 'MileEndLeaf', initials: 'ML', xp: 120 },
-  { name: 'PlateauGreen', initials: 'PG', xp: 95 },
-  { name: 'VerdunRecycle', initials: 'VR', xp: 50 },
-  { name: 'RosemontBin', initials: 'RB', xp: 30 },
-];
 
 export const CITY: Ranked[] = [
   { name: 'HochelagaHero', initials: 'HH', xp: 410 },

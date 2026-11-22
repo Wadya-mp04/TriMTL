@@ -1,44 +1,44 @@
 /**
- * My Profile (ui-references/.../frosted_mint_my_profile). No tab bar on this screen.
+ * My Profile (ui-references/.../frosted_mint_my_profile): identity, stats, area, theme, recent games.
+ * Opened from the avatar on Community; no tab bar here.
  */
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { BentoBackdrop, CircleButton, Glass, Icon, Screen, Spring, T } from '../components/ui';
+import { AreaSheet } from '../components/AreaSheet';
+import { BentoBackdrop, CircleButton, Glass, Icon, Screen, ScreenHeader, Spring, T } from '../components/ui';
+import { boroughName } from '../data/rules';
 import { levelFor, useApp } from '../state/AppState';
-import { colors, radius, shadow } from '../theme';
+import { colors, radius, shadow, THEMES, ThemeKey } from '../theme';
 
-const THEMES = [
-  { key: 'forest', label: 'Forest', color: colors.forest },
-  { key: 'ocean', label: 'Ocean', color: colors.ocean },
-  { key: 'lavender', label: 'Lavender', color: colors.lavender },
-] as const;
+const THEME_TILES = (Object.keys(THEMES) as ThemeKey[]).map((key) => ({ key, label: THEMES[key].label, color: THEMES[key].forest }));
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { username, initials, xp, stats, games, theme, setTheme, signOut } = useApp();
+  const { username, initials, xp, stats, games, theme, setTheme, signOut, borough, hasBrownBin } = useApp();
+  const [areaOpen, setAreaOpen] = useState(false);
   const { level, next, progress } = levelFor(xp);
   const accuracy = stats.answered ? Math.round((stats.correct / stats.answered) * 100) : 0;
 
   return (
-    <Screen variant="pearl">
-      <BentoBackdrop rows={1} opacity={0.55} />
-      <View style={styles.header}>
-        <CircleButton icon="arrow-back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/scan'))} />
-        <T size="2xl" display>My Profile</T>
-        <CircleButton icon="settings" label="Settings" />
+    <Screen>
+      <BentoBackdrop />
+      <View style={styles.back}>
+        <CircleButton icon="arrow-back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/community'))} />
       </View>
+      <ScreenHeader eyebrow={`Level ${level} · ${boroughName(borough)}`} title="My profile" style={{ paddingTop: 12 }} />
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
         <Glass style={styles.identity}>
           <View style={[styles.row, { gap: 16 }]}>
-            <View style={[styles.bigAvatar, shadow.md]}>
+            <View style={[styles.bigAvatar, shadow.md, { backgroundColor: colors.forest }]}>
               <T size="xl" weight="bold" color={colors.white}>{initials}</T>
             </View>
             <View>
               <T size="xl" weight="bold">{username}</T>
               <View style={[styles.levelChip, shadow.sm]}>
-                <T size="xs" weight="semibold" color={colors.forest}>Level {level} • Montréal</T>
+                <T size="xs" weight="semibold" color={colors.forest}>Level {level} • {boroughName(borough)}</T>
               </View>
             </View>
           </View>
@@ -48,7 +48,7 @@ export default function ProfileScreen() {
               <T size="xs" weight="semibold" color={colors.forest} style={{ fontVariant: ['tabular-nums'] }}>{xp} / {next} XP</T>
             </View>
             <View style={styles.track}>
-              <View style={[styles.fill, { width: `${progress * 100}%` }]} />
+              <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: colors.forest }]} />
             </View>
           </View>
         </Glass>
@@ -66,13 +66,24 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        <Spring onPress={() => setAreaOpen(true)} accessibilityRole="button" accessibilityLabel="Change your area" pressedScale={0.98} style={styles.area}>
+          <View style={[styles.areaIcon, { backgroundColor: colors.forest }]}>
+            <Icon name="location-city" size={20} color={colors.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <T size="sm" weight="bold">{boroughName(borough)}</T>
+            <T size="xs" color={colors.inkMuted}>{hasBrownBin ? 'Brown bin' : 'No brown bin'} · answers match your area</T>
+          </View>
+          <Icon name="chevron-right" size={20} color={colors.inkMuted} />
+        </Spring>
+
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
             <T size="sm" weight="bold">App theme</T>
             <T size="xs" weight="semibold" color={colors.forest}>All 3 unlocked</T>
           </View>
           <View style={[styles.row, { gap: 10 }]}>
-            {THEMES.map((t) => {
+            {THEME_TILES.map((t) => {
               const active = theme === t.key;
               return (
                 <Spring
@@ -111,25 +122,26 @@ export default function ProfileScreen() {
         </View>
 
         <Pressable
-          onPress={() => { signOut(); router.dismissTo('/'); }}
+          onPress={() => { signOut(); router.replace('/'); }}
           style={styles.signOut}
         >
           <T size="xs" weight="semibold" color={colors.inkMuted}>Sign out</T>
         </Pressable>
       </ScrollView>
+      <AreaSheet visible={areaOpen} onClose={() => setAreaOpen(false)} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   row: { flexDirection: 'row', alignItems: 'center' },
   main: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40, gap: 16 },
+  back: { paddingHorizontal: 20, paddingTop: 12 },
   identity: { borderRadius: radius['3xl'], padding: 20, gap: 16 },
-  bigAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.forest, alignItems: 'center', justifyContent: 'center' },
+  bigAvatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   levelChip: { alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 10, paddingVertical: 2, borderRadius: radius.full, backgroundColor: colors.white },
   track: { height: 10, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.8)', overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: radius.full, backgroundColor: colors.forest },
+  fill: { height: '100%', borderRadius: radius.full },
   stat: { flex: 1, borderRadius: radius['2xl'], padding: 12, alignItems: 'center' },
   themeTile: {
     flex: 1,
@@ -141,6 +153,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.88)',
   },
+  area: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: radius['2xl'],
+    padding: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.88)',
+    boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12), inset 0px 1px 0px rgba(255, 255, 255, 0.9)',
+  },
+  areaIcon: { width: 40, height: 40, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
   swatch: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   game: { borderRadius: radius['2xl'], paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   signOut: { alignSelf: 'center', minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },

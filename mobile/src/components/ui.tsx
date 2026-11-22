@@ -57,7 +57,7 @@ export function T({
 /** Full-screen radial mint gradient with safe-area padding. */
 export function Screen({
   children,
-  variant = 'mint',
+  variant = 'pearl',
   edges = ['top', 'bottom'],
   style,
 }: {
@@ -224,6 +224,30 @@ export function BrandMark({ size = 40 }: { size?: number }) {
   );
 }
 
+/** Same header on every screen: a small context line above a large serif title, optional right slot. */
+export function ScreenHeader({
+  eyebrow,
+  title,
+  right,
+  style,
+}: {
+  eyebrow: string;
+  title: string;
+  right?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.screenHeader, style]}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <T size="sm" color={colors.inkMuted}>{eyebrow}</T>
+        <T display style={styles.screenTitle}>{title}</T>
+      </View>
+      {right}
+    </View>
+  );
+}
+
+/** Glass pill with the user's XP (used on the Play game screen). */
 export function XpPill() {
   const { xp } = useApp();
   return (
@@ -234,12 +258,19 @@ export function XpPill() {
   );
 }
 
+/** Round initials avatar that opens My Profile. */
 export function AvatarButton() {
   const router = useRouter();
   const { initials } = useApp();
   return (
-    <Spring onPress={() => router.push('/profile')} pressedScale={0.95} accessibilityLabel="Open My Profile" style={[styles.avatar, shadow.md]}>
-      <T size="xs" weight="bold" color={colors.white}>{initials}</T>
+    <Spring
+      onPress={() => router.push('/profile')}
+      pressedScale={0.95}
+      accessibilityRole="button"
+      accessibilityLabel="Open My Profile"
+      style={[styles.avatar, shadow.md, { backgroundColor: colors.forest }]}
+    >
+      <T size="sm" weight="bold" color={colors.white}>{initials}</T>
     </Spring>
   );
 }
@@ -332,16 +363,9 @@ const styles = StyleSheet.create({
   },
   circle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.full },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.forest,
-    borderWidth: 2,
-    borderColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  screenHeader: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  screenTitle: { fontSize: 34, lineHeight: 40, color: colors.ink },
   segmented: { backgroundColor: 'rgba(255,255,255,0.7)', padding: 4, gap: 4, borderWidth: 1, borderColor: colors.white },
   segItem: { flex: 1, minHeight: 40, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   segCompact: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.full },

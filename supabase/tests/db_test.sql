@@ -43,7 +43,7 @@ select pg_temp.ok((select count(*) = 1 from public.scanned_items where client_ke
 
 -- Bob plays once and accepts Alice's request; Carol plays once and has no friends.
 select set_config('request.jwt.claim.sub', :'bob', false);
-insert into public.game_scores (mode, items, correct, xp) values ('daily', 4, 2, 30);
+insert into public.game_scores (mode, items, correct, xp) values ('challenge', 4, 2, 30);
 select pg_temp.ok((select count(*) = 0 from public.scanned_items), 'bob cannot see alice scans');
 select pg_temp.ok((select count(*) = 1 from public.game_scores), 'bob sees only his own scores');
 select pg_temp.ok((select xp = 30 from public.player_stats), 'bob scoreboard is his own');
@@ -66,6 +66,7 @@ select pg_temp.ok((select xp_today = 135 from public.leaderboard('friends') wher
 select pg_temp.refused(format($$insert into public.scanned_items (user_id, name) values (%L, 'x')$$, :'alice'), 'bob writes a scan as alice');
 select pg_temp.refused(format($$insert into public.game_scores (user_id, mode, items, correct, xp) values (%L, 'mine', 4, 4, 60)$$, :'alice'), 'bob writes a score as alice');
 select pg_temp.refused($$insert into public.game_scores (mode, items, correct, xp) values ('mine', 4, 9, 60)$$, 'more correct than items');
+select pg_temp.refused($$insert into public.game_scores (mode, items, correct, xp) values ('bogus', 4, 2, 30)$$, 'unknown round type');
 select pg_temp.refused($$insert into public.game_scores (mode, items, correct, xp) values ('mine', 4, 4, 99999)$$, 'absurd xp');
 select pg_temp.refused(format($$insert into public.friendships (user_id, friend_id) values (%L, %L)$$, :'carol', :'bob'), 'bob sends a request as carol');
 select pg_temp.refused(format($$insert into public.friendships (user_id, friend_id, status) values (%L, %L, 'accepted')$$, :'bob', :'carol'), 'self-accept on insert');
