@@ -15,7 +15,7 @@ import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, PrimaryButton, T } from '../../components/ui';
-import { SortItem } from '../../data/items';
+import { resolveItem, SortItem } from '../../data/items';
 import { useWorld } from '../../components/World';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
 import { skyInk, streetDark, THEMES } from '../../game/themes';
@@ -72,13 +72,15 @@ function practiceDeck(lastScan: SortItem[], saved: SortItem[], review: SortItem[
 }
 
 export default function PlayScreen() {
-  const { saved, lastScan, challengePool, hasBrownBin, addXp, recordGame, playTheme, dailyDone, dailyKnown } = useApp();
+  const { saved, lastScan, challengePool, hasBrownBin, borough, lang, addXp, recordGame, playTheme, dailyDone, dailyKnown } = useApp();
   const { t } = useT();
   // No brown bin: the compost bin is hidden, so leave out anything only it could take.
   const fits = useCallback((i: SortItem) => hasBrownBin || i.bin !== 'compost', [hasBrownBin]);
   const [run, setRun] = useState<Run | null>(null); // null = start card showing
   const [result, setResult] = useState<RoundResult[] | null>(null);
   const [review, setReview] = useState<SortItem[]>([]); // items got wrong, played again until right
+  // Re-worked for the current language and area, like every other list (they're kept as they were when missed).
+  const reviewNow = useMemo(() => review.map((i) => resolveItem(i, { borough, hasBrownBin }, lang)), [review, borough, hasBrownBin, lang]);
   const nextId = useRef(1);
   // The street itself is drawn by the shared world (components/World); Play tells it where things are.
   const world = useWorld();
@@ -102,7 +104,7 @@ export default function PlayScreen() {
   // What the start card would begin: today's challenge if not done yet, otherwise Keep sorting.
   const upcoming = useMemo<Run>(
     () => (dailyDone
-      ? { id: 0, mode: 'practice', deck: practiceDeck(lastScan, saved, review, challengePool, fits) }
+      ? { id: 0, mode: 'practice', deck: practiceDeck(lastScan, saved, reviewNow, challengePool, fits) }
       : { id: 0, mode: 'daily', deck: dailyDeck(challengePool, fits) }),
     // Rebuilt when today's status or the player's area changes; the scanned/saved lists only matter at the next start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,7 +114,7 @@ export default function PlayScreen() {
     setResult(null);
     setRun({ ...r, id: nextId.current++ });
   };
-  const keepSorting = () => start({ mode: 'practice', deck: practiceDeck(lastScan, saved, review, challengePool, fits) });
+  const keepSorting = () => start({ mode: 'practice', deck: practiceDeck(lastScan, saved, reviewNow, challengePool, fits) });
 
   // Today's challenge already done: Play is simply the game (Keep sorting), no start card.
   useEffect(() => {

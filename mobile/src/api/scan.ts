@@ -67,7 +67,7 @@ export async function scanPhotos(
   );
 
   return {
-    items: results.flatMap((r) => r.items.map((it) => fromScanItem(it, r.scanId))),
+    items: results.flatMap((r) => r.items.map((it) => ({ ...fromScanItem(it, r.scanId), lang }))),
     messages: results.filter((r) => r.items.length === 0 && r.message).map((r) => r.message as string),
   };
 }

@@ -31,6 +31,10 @@ export interface SortItem {
   kind?: string;
   /** Built-in sample content: shown and played, never saved to an account. */
   demo?: boolean;
+  /** Language `name` and `kind` were written in (the scan's). Unset = English: scans were English-only before FR. */
+  lang?: Lang;
+  /** The name as scanned (or the demo's own), kept so switching language back restores it. Set by resolveItem. */
+  origName?: string;
 }
 
 /** The player's area: which rule overrides apply (e.g. no brown bin -> food scraps go in the garbage). */
@@ -139,10 +143,17 @@ export function resolveItem(item: SortItem, area: Area, lang: Lang = 'en'): Sort
   if (!rule) return item;
   const it = rules.toScanItem({ id: item.id, name: item.name, rule, confidence: 'high', lang, ctx: area });
   const tip = it.dropoffName ?? it.specialInstruction;
+  // A name in another language (a demo item, or a scan made before switching) becomes the rule's own name,
+  // so a deck never mixes French and English. shortcut: reloaded scans have no stored language and count as
+  // English; store the scan language in scanned_items if FR scans start showing rule names in English.
+  const foreign = item.demo ? lang === 'fr' : (item.lang ?? 'en') !== lang;
+  const original = item.origName ?? item.name;
   return {
     ...item,
-    name: item.demo && lang === 'fr' ? rule.name.fr : item.name,
-    bin: it.correctBin, note: it.explanation ?? '', detail: [item.kind, tip].filter(Boolean).join(' • '),
+    origName: original,
+    name: foreign ? rule.name[lang] : original,
+    bin: it.correctBin, note: it.explanation ?? '',
+    detail: [foreign ? null : item.kind, tip].filter(Boolean).join(' • '),
   };
 }
 
