@@ -17,9 +17,10 @@ export const boroughName = (slug: string | null) => BOROUGHS.find((b) => b.slug 
 /** Montréal rules people get wrong most often; one is shown per day. */
 const SURPRISING = ['chip_bag', 'drink_can', 'coffee_cup', 'pizza_box_greasy', 'battery', 'plastic_bags', 'foam_food'];
 
-export function tipOfTheDay(date = new Date()) {
+/** One surprising rule per day, answered for the player's area (borough, brown bin). */
+export function tipOfTheDay(date = new Date(), area?: { borough: string | null; hasBrownBin: boolean }) {
   const day = Math.floor(date.getTime() / 86_400_000);
   const id = SURPRISING[day % SURPRISING.length];
-  const it = rules.toScanItem({ id, name: '', rule: rules.getRule(id), confidence: 'high', lang: 'en' });
+  const it = rules.toScanItem({ id, name: '', rule: rules.getRule(id), confidence: 'high', lang: 'en', ctx: area });
   return { name: rules.getRule(id)!.name.en, bin: it.correctBin as BinKey, where: it.dropoffName, text: it.explanation ?? '', url: it.sourceUrl ?? '' };
 }

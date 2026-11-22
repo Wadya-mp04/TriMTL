@@ -68,6 +68,7 @@ export function SortGame({
   onFinish,
   onGround,
   onProgress,
+  shownBins,
 }: {
   deck: DeckEntry[];
   theme: GameTheme;
@@ -78,6 +79,8 @@ export function SortGame({
   onGround?: (y: number) => void;
   /** Current item (0-based) and deck size, for the screen header's "Item 1 of 4". */
   onProgress?: (index: number, total: number) => void;
+  /** Bins on the street, left to right (default all four). Pass a stable array: e.g. no brown bin hides compost. */
+  shownBins?: BinKey[];
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [idx, setIdx] = useState(0);
@@ -119,21 +122,22 @@ export function SortGame({
   const ms = (n: number) => (reduced ? Math.min(n, 160) : n);
 
   // ---------- Geometry, all in scene coordinates
+  const order = shownBins ?? BIN_ORDER;
   const geo = useMemo(() => {
     const { w, h } = size;
-    const pad = 10, gap = 6;
-    const colW = (w - 2 * pad - 3 * gap) / 4;
+    const pad = 10, gap = 6, n = order.length;
+    const colW = (w - 2 * pad - (n - 1) * gap) / n;
     const binW = Math.min(colW, 96), binH = binW * 1.3, k = binW / 100;
     // Stack from the bottom: name under the item, item under the bin labels, bins on the street. Everything above is backdrop.
     const homeY = h - S / 2 - 64, rowTop = Math.max(h * 0.12, homeY - S / 2 - RUNWAY - binH);
     const box = Object.fromEntries(
-      BIN_ORDER.map((b, i) => {
+      order.map((b, i) => {
         const left = pad + i * (colW + gap) + (colW - binW) / 2;
         return [b, { left, cx: left + binW / 2, mouth: rowTop + (BIN_TOP[b] + 7) * k, lidTop: rowTop + (BIN_TOP[b] - 2) * k }];
       }),
     ) as Record<BinKey, { left: number; cx: number; mouth: number; lidTop: number }>;
-    return { colW, binW, binH, rowTop, box, home: { x: w / 2, y: homeY } };
-  }, [size]);
+    return { colW, binW, binH, rowTop, box, order, home: { x: w / 2, y: homeY } };
+  }, [size, order]);
   const geoRef = useRef(geo);
   geoRef.current = geo;
 
@@ -337,8 +341,8 @@ export function SortGame({
 
   // ---------- Drag and flick
   const binAt = (x: number, y: number): BinKey | null => {
-    const { box, binW, binH, rowTop } = geoRef.current;
-    for (const b of BIN_ORDER) {
+    const { box, binW, binH, rowTop, order: shown } = geoRef.current;
+    for (const b of shown) {
       const l = box[b].left;
       if (x >= l - 8 && x <= l + binW + 8 && y >= rowTop - 10 && y <= rowTop + binH + 24) return b;
     }
@@ -363,7 +367,7 @@ export function SortGame({
         onPanResponderRelease: (_, g) => {
           hoverRef.current = null;
           setHover(null);
-          const { home, box, colW } = geoRef.current;
+          const { home, box, colW, order: shown } = geoRef.current;
           const { x, y } = pos.current;
           const over = binAt(x, y);
           if (over) return void throwTo(over, g.vx);
@@ -371,7 +375,7 @@ export function SortGame({
             const rowY = box.recycling.mouth;
             const xl = x + g.vx * ((y - rowY) / -g.vy);
             let best: BinKey = 'recycling';
-            for (const b of BIN_ORDER) if (Math.abs(box[b].cx - xl) < Math.abs(box[best].cx - xl)) best = b;
+            for (const b of shown) if (Math.abs(box[b].cx - xl) < Math.abs(box[best].cx - xl)) best = b;
             if (Math.abs(box[best].cx - xl) < colW * 0.75) return void throwTo(best, g.vx);
             return void missAll(xl);
           }
@@ -408,7 +412,7 @@ export function SortGame({
   return (
     <View style={{ flex: 1, gap: 10 }}>
       <View ref={sceneRef} style={styles.scene} onLayout={onLayout}>
-        {size.w > 0 && BIN_ORDER.map((b) => (
+        {size.w > 0 && order.map((b) => (
           <Animated.View key={`back-${b}`} pointerEvents="none" style={[styles.abs, binBox(b), { zIndex: 1, transform: binTransform(b) }]}>
             <SvgXml xml={binBackXml(b)} width="100%" height="100%" />
             <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: lidOrigin(b), transform: [{ scaleY: per[b].lid }] }]}>
@@ -421,7 +425,7 @@ export function SortGame({
           </Animated.View>
         ))}
 
-        {size.w > 0 && BIN_ORDER.map((b) => (
+        {size.w > 0 && order.map((b) => (
           <Animated.View key={`front-${b}`} pointerEvents="none" style={[styles.abs, binBox(b), { zIndex: 3, transform: binTransform(b) }]}>
             <SvgXml xml={binFrontXml(b)} width="100%" height="100%" />
             {b === 'compost' && (
@@ -435,14 +439,14 @@ export function SortGame({
           </Animated.View>
         ))}
 
-        {size.w > 0 && reveal && (
+        {size.w > 0 && reveal && box[reveal] && (
           <Animated.View
             pointerEvents="none"
             style={[styles.abs, styles.ring, { borderColor: theme.accent, opacity: ring, left: box[reveal].left - 6, top: rowTop - 4, width: binW + 12, height: binH + 6 }]}
           />
         )}
 
-        {size.w > 0 && BIN_ORDER.map((b) => (
+        {size.w > 0 && order.map((b) => (
           <Pressable
             key={`tap-${b}`}
             onPress={() => throwTo(b)}

@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "checkedOn": "2026-11-21",
   "bins": [
     "recycling",
@@ -1185,6 +1185,20 @@
         "info_collectes"
       ],
       "overrides": [
+        {
+          "when": {
+            "organics": "combined",
+            "hasBrownBin": false
+          },
+          "bin": "special",
+          "dropoff": "ecocentre",
+          "explanation": {
+            "fr": "Votre arrondissement ramasse les résidus verts dans le bac brun ; sans bac brun, apportez-les à l'écocentre.",
+            "en": "Your borough collects yard waste in the brown bin; without one, bring it to an écocentre."
+          },
+          "specialInstruction": null,
+          "verified": false
+        },
         {
           "when": {
             "organics": "combined"
