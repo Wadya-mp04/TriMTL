@@ -1,5 +1,6 @@
 /**
- * Scan / Play / Community: swipe left or right between them, or tap the floating frosted tab bar.
+ * Scan / Play / Community, switched with the floating frosted tab bar.
+ * Swiping between tabs is off everywhere: on Play a swipe throws the item, and it should feel the same on every tab.
  */
 import TopTabs from 'expo-router/js-top-tabs';
 
@@ -11,7 +12,7 @@ export default function TabsLayout() {
     <TopTabs
       tabBarPosition="bottom"
       tabBar={(props) => <FrostedTabBar {...props} />}
-      screenOptions={{ swipeEnabled: true, sceneStyle: { backgroundColor: colors.mintCanvas } }}
+      screenOptions={{ swipeEnabled: false, sceneStyle: { backgroundColor: colors.mintCanvas } }}
     >
       <TopTabs.Screen name="scan" />
       <TopTabs.Screen name="play" />

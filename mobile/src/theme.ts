@@ -5,6 +5,8 @@
  */
 import type { TextStyle, ViewStyle } from 'react-native';
 
+import type { ThemeKey } from './game/themes';
+
 export const colors = {
   mintCanvas: '#E5F3EA',
   forest: '#176B4D',
@@ -20,13 +22,20 @@ export const canvasGradients: Record<'mint' | 'pearl', string[]> = {
   pearl: ['#FFFFFF', '#EAF6EE', '#D7EDE0'],
 };
 
-export type ThemeKey = 'forest' | 'ocean' | 'lavender';
+/** One theme system: the game's Montréal neighbourhoods also theme the rest of the app. */
+export type { ThemeKey };
 
-/** User-selectable themes: the accent and the canvas change, bins and ink stay the same. */
-export const THEMES: Record<ThemeKey, { label: string; forest: string; forestDeep: string; mintCanvas: string; mint: string[]; pearl: string[] }> = {
-  forest: { label: 'Forest', forest: '#176B4D', forestDeep: '#123629', mintCanvas: '#E5F3EA', mint: ['#FFFFFF', '#E5F3EA', '#D4EBDD'], pearl: ['#FFFFFF', '#EAF6EE', '#D7EDE0'] },
-  ocean: { label: 'Ocean', forest: '#0E7490', forestDeep: '#0B3A47', mintCanvas: '#E3F1F5', mint: ['#FFFFFF', '#E3F1F5', '#CFE6EE'], pearl: ['#FFFFFF', '#E8F4F8', '#D3E9F0'] },
-  lavender: { label: 'Lavender', forest: '#6D28D9', forestDeep: '#2E1065', mintCanvas: '#EEEAF8', mint: ['#FFFFFF', '#EEEAF8', '#DFD6F3'], pearl: ['#FFFFFF', '#F2EFFA', '#E2DAF5'] },
+/**
+ * Light app palette per neighbourhood (src/game/themes.ts). The game's own colours are tuned for its
+ * street scene (Nuit MTL is dark), so the app gets a matching accent and a softly tinted canvas instead.
+ */
+export const APP_PALETTES: Record<ThemeKey, { forest: string; forestDeep: string; mintCanvas: string; canvas: string[] }> = {
+  plateau: { forest: '#176B4D', forestDeep: '#123629', mintCanvas: '#EAF6EE', canvas: ['#FFFFFF', '#EAF6EE', '#D7EDE0'] },
+  'saint-laurent': { forest: '#0F5E63', forestDeep: '#0B3A3D', mintCanvas: '#E3F0F1', canvas: ['#FFFFFF', '#E6F2F3', '#D0E4E7'] },
+  'mont-royal': { forest: '#8E2C6B', forestDeep: '#4A1538', mintCanvas: '#F6EAF0', canvas: ['#FFFFFF', '#F7EDF2', '#ECD8E3'] },
+  'mile-end': { forest: '#4E6B2E', forestDeep: '#283A16', mintCanvas: '#EFEFE3', canvas: ['#FFFFFF', '#F1F1E6', '#E1E0CD'] },
+  nuit: { forest: '#3B4BA8', forestDeep: '#1B1F4A', mintCanvas: '#E8EAF6', canvas: ['#FFFFFF', '#EBEDF8', '#D6DAEF'] },
+  'vieux-quebec': { forest: '#9A4A2C', forestDeep: '#4F2414', mintCanvas: '#F4ECE6', canvas: ['#FFFFFF', '#F6EFE9', '#E8DACF'] },
 };
 
 /**
@@ -34,10 +43,10 @@ export const THEMES: Record<ThemeKey, { label: string; forest: string; forestDee
  * re-render on theme change (they use the app state), so styles must not copy accents into StyleSheet.create.
  */
 export function applyTheme(key: ThemeKey) {
-  const t = THEMES[key];
+  const t = APP_PALETTES[key];
   Object.assign(colors, { forest: t.forest, forestDeep: t.forestDeep, mintCanvas: t.mintCanvas });
-  canvasGradients.mint = t.mint;
-  canvasGradients.pearl = t.pearl;
+  canvasGradients.mint = t.canvas;
+  canvasGradients.pearl = t.canvas;
 }
 
 export type BinKey = 'recycling' | 'compost' | 'garbage' | 'special';

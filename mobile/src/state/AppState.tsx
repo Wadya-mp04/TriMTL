@@ -6,7 +6,6 @@
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 
 import { DEMO_SAVED, DEMO_SCAN, SortItem } from '../data/items';
-import type { ThemeKey as PlayThemeKey } from '../game/themes';
 import { brand } from '../brand';
 import { applyTheme, ThemeKey } from '../theme';
 
@@ -42,9 +41,8 @@ interface AppState {
   hasBrownBin: boolean;
   games: GameRecord[];
   stats: { games: number; answered: number; correct: number };
-  theme: ThemeKey;
-  /** Neighbourhood theme for the Play screen. */
-  playTheme: PlayThemeKey;
+  /** Neighbourhood theme: the game's street scene and the app's colours. */
+  playTheme: ThemeKey;
   signIn: (name?: string) => void;
   signOut: () => void;
   addXp: (n: number) => void;
@@ -52,9 +50,8 @@ interface AppState {
   setLastScan: (items: SortItem[]) => void;
   saveItems: (items: SortItem[]) => void;
   recordGame: (g: Omit<GameRecord, 'when'>) => void;
-  setTheme: (t: AppState['theme']) => void;
   setArea: (borough: string | null, hasBrownBin: boolean) => void;
-  setPlayTheme: (t: PlayThemeKey) => void;
+  setPlayTheme: (t: ThemeKey) => void;
 }
 
 // Apply the white-label default before the first render.
@@ -83,8 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     { title: 'Daily challenge', items: 5, correct: 4, when: 'Yesterday' },
   ]);
   const [stats, setStats] = useState({ games: 12, answered: 50, correct: 44 });
-  const [theme, setThemeState] = useState<ThemeKey>(brand.defaultTheme);
-  const [playTheme, setPlayTheme] = useState<PlayThemeKey>('plateau');
+  const [playTheme, setPlayThemeState] = useState<ThemeKey>(brand.defaultTheme);
   const [lastScan, setLastScanRaw] = useState<SortItem[]>([]);
 
   // Stamp scan time so the game can tell today's items from earlier ones; every scan also feeds history.
@@ -127,7 +123,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       hasBrownBin,
       games,
       stats,
-      theme,
       playTheme,
       signIn: (name) => name?.trim() && setUsername(name.trim()),
       signOut: () => setUsername('EcoSorter'),
@@ -136,11 +131,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLastScan,
       saveItems,
       recordGame,
-      setTheme: (t) => { applyTheme(t); setThemeState(t); },
       setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
-      setPlayTheme,
+      setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
-    [username, xp, xpToday, saved, photos, lastScan, history, borough, hasBrownBin, games, stats, theme, playTheme, addXp, setLastScan, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, history, borough, hasBrownBin, games, stats, playTheme, addXp, setLastScan, saveItems, recordGame],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

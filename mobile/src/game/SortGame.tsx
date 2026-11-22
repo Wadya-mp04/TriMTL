@@ -71,6 +71,7 @@ export function SortGame({
   onHit,
   onFinish,
   onGround,
+  onProgress,
 }: {
   deck: DeckEntry[];
   theme: GameTheme;
@@ -79,13 +80,16 @@ export function SortGame({
   onFinish: (results: RoundResult[]) => void;
   /** Where the bins' wheels meet the street, in window coordinates, so the backdrop can line up. */
   onGround?: (y: number) => void;
+  /** Current item (0-based) and deck size, for the screen header's "Item 1 of 4". */
+  onProgress?: (index: number, total: number) => void;
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [idx, setIdx] = useState(0);
   const [reveal, setReveal] = useState<BinKey | null>(null);
   const [hover, setHover] = useState<BinKey | null>(null);
   const [itemZ, setItemZ] = useState(30);
-  const [feedback, setFeedback] = useState<Feedback>({ kind: 'idle', title: 'Ready when you are.', body: 'Flick each item into its bin, or tap a bin.' });
+  const [, setFeedback] = useState<Feedback>({ kind: 'idle', title: 'Ready when you are.', body: 'Flick each item into its bin, or tap a bin.' });
+  useEffect(() => { onProgress?.(Math.min(idx, deck.length - 1), deck.length); }, [idx, deck.length, onProgress]);
   const [bursts, setBursts] = useState<{ id: number; x: number; y: number; color: string }[]>([]);
   const [floats, setFloats] = useState<{ id: number; x: number; y: number }[]>([]);
   const [reduced, setReduced] = useState(false);
@@ -406,16 +410,6 @@ export function SortGame({
 
   return (
     <View style={{ flex: 1, gap: 10 }}>
-      <View style={styles.progress} accessibilityLabel={`Item ${Math.min(idx + 1, deck.length)} of ${deck.length}`}>
-        {deck.map((e, i) => {
-          const r = results.current[i];
-          const bg = r ? (r.first ? theme.accent : REVIEW) : ink;
-          return <View key={e.item.id} style={[styles.seg, { backgroundColor: bg, opacity: r ? 1 : i === idx ? 0.7 : 0.22 }]} />;
-        })}
-        <T size="xs" weight="semibold" color={ink} style={{ fontVariant: ['tabular-nums'], marginLeft: 4, opacity: 0.85 }}>
-          {Math.min(idx + 1, deck.length)}/{deck.length}
-        </T>
-      </View>
       <View ref={sceneRef} style={styles.scene} onLayout={onLayout}>
         {size.w > 0 && BIN_ORDER.map((b) => (
           <Animated.View key={`back-${b}`} pointerEvents="none" style={[styles.abs, binBox(b), { zIndex: 1, transform: binTransform(b) }]}>
@@ -467,7 +461,7 @@ export function SortGame({
               <T size="xs" weight="semibold" color={theme.laneMuted}>{originLabel(entry)}</T>
             </View>
             <T size="2xl" display color={theme.laneInk} style={{ textAlign: 'center' }} numberOfLines={1}>{item.name}</T>
-            <T size="xs" color={theme.laneMuted}>Flick it into a bin, or tap a bin.</T>
+            {idx === 0 && <T size="xs" color={theme.laneMuted}>Flick it into a bin, or tap a bin.</T>}
           </View>
         )}
 
@@ -504,19 +498,6 @@ export function SortGame({
         {floats.map((f) => (
           <Float key={f.id} x={f.x} y={f.y} text={`+${xpPerHit}`} color={theme.accent} onDone={() => setFloats((v) => v.filter((o) => o.id !== f.id))} />
         ))}
-      </View>
-
-      <View style={[styles.feedback, { backgroundColor: dark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.42)', borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.6)' }]}>
-        <Icon
-          name={feedback.kind === 'good' ? 'check-circle' : feedback.kind === 'bad' ? 'cancel' : 'north'}
-          size={24}
-          color={feedback.kind === 'good' ? theme.accent : feedback.kind === 'bad' ? BAD : theme.laneMuted}
-        />
-        <View style={{ flex: 1, gap: 2 }}>
-          <T size="sm" weight="bold" color={theme.laneInk}>{feedback.title}</T>
-          <T size="xs" color={theme.laneMuted}>{feedback.body}</T>
-          {feedback.note && <T size="xs" weight="semibold" color={theme.laneInk} style={{ marginTop: 4 }}>{feedback.note}</T>}
-        </View>
       </View>
     </View>
   );
@@ -585,8 +566,6 @@ function Float({ x, y, text, color, onDone }: { x: number; y: number; text: stri
 }
 
 const styles = StyleSheet.create({
-  progress: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  seg: { flex: 1, height: 3, borderRadius: 2 },
   scene: { flex: 1 },
   abs: { position: 'absolute' },
   item: { position: 'absolute', left: -S / 2, top: -S / 2, width: S, height: S },
@@ -600,5 +579,4 @@ const styles = StyleSheet.create({
   labels: { position: 'absolute', left: 16, right: 16, alignItems: 'center', gap: 2 },
   origin: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  feedback: { borderRadius: 18, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', gap: 12, minHeight: 88 },
 });
