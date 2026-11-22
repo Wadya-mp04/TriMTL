@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AreaSheet } from '../components/AreaSheet';
-import { BentoBackdrop, CircleButton, Glass, Icon, Screen, ScreenHeader, Spring, T } from '../components/ui';
+import { BentoBackdrop, CircleButton, Glass, Icon, Screen, ScreenHeader, Segmented, Spring, T } from '../components/ui';
 import { boroughName } from '../data/rules';
 import { levelFor, useApp } from '../state/AppState';
 import { THEME_ORDER, THEMES } from '../game/themes';
@@ -15,7 +15,7 @@ import { APP_PALETTES, colors, radius, shadow } from '../theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { username, initials, xp, stats, games, playTheme, setPlayTheme, signOut, borough, hasBrownBin } = useApp();
+  const { username, initials, xp, stats, games, playTheme, setPlayTheme, signOut, borough, hasBrownBin, lang, setLang } = useApp();
   const [areaOpen, setAreaOpen] = useState(false);
   const { level, next, progress } = levelFor(xp);
   const accuracy = stats.answered ? Math.round((stats.correct / stats.answered) * 100) : 0;
@@ -75,6 +75,14 @@ export default function ProfileScreen() {
           </View>
           <Icon name="chevron-right" size={20} color={colors.inkMuted} />
         </Spring>
+
+        <View style={{ gap: 8 }}>
+          <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
+            <T size="sm" weight="bold">Answers in</T>
+            <T size="xs" color={colors.inkMuted}>Scans, bins and tips</T>
+          </View>
+          <Segmented options={[{ key: 'en', label: 'English' }, { key: 'fr', label: 'Français' }]} value={lang} onChange={setLang} />
+        </View>
 
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>

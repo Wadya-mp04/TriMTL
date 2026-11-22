@@ -36,6 +36,9 @@ export interface SortItem {
 /** The player's area: which rule overrides apply (e.g. no brown bin -> food scraps go in the garbage). */
 export interface Area { borough: string | null; hasBrownBin: boolean }
 
+/** Language of rule and scan text (bins' explanations, drop-offs, tips). The app's own labels stay English. */
+export type Lang = 'fr' | 'en';
+
 /** Subset of server/src/types.ts ScanItem that the app reads. */
 export interface ScanItemDTO {
   id: string;
@@ -127,15 +130,20 @@ export function fromScanItem(it: ScanItemDTO, scanId: string): SortItem {
 }
 
 /**
- * Re-work an item's bin and texts for the player's area with the rules engine. Items without a rule
- * ("Needs verification") are returned unchanged: there is nothing to decide.
+ * Re-work an item's bin and texts for the player's area and language with the rules engine. Items without
+ * a rule ("Needs verification") are returned unchanged: there is nothing to decide.
+ * Scanned names stay in the language they were scanned in; demo items take the rule's name in French.
  */
-export function resolveItem(item: SortItem, area: Area): SortItem {
+export function resolveItem(item: SortItem, area: Area, lang: Lang = 'en'): SortItem {
   const rule = typeof item.ruleId === 'string' ? rules.getRule(item.ruleId) : null;
   if (!rule) return item;
-  const it = rules.toScanItem({ id: item.id, name: item.name, rule, confidence: 'high', lang: 'en', ctx: area });
+  const it = rules.toScanItem({ id: item.id, name: item.name, rule, confidence: 'high', lang, ctx: area });
   const tip = it.dropoffName ?? it.specialInstruction;
-  return { ...item, bin: it.correctBin, note: it.explanation ?? '', detail: [item.kind, tip].filter(Boolean).join(' • ') };
+  return {
+    ...item,
+    name: item.demo && lang === 'fr' ? rule.name.fr : item.name,
+    bin: it.correctBin, note: it.explanation ?? '', detail: [item.kind, tip].filter(Boolean).join(' • '),
+  };
 }
 
 /** A game item from a rule id: demo content, and saved scans loaded back from the account. */

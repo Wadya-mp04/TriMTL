@@ -17,7 +17,7 @@ type Phase = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 
 
 export default function AnalyzingScreen() {
   const router = useRouter();
-  const { photos, setLastScan, borough, hasBrownBin } = useApp();
+  const { photos, setLastScan, borough, hasBrownBin, lang } = useApp();
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const abort = useRef<AbortController | null>(null);
 
@@ -43,7 +43,7 @@ export default function AnalyzingScreen() {
     abort.current = ctrl;
     setPhase({ kind: 'loading' });
     try {
-      const { items, messages } = await scanPhotos(photos, { borough, hasBrownBin }, ctrl.signal);
+      const { items, messages } = await scanPhotos(photos, { borough, hasBrownBin, lang }, ctrl.signal);
       if (ctrl.signal.aborted) return;
       if (items.length === 0) {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -58,7 +58,7 @@ export default function AnalyzingScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setPhase({ kind: 'error', message: (e as Error).message });
     }
-  }, [photos, borough, hasBrownBin, router, setLastScan]);
+  }, [photos, borough, hasBrownBin, lang, router, setLastScan]);
 
   useEffect(() => {
     run();
@@ -71,7 +71,7 @@ export default function AnalyzingScreen() {
   };
 
   const loading = phase.kind === 'loading';
-  const tip = tipOfTheDay(new Date(), { borough, hasBrownBin });
+  const tip = tipOfTheDay(new Date(), { borough, hasBrownBin }, lang);
   const barLeft = sweep.interpolate({ inputRange: [0, 1], outputRange: ['-50%', '100%'] });
 
   return (

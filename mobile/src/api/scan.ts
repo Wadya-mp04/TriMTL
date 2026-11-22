@@ -35,7 +35,7 @@ export interface ScanOutcome {
 /** Scans each photo (the endpoint takes one image per request) and merges the items. */
 export async function scanPhotos(
   uris: string[],
-  ctx: { borough: string | null; hasBrownBin: boolean },
+  ctx: { borough: string | null; hasBrownBin: boolean; lang?: 'fr' | 'en' },
   signal?: AbortSignal,
 ): Promise<ScanOutcome> {
   const base = apiBaseUrl();
@@ -49,7 +49,7 @@ export async function scanPhotos(
         res = await fetch(`${base}/api/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg', lang: 'en', borough: ctx.borough, hasBrownBin: ctx.hasBrownBin }),
+          body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg', lang: ctx.lang ?? 'en', borough: ctx.borough, hasBrownBin: ctx.hasBrownBin }),
           signal,
         });
       } catch (e) {
