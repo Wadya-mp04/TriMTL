@@ -10,6 +10,7 @@ import { scanPhotos } from '../api/scan';
 import { CircleButton, Glass, Icon, Pill, PrimaryButton, Screen, T } from '../components/ui';
 import { DEMO_SCAN } from '../data/items';
 import { tipOfTheDay } from '../data/rules';
+import { translate, useT } from '../i18n';
 import { useApp } from '../state/AppState';
 import { bins, colors, radius, shadow } from '../theme';
 
@@ -18,6 +19,7 @@ type Phase = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 
 export default function AnalyzingScreen() {
   const router = useRouter();
   const { photos, setLastScan, borough, hasBrownBin, lang } = useApp();
+  const { t, binLabel } = useT();
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const abort = useRef<AbortController | null>(null);
 
@@ -47,7 +49,7 @@ export default function AnalyzingScreen() {
       if (ctrl.signal.aborted) return;
       if (items.length === 0) {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setPhase({ kind: 'empty', message: messages[0] ?? 'No items to sort were found. Move closer and try again.' });
+        setPhase({ kind: 'empty', message: messages[0] ?? translate(lang, 'No items to sort were found. Move closer and try again.') });
         return;
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -97,10 +99,10 @@ export default function AnalyzingScreen() {
           </Animated.View>
           <View style={{ alignItems: 'center' }}>
             <T size="3xl" display style={{ textAlign: 'center', lineHeight: 38 }}>
-              {loading ? 'Identifying your items...' : phase.kind === 'empty' ? 'Nothing to sort here' : "Couldn't analyze"}
+              {t(loading ? 'Identifying your items...' : phase.kind === 'empty' ? 'Nothing to sort here' : "Couldn't analyze")}
             </T>
             <T size="xs" color={colors.inkMuted} style={{ marginTop: 6, textAlign: 'center' }}>
-              {loading ? "We're checking what you've scanned." : phase.message}
+              {loading ? t("We're checking what you've scanned.") : phase.message}
             </T>
           </View>
           {loading && (
@@ -112,25 +114,25 @@ export default function AnalyzingScreen() {
 
         {loading && (
           <Glass style={styles.tip}>
-            <T size="xs" weight="bold" color={colors.forest} style={{ letterSpacing: 0.6 }}>DID YOU KNOW?</T>
+            <T size="xs" weight="bold" color={colors.forest} style={{ letterSpacing: 0.6 }}>{t('DID YOU KNOW?')}</T>
             <T size="sm" weight="semibold" style={{ textAlign: 'center' }}>
-              {tip.name} → <T size="sm" weight="semibold" color={bins[tip.bin].deep}>{tip.where ?? bins[tip.bin].label}</T>
+              {tip.name} → <T size="sm" weight="semibold" color={bins[tip.bin].deep}>{tip.where ?? binLabel(tip.bin)}</T>
             </T>
             <T size="xs" color={colors.inkMuted} style={{ textAlign: 'center' }}>{tip.text}</T>
           </Glass>
         )}
 
         {phase.kind === 'empty' && (
-          <PrimaryButton label="Take another photo" size="sm" onPress={() => router.replace('/camera')} style={styles.cta} />
+          <PrimaryButton label={t('Take another photo')} size="sm" onPress={() => router.replace('/camera')} style={styles.cta} />
         )}
         {phase.kind === 'error' && (
-          <PrimaryButton label="See demo results instead" size="sm" onPress={showDemo} style={styles.cta} />
+          <PrimaryButton label={t('See demo results instead')} size="sm" onPress={showDemo} style={styles.cta} />
         )}
       </View>
 
       <Pressable onPress={run} disabled={loading} style={styles.retry}>
         <T size="xs" weight="semibold" color={colors.inkMuted} style={{ opacity: loading ? 0.6 : 1 }}>
-          Having trouble? Retry analysis
+          {t('Having trouble? Retry analysis')}
         </T>
       </Pressable>
     </Screen>

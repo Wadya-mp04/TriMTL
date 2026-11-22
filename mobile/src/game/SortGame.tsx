@@ -23,7 +23,8 @@ import { SvgXml } from 'react-native-svg';
 
 import { Icon, T } from '../components/ui';
 import type { SortItem } from '../data/items';
-import { BIN_ORDER, BinKey, bins, colors } from '../theme';
+import { TKey, useT } from '../i18n';
+import { BIN_ORDER, BinKey, colors } from '../theme';
 import {
   BIN_TOP,
   binBackXml,
@@ -48,8 +49,8 @@ export interface RoundResult { item: SortItem; first: boolean }
 const S = 104; // item size
 /** Clear sidewalk between the item and the bin labels: room for a thumb to flick. */
 const RUNWAY = 118;
-const THE: Record<BinKey, string> = { recycling: 'the recycling', compost: 'the brown bin', garbage: 'the garbage', special: 'special drop-off' };
-const RIGHT = ['Right bin.', "That's the one.", 'Spot on.'];
+const THE: Record<BinKey, TKey> = { recycling: 'the recycling', compost: 'the brown bin', garbage: 'the garbage', special: 'special drop-off' };
+const RIGHT: TKey[] = ['Right bin.', "That's the one.", 'Spot on.'];
 const REVIEW = '#F6C945';
 const BAD = '#D9785E'; // clay, readable on light and dark streets
 
@@ -82,12 +83,16 @@ export function SortGame({
   /** Bins on the street, left to right (default all four). Pass a stable array: e.g. no brown bin hides compost. */
   shownBins?: BinKey[];
 }) {
+  const { t, binLabel } = useT();
+  // The drag handlers are created once (see `pan`), so they read the current language through this ref.
+  const i18n = useRef({ t, binLabel });
+  i18n.current = { t, binLabel };
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [idx, setIdx] = useState(0);
   const [reveal, setReveal] = useState<BinKey | null>(null);
   const [hover, setHover] = useState<BinKey | null>(null);
   const [itemZ, setItemZ] = useState(30);
-  const [, setFeedback] = useState<Feedback>({ kind: 'idle', title: 'Ready when you are.', body: 'Flick each item into its bin, or tap a bin.' });
+  const [, setFeedback] = useState<Feedback>({ kind: 'idle', title: t('Ready when you are.'), body: t('Flick each item into its bin, or tap a bin.') });
   useEffect(() => { onProgress?.(Math.min(idx, deck.length - 1), deck.length); }, [idx, deck.length, onProgress]);
   const [bursts, setBursts] = useState<{ id: number; x: number; y: number; color: string }[]>([]);
   const [floats, setFloats] = useState<{ id: number; x: number; y: number }[]>([]);
@@ -316,7 +321,8 @@ export function SortGame({
     } else {
       results.current.push({ item, first: false });
     }
-    const title = first ? RIGHT[rightN.current++ % RIGHT.length] : `In ${THE[b]} now.`;
+    const tr = i18n.current.t;
+    const title = first ? tr(RIGHT[rightN.current++ % RIGHT.length]) : tr('In {the} now.', { the: tr(THE[b]) });
     const note = item.detail && item.detail !== 'Needs verification' ? item.detail : undefined;
     say({ kind: 'good', title, body: item.note, note });
     setTimeout(() => setIdx((i) => i + 1), ms(700));
@@ -326,7 +332,8 @@ export function SortGame({
     tries.current += 1;
     const right = item.bin as BinKey;
     setReveal(right);
-    say({ kind: 'bad', title: `Not ${THE[chosen]}. It goes in ${THE[right]}.`, body: `${item.note} Throw it into ${bins[right].label} to keep going.` });
+    const tr = i18n.current.t;
+    say({ kind: 'bad', title: tr('Not {wrong}. It goes in {right}.', { wrong: tr(THE[chosen]), right: tr(THE[right]) }), body: tr('{note} Throw it into {bin} to keep going.', { note: item.note, bin: i18n.current.binLabel(right) }) });
     busy.current = false;
   }
 
@@ -335,7 +342,7 @@ export function SortGame({
     busy.current = true;
     await flight(clamp(xl, -40, size.w + 40), rowTop + binH * 0.6, 0.6, 480, 240);
     await bounceBack();
-    say({ kind: 'idle', title: 'Missed the bins.', body: 'Flick a little straighter, or tap a bin.' });
+    say({ kind: 'idle', title: i18n.current.t('Missed the bins.'), body: i18n.current.t('Flick a little straighter, or tap a bin.') });
     busy.current = false;
   }
 
@@ -451,10 +458,10 @@ export function SortGame({
             key={`tap-${b}`}
             onPress={() => throwTo(b)}
             accessibilityRole="button"
-            accessibilityLabel={`Throw into ${bins[b].label}`}
+            accessibilityLabel={t('Throw into {bin}', { bin: binLabel(b) })}
             style={[styles.abs, { zIndex: 25, left: box[b].left - 4, top: rowTop, width: binW + 8, height: binH + 40, alignItems: 'center', justifyContent: 'flex-end' }]}
           >
-            <T size="xs" weight="bold" color={reveal === b ? theme.accent : theme.laneInk}>{bins[b].label}</T>
+            <T size="xs" weight="bold" color={reveal === b ? theme.accent : theme.laneInk}>{binLabel(b)}</T>
             <View style={[styles.underline, { backgroundColor: reveal === b ? theme.accent : 'transparent' }]} />
           </Pressable>
         ))}
@@ -462,7 +469,7 @@ export function SortGame({
         {size.w > 0 && item && (
           <View pointerEvents="none" style={[styles.labels, { top: home.y + S / 2 + 6 }]}>
             <T size="2xl" display color={theme.laneInk} style={{ textAlign: 'center' }} numberOfLines={1}>{item.name}</T>
-            {idx === 0 && <T size="xs" color={theme.laneMuted}>Flick it into a bin, or tap a bin.</T>}
+            {idx === 0 && <T size="xs" color={theme.laneMuted}>{t('Flick it into a bin, or tap a bin.')}</T>}
           </View>
         )}
 
@@ -470,7 +477,7 @@ export function SortGame({
           <Animated.View
             {...pan.panHandlers}
             accessible
-            accessibilityLabel={`${item.name}. Drag it to a bin, or tap a bin above.`}
+            accessibilityLabel={t('{name}. Drag it to a bin, or tap a bin above.', { name: item.name })}
             style={[
               styles.item,
               {

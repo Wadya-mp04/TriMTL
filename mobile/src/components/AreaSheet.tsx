@@ -7,14 +7,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BOROUGHS } from '../data/rules';
 import { motionMs } from '../lib/motion';
+import { useT } from '../i18n';
 import { useApp } from '../state/AppState';
 import { colors, radius } from '../theme';
 import { Icon, PrimaryButton, T } from './ui';
 
 export function AreaSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { borough, hasBrownBin, setArea } = useApp();
+  const { t } = useT();
   const insets = useSafeAreaInsets();
-  const options = [{ slug: null as string | null, name: 'Montréal (city-wide)' }, ...BOROUGHS];
+  const options = [{ slug: null as string | null, name: t('Montréal (city-wide)') }, ...BOROUGHS];
   const { height } = useWindowDimensions();
   // The backdrop fades while only the sheet slides up (a sliding Modal would slide the dark backdrop too).
   const [mounted, setMounted] = useState(visible);
@@ -28,14 +30,14 @@ export function AreaSheet({ visible, onClose }: { visible: boolean; onClose: () 
   return (
     <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: shown }]}>
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('Close')} />
       </Animated.View>
       <View style={{ flex: 1 }} pointerEvents="box-none" />
       <Animated.View style={[styles.sheet, { backgroundColor: colors.mintCanvas, paddingBottom: insets.bottom + 16, transform: [{ translateY: slide }] }]}>
-        <T display style={styles.title}>Your area</T>
-        <T size="sm" color={colors.inkMuted} style={{ marginBottom: 12 }}>Some rules change by borough and building.</T>
+        <T display style={styles.title}>{t('Your area')}</T>
+        <T size="sm" color={colors.inkMuted} style={{ marginBottom: 12 }}>{t('Some rules change by borough and building.')}</T>
         <View style={styles.row}>
-          <T size="sm" weight="semibold">My building has a brown bin</T>
+          <T size="sm" weight="semibold">{t('My building has a brown bin')}</T>
           <Switch value={hasBrownBin} onValueChange={(v) => setArea(borough, v)} trackColor={{ true: colors.forest }} />
         </View>
         <ScrollView style={{ maxHeight: 340 }}>
@@ -49,7 +51,7 @@ export function AreaSheet({ visible, onClose }: { visible: boolean; onClose: () 
             );
           })}
         </ScrollView>
-        <PrimaryButton label="Done" size="md" onPress={onClose} style={{ marginTop: 12 }} />
+        <PrimaryButton label={t('Done')} size="md" onPress={onClose} style={{ marginTop: 12 }} />
       </Animated.View>
     </Modal>
   );

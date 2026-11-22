@@ -9,7 +9,7 @@ import type { ThemeKey } from './theme';
 export const brand = {
   appName: 'TriMTL',
   city: 'Montréal',
-  tagline: 'Scan it. Sort it. Learn Montréal.',
+  tagline: { en: 'Scan it. Sort it. Learn Montréal.', fr: 'Scanne. Trie. Apprends Montréal.' },
   /** A neighbourhood from src/game/themes.ts; themes both the game and the app. */
   defaultTheme: 'plateau' as ThemeKey,
   /**

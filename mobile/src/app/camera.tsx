@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, IconBubble, PrimaryButton, Screen, SecondaryButton, Spring, T } from '../components/ui';
 import { MAX_PHOTOS, pickPhotos } from '../lib/photos';
+import { useT } from '../i18n';
 import { useApp } from '../state/AppState';
 import { colors, radius } from '../theme';
 import { brand } from '../brand';
@@ -24,6 +25,7 @@ export default function CameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { setPhotos } = useApp();
+  const { t } = useT();
   const [permission, requestPermission] = useCameraPermissions();
   const cam = useRef<CameraView>(null);
   const [ready, setReady] = useState(false);
@@ -67,16 +69,16 @@ export default function CameraScreen() {
     return (
       <Screen style={styles.ask}>
         <IconBubble icon="photo-camera" />
-        <T size="2xl" display color={colors.ink} style={{ marginTop: 16, textAlign: 'center' }}>Allow the camera</T>
+        <T size="2xl" display color={colors.ink} style={{ marginTop: 16, textAlign: 'center' }}>{t('Allow the camera')}</T>
         <T size="sm" color={colors.inkMuted} style={{ marginTop: 6, textAlign: 'center' }}>
           {permission.canAskAgain
-            ? `${brand.appName} needs your camera to photograph the items you want to sort.`
-            : 'Camera access is off. Turn it on in Settings, or choose photos instead.'}
+            ? t('{app} needs your camera to photograph the items you want to sort.', { app: brand.appName })
+            : t('Camera access is off. Turn it on in Settings, or choose photos instead.')}
         </T>
         <View style={{ width: '100%', gap: 10, marginTop: 24 }}>
-          {permission.canAskAgain && <PrimaryButton label="Allow camera" icon="photo-camera" onPress={requestPermission} />}
+          {permission.canAskAgain && <PrimaryButton label={t('Allow camera')} icon="photo-camera" onPress={requestPermission} />}
           <SecondaryButton
-            label="Choose photos"
+            label={t('Choose photos')}
             icon="photo-library"
             onPress={async () => {
               const uris = await pickPhotos();
@@ -84,7 +86,7 @@ export default function CameraScreen() {
             }}
           />
           <Pressable onPress={() => router.back()} style={{ alignSelf: 'center', padding: 12 }}>
-            <T size="sm" weight="semibold" color={colors.inkMuted}>Not now</T>
+            <T size="sm" weight="semibold" color={colors.inkMuted}>{t('Not now')}</T>
           </Pressable>
         </View>
       </Screen>
@@ -99,17 +101,17 @@ export default function CameraScreen() {
 
       {/* Top: close · counter · flash */}
       <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
-        <Spring onPress={() => router.back()} accessibilityLabel="Close camera" pressedScale={0.92} style={styles.round}>
+        <Spring onPress={() => router.back()} accessibilityLabel={t('Close camera')} pressedScale={0.92} style={styles.round}>
           <Icon name="close" size={22} color={colors.white} />
         </Spring>
         <View style={styles.pill}>
           <T size="xs" weight="semibold" color={colors.white}>
-            {full ? '3 photos max · tap Analyze' : shots.length ? `${shots.length} of ${MAX_PHOTOS} photos` : 'Up to 5 items per photo'}
+            {full ? t('3 photos max · tap Analyze') : shots.length ? t('{n} of {max} photos', { n: shots.length, max: MAX_PHOTOS }) : t('Up to 5 items per photo')}
           </T>
         </View>
         <Spring
           onPress={() => setFlash(FLASH_ORDER[(FLASH_ORDER.indexOf(flash) + 1) % FLASH_ORDER.length])}
-          accessibilityLabel={`Flash ${flash}`}
+          accessibilityLabel={t('Flash: {mode}', { mode: t(flash === 'screen' ? 'on' : flash) })}
           pressedScale={0.92}
           style={styles.round}
         >
@@ -126,7 +128,7 @@ export default function CameraScreen() {
                 <Image source={{ uri }} style={StyleSheet.absoluteFill} />
                 <Pressable
                   onPress={() => setShots((s) => s.filter((_, j) => j !== i))}
-                  accessibilityLabel={`Remove photo ${i + 1}`}
+                  accessibilityLabel={t('Remove photo {n}', { n: i + 1 })}
                   hitSlop={10}
                   style={styles.remove}
                 >
@@ -139,19 +141,19 @@ export default function CameraScreen() {
 
         <View style={styles.controls}>
           <View style={styles.side}>
-            <Spring onPress={fromLibrary} disabled={full} accessibilityLabel="Choose from library" pressedScale={0.92} style={[styles.round, styles.big, full && { opacity: 0.4 }]}>
+            <Spring onPress={fromLibrary} disabled={full} accessibilityLabel={t('Choose from library')} pressedScale={0.92} style={[styles.round, styles.big, full && { opacity: 0.4 }]}>
               <Icon name="photo-library" size={24} color={colors.white} />
             </Spring>
           </View>
 
-          <Spring onPress={snap} disabled={full || busy} accessibilityLabel="Take photo" pressedScale={0.88} style={[styles.shutter, full && { opacity: 0.4 }]}>
+          <Spring onPress={snap} disabled={full || busy} accessibilityLabel={t('Take photo')} pressedScale={0.88} style={[styles.shutter, full && { opacity: 0.4 }]}>
             <View style={styles.shutterInner} />
           </Spring>
 
           <View style={[styles.side, { alignItems: 'flex-end' }]}>
             {shots.length > 0 && (
-              <Spring onPress={analyze} accessibilityLabel={`Analyze ${shots.length} photos`} pressedScale={0.92} style={[styles.analyze, { backgroundColor: colors.forest }]}>
-                <T size="sm" weight="semibold" color={colors.white}>Analyze</T>
+              <Spring onPress={analyze} accessibilityLabel={t('Analyze {n} photos', { n: shots.length })} pressedScale={0.92} style={[styles.analyze, { backgroundColor: colors.forest }]}>
+                <T size="sm" weight="semibold" color={colors.white}>{t('Analyze')}</T>
                 <Icon name="arrow-forward" size={18} color={colors.white} />
               </Spring>
             )}

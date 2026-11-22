@@ -6,31 +6,33 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { BinSections } from '../components/BinSections';
 import { CircleButton, Pill, PrimaryButton, Screen, T } from '../components/ui';
+import { useT } from '../i18n';
 import { useApp } from '../state/AppState';
 import { colors } from '../theme';
 
 export default function ResultsScreen() {
   const router = useRouter();
   const { lastScan } = useApp();
+  const { t } = useT();
   const n = lastScan.length;
 
   return (
     <Screen>
       <View style={styles.header}>
-        <CircleButton icon="arrow-back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/scan'))} />
-        <T size="2xl" display color={colors.ink}>Where it goes</T>
+        <CircleButton icon="arrow-back" label={t('Back')} onPress={() => (router.canGoBack() ? router.back() : router.navigate('/scan'))} />
+        <T size="2xl" display color={colors.ink}>{t('Where it goes')}</T>
         <Pill style={{ paddingHorizontal: 12 }}>
-          <T size="xs" weight="semibold" color={colors.forest}>{n} {n === 1 ? 'item' : 'items'}</T>
+          <T size="xs" weight="semibold" color={colors.forest}>{t(n === 1 ? '{n} item' : '{n} items', { n })}</T>
         </Pill>
       </View>
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
         <BinSections items={lastScan} />
-        <T size="xs" color={colors.inkMuted} style={{ textAlign: 'center' }}>Saved to your library automatically</T>
+        <T size="xs" color={colors.inkMuted} style={{ textAlign: 'center' }}>{t('Saved to your library automatically')}</T>
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="Done" icon="check" onPress={() => router.navigate('/scan')} />
+        <PrimaryButton label={t('Done')} icon="check" onPress={() => router.navigate('/scan')} />
       </View>
     </Screen>
   );

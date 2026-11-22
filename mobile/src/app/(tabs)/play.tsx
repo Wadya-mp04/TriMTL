@@ -20,6 +20,7 @@ import { useWorld } from '../../components/World';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
 import { skyInk, streetDark, THEMES } from '../../game/themes';
 import { DAILY_SIZE, dailyItems } from '../../lib/daily';
+import { useT } from '../../i18n';
 import { useApp } from '../../state/AppState';
 import { BinKey, bins, colors, fonts, radius } from '../../theme';
 
@@ -72,6 +73,7 @@ function practiceDeck(lastScan: SortItem[], saved: SortItem[], review: SortItem[
 
 export default function PlayScreen() {
   const { saved, lastScan, challengePool, hasBrownBin, addXp, recordGame, playTheme, dailyDone, dailyKnown } = useApp();
+  const { t } = useT();
   // No brown bin: the compost bin is hidden, so leave out anything only it could take.
   const fits = useCallback((i: SortItem) => hasBrownBin || i.bin !== 'compost', [hasBrownBin]);
   const [run, setRun] = useState<Run | null>(null); // null = start card showing
@@ -147,8 +149,8 @@ export default function PlayScreen() {
   const left = progress.total - progress.index;
   // Once today's challenge is done, the header always says so in plain words, with the score.
   const eyebrow = dailyDone && current.mode === 'practice'
-    ? `Today's challenge ✓ ${dailyDone.score}/100`
-    : current.mode === 'daily' ? `${DAILY_SIZE} Montréal items · same for everyone` : 'Your items + tricky ones · XP only';
+    ? t("Today's challenge ✓ {score}/100", { score: dailyDone.score })
+    : current.mode === 'daily' ? t('{n} {city} items · same for everyone', { n: DAILY_SIZE, city: 'Montréal' }) : t('Your items + tricky ones · XP only');
 
   return (
     <View style={{ flex: 1 }}>
@@ -157,11 +159,11 @@ export default function PlayScreen() {
       <View ref={headerRef} onLayout={measureHeader} style={styles.header}>
         <View style={{ flex: 1, gap: 2 }}>
           <T size="sm" color={ink} style={{ opacity: 0.75, fontVariant: ['tabular-nums'] }}>{eyebrow}</T>
-          <T display color={ink} accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.title}>{title}</T>
+          <T display color={ink} accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.title}>{t(title)}</T>
         </View>
         {playing && (
-          <View style={styles.leftPill} accessible accessibilityLabel={`${left} ${left === 1 ? 'item' : 'items'} left to sort`}>
-            <T size="xs" weight="bold" style={{ fontVariant: ['tabular-nums'] }}>{left} left</T>
+          <View style={styles.leftPill} accessible accessibilityLabel={t(left === 1 ? '{n} item left to sort' : '{n} items left to sort', { n: left })}>
+            <T size="xs" weight="bold" style={{ fontVariant: ['tabular-nums'] }}>{t('{n} left', { n: left })}</T>
           </View>
         )}
       </View>
@@ -176,7 +178,7 @@ export default function PlayScreen() {
             dark={streetDark(theme)}
             ink={theme.laneInk}
             muted={theme.laneMuted}
-            label={current.mode === 'daily' ? "Today's challenge" : 'This round'}
+            label={t(current.mode === 'daily' ? "Today's challenge" : 'This round')}
             counted={current.mode === 'daily'}
             onKeepSorting={keepSorting}
           />
@@ -190,7 +192,7 @@ export default function PlayScreen() {
               <View collapsable={false} style={[StyleSheet.absoluteFill, styles.blocker]}>
                 <View style={[styles.strip, stripTop !== undefined ? { top: stripTop } : { top: '60%' }, { backgroundColor: theme.lane }]}>
                   {dailyKnown && !dailyDone && (
-                    <PrimaryButton label="Start today's challenge" icon="play-arrow" onPress={() => start({ mode: 'daily', deck: dailyDeck(challengePool, fits) })} style={styles.startButton} />
+                    <PrimaryButton label={t("Start today's challenge")} icon="play-arrow" onPress={() => start({ mode: 'daily', deck: dailyDeck(challengePool, fits) })} style={styles.startButton} />
                   )}
                 </View>
               </View>
@@ -207,6 +209,7 @@ export default function PlayScreen() {
 function Results({ results, accent, dark, ink, muted, label, counted, onKeepSorting }: {
   results: RoundResult[]; accent: string; dark: boolean; ink: string; muted: string; label: string; counted: boolean; onKeepSorting: () => void;
 }) {
+  const { t, binLabel } = useT();
   const n = results.length, good = results.filter((r) => r.first).length;
   const score = Math.round((good * 100) / n);
   const wrong = n - good;
@@ -221,29 +224,29 @@ function Results({ results, accent, dark, ink, muted, label, counted, onKeepSort
             {score}<T size="2xl" color={muted}>/100</T>
           </T>
           <T size="sm" weight="semibold" color={ink}>
-            {label}: {good === n ? 'every item in the right bin.' : `${good} right first try, ${n - good} to review.`}
+            {label}: {good === n ? t('every item in the right bin.') : t('{good} right first try, {review} to review.', { good, review: n - good })}
           </T>
-          <T size="xs" color={muted} style={{ marginTop: 2 }}>{counted ? "Saved to today's leaderboard" : `+${good * XP_PER_HIT} XP`}</T>
+          <T size="xs" color={muted} style={{ marginTop: 2 }}>{counted ? t("Saved to today's leaderboard") : `+${good * XP_PER_HIT} XP`}</T>
         </View>
         {results.map(({ item, first }) => {
           const b = bins[item.bin!];
           return (
-            <View key={item.id} style={[styles.guideRow, { borderTopColor: line }]} accessible accessibilityLabel={`${item.name}: ${b.label}. ${item.note} ${first ? 'Right first try.' : 'To review.'}`}>
+            <View key={item.id} style={[styles.guideRow, { borderTopColor: line }]} accessible accessibilityLabel={`${item.name}: ${binLabel(item.bin!)}. ${item.note} ${t(first ? 'Right first try.' : 'To review.')}`}>
               <Icon name={b.icon} size={20} color={dark ? '#FFFFFF' : b.deep} />
               <View style={{ flex: 1, gap: 2 }}>
                 <T size="sm" weight="bold" color={ink}>
-                  {item.name} <T size="sm" color={dark ? '#FFFFFF' : b.deep}>→ {b.label}</T>
+                  {item.name} <T size="sm" color={dark ? '#FFFFFF' : b.deep}>→ {binLabel(item.bin!)}</T>
                 </T>
                 <T size="xs" color={muted}>{item.note}</T>
               </View>
-              {!first && <T size="xs" weight="bold" color="#D9785E">Review</T>}
+              {!first && <T size="xs" weight="bold" color="#D9785E">{t('Review')}</T>}
             </View>
           );
         })}
       </View>
-      {!!wrong && <T size="xs" color={muted} style={{ textAlign: 'center' }}>Items to review come back in your next round.</T>}
+      {!!wrong && <T size="xs" color={muted} style={{ textAlign: 'center' }}>{t('Items to review come back in your next round.')}</T>}
     </ScrollView>
-    <PrimaryButton label="Keep sorting" icon="replay" size="md" onPress={onKeepSorting} style={{ backgroundColor: accent, marginTop: 8 }} />
+    <PrimaryButton label={t('Keep sorting')} icon="replay" size="md" onPress={onKeepSorting} style={{ backgroundColor: accent, marginTop: 8 }} />
     </View>
   );
 }

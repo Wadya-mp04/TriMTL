@@ -11,6 +11,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, View } fro
 
 import { CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Spring, T } from '../components/ui';
 import { supabase } from '../lib/supabase';
+import { TKey, useT } from '../i18n';
 import { useApp } from '../state/AppState';
 import { colors, fonts, radius, shadow } from '../theme';
 
@@ -32,13 +33,15 @@ type LinkRow = {
 export default function FriendsScreen() {
   const router = useRouter();
   const { userId } = useApp();
+  const { t } = useT();
   const [links, setLinks] = useState<Link[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Found[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState<string | null>(null); // id of the player an action is running for
-  const [error, setError] = useState<string | null>(null);
+  // Kept as the English key and translated where it's shown, so callbacks don't depend on the language.
+  const [error, setError] = useState<TKey | null>(null);
 
   /** My friendship rows from my side, or null when the request failed. */
   const fetchLinks = useCallback(async (): Promise<Link[] | null> => {
@@ -103,9 +106,9 @@ export default function FriendsScreen() {
   // Decline, cancel and remove all delete the pair's row, whichever direction it was sent in.
   const drop = (id: string) => sb && act(id, () =>
     sb.from('friendships').delete().or(`and(user_id.eq.${userId},friend_id.eq.${id}),and(user_id.eq.${id},friend_id.eq.${userId})`));
-  const confirmRemove = (l: Link) => Alert.alert(`Remove ${l.username}?`, 'You will no longer see each other on the friends board.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Remove', style: 'destructive', onPress: () => drop(l.otherId) },
+  const confirmRemove = (l: Link) => Alert.alert(t('Remove {name}?', { name: l.username }), t('You will no longer see each other on the friends board.'), [
+    { text: t('Cancel'), style: 'cancel' },
+    { text: t('Remove'), style: 'destructive', onPress: () => drop(l.otherId) },
   ]);
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/community'));
@@ -116,16 +119,16 @@ export default function FriendsScreen() {
   if (!supabase || !userId) {
     return (
       <Screen>
-        <View style={styles.back}><CircleButton icon="arrow-back" label="Back" onPress={back} /></View>
-        <ScreenHeader eyebrow="Sort together" title="Friends" style={{ paddingTop: 12 }} />
+        <View style={styles.back}><CircleButton icon="arrow-back" label={t('Back')} onPress={back} /></View>
+        <ScreenHeader eyebrow={t('Sort together')} title={t('Friends')} style={{ paddingTop: 12 }} />
         <View style={styles.main}>
           <Glass style={styles.empty}>
             <Icon name="group-add" size={32} color={colors.forest} />
-            <T size="sm" weight="semibold" style={{ textAlign: 'center' }}>Sign in to add friends</T>
+            <T size="sm" weight="semibold" style={{ textAlign: 'center' }}>{t('Sign in to add friends')}</T>
             <T size="xs" color={colors.inkMuted} style={{ textAlign: 'center' }}>
-              Friends see each other on the Community board, even when their scores are not public.
+              {t('Friends see each other on the Community board, even when their scores are not public.')}
             </T>
-            <PrimaryButton label="Sign in" size="md" onPress={() => router.navigate('/')} style={{ alignSelf: 'stretch' }} />
+            <PrimaryButton label={t('Sign in')} size="md" onPress={() => router.navigate('/')} style={{ alignSelf: 'stretch' }} />
           </Glass>
         </View>
       </Screen>
@@ -136,19 +139,19 @@ export default function FriendsScreen() {
   const action = (id: string, status: Status, username: string) => {
     if (busy === id) return <ActivityIndicator color={colors.forest} />;
     switch (status) {
-      case 'none': return <Chip label="Add" icon="person-add" solid onPress={() => add(id)} hint={`Send ${username} a friend request`} />;
-      case 'sent': return <Chip label="Requested" icon="schedule" onPress={() => drop(id)} hint={`Cancel your request to ${username}`} />;
-      case 'received': return <Chip label="Accept" icon="check" solid onPress={() => accept(id)} hint={`Accept ${username}'s request`} />;
-      case 'friends': return <View style={styles.friendTag}><Icon name="check-circle" size={16} color={colors.forest} /><T size="xs" weight="semibold" color={colors.forest}>Friends</T></View>;
+      case 'none': return <Chip label={t('Add')} icon="person-add" solid onPress={() => add(id)} hint={t('Send {name} a friend request', { name: username })} />;
+      case 'sent': return <Chip label={t('Requested')} icon="schedule" onPress={() => drop(id)} hint={t('Cancel your request to {name}', { name: username })} />;
+      case 'received': return <Chip label={t('Accept')} icon="check" solid onPress={() => accept(id)} hint={t("Accept {name}'s request", { name: username })} />;
+      case 'friends': return <View style={styles.friendTag}><Icon name="check-circle" size={16} color={colors.forest} /><T size="xs" weight="semibold" color={colors.forest}>{t('Friends')}</T></View>;
     }
   };
 
   return (
     <Screen>
-      <View style={styles.back}><CircleButton icon="arrow-back" label="Back" onPress={back} /></View>
+      <View style={styles.back}><CircleButton icon="arrow-back" label={t('Back')} onPress={back} /></View>
       <ScreenHeader
-        eyebrow={friends.length ? `${friends.length} friend${friends.length === 1 ? '' : 's'}` : 'Sort together'}
-        title="Friends"
+        eyebrow={friends.length ? t(friends.length === 1 ? '{n} friend' : '{n} friends', { n: friends.length }) : t('Sort together')}
+        title={t('Friends')}
         style={{ paddingTop: 12 }}
       />
 
@@ -158,16 +161,16 @@ export default function FriendsScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search a username"
+            placeholder={t('Search a username')}
             placeholderTextColor={colors.inkMuted}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
-            accessibilityLabel="Search players by username"
+            accessibilityLabel={t('Search players by username')}
             style={styles.input}
           />
           {searching ? <ActivityIndicator color={colors.forest} /> : query.length > 0 && (
-            <Spring onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" pressedScale={0.9}>
+            <Spring onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel={t('Clear search')} pressedScale={0.9}>
               <Icon name="close" size={18} color={colors.inkMuted} />
             </Spring>
           )}
@@ -176,38 +179,38 @@ export default function FriendsScreen() {
         {error && (
           <View accessibilityLiveRegion="polite" style={styles.error}>
             <Icon name="error-outline" size={18} color="#9A3B24" />
-            <T size="xs" color="#9A3B24" style={{ flex: 1 }}>{error}</T>
+            <T size="xs" color="#9A3B24" style={{ flex: 1 }}>{error && t(error)}</T>
           </View>
         )}
 
         {found && (
-          <Section title="Results">
+          <Section title={t('Results')}>
             {found.length === 0
-              ? <T size="sm" color={colors.inkMuted} style={styles.note}>No player called “{query.trim()}”.</T>
+              ? <T size="sm" color={colors.inkMuted} style={styles.note}>{t('No player called “{q}”.', { q: query.trim() })}</T>
               : found.map((p) => <Row key={p.id} name={p.username} right={action(p.id, p.friendship_status, p.username)} />)}
           </Section>
         )}
 
         {received.length > 0 && (
-          <Section title={`Requests · ${received.length}`}>
+          <Section title={t('Requests · {n}', { n: received.length })}>
             {received.map((l) => (
-              <Row key={l.otherId} name={l.username} sub="wants to be friends" right={busy === l.otherId ? <ActivityIndicator color={colors.forest} /> : (
+              <Row key={l.otherId} name={l.username} sub={t('wants to be friends')} right={busy === l.otherId ? <ActivityIndicator color={colors.forest} /> : (
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Chip label="Decline" onPress={() => drop(l.otherId)} hint={`Decline ${l.username}'s request`} />
-                  <Chip label="Accept" icon="check" solid onPress={() => accept(l.otherId)} hint={`Accept ${l.username}'s request`} />
+                  <Chip label={t('Decline')} onPress={() => drop(l.otherId)} hint={t("Decline {name}'s request", { name: l.username })} />
+                  <Chip label={t('Accept')} icon="check" solid onPress={() => accept(l.otherId)} hint={t("Accept {name}'s request", { name: l.username })} />
                 </View>
               )} />
             ))}
           </Section>
         )}
 
-        <Section title="Your friends">
+        <Section title={t('Your friends')}>
           {loading ? <ActivityIndicator color={colors.forest} style={{ padding: 16 }} />
             : friends.length === 0
-              ? <T size="sm" color={colors.inkMuted} style={styles.note}>No friends yet. Search a username above to send a request.</T>
+              ? <T size="sm" color={colors.inkMuted} style={styles.note}>{t('No friends yet. Search a username above to send a request.')}</T>
               : friends.map((l) => (
                 <Row key={l.otherId} name={l.username} right={busy === l.otherId ? <ActivityIndicator color={colors.forest} /> : (
-                  <Spring onPress={() => confirmRemove(l)} accessibilityRole="button" accessibilityLabel={`Remove ${l.username}`} pressedScale={0.9} style={styles.iconBtn}>
+                  <Spring onPress={() => confirmRemove(l)} accessibilityRole="button" accessibilityLabel={t('Remove {name}', { name: l.username })} pressedScale={0.9} style={styles.iconBtn}>
                     <Icon name="person-remove" size={20} color={colors.inkMuted} />
                   </Spring>
                 )} />
@@ -215,10 +218,10 @@ export default function FriendsScreen() {
         </Section>
 
         {sent.length > 0 && (
-          <Section title="Sent">
+          <Section title={t('Sent')}>
             {sent.map((l) => (
-              <Row key={l.otherId} name={l.username} sub="waiting for them" right={busy === l.otherId ? <ActivityIndicator color={colors.forest} /> : (
-                <Chip label="Cancel" onPress={() => drop(l.otherId)} hint={`Cancel your request to ${l.username}`} />
+              <Row key={l.otherId} name={l.username} sub={t('waiting for them')} right={busy === l.otherId ? <ActivityIndicator color={colors.forest} /> : (
+                <Chip label={t('Cancel')} onPress={() => drop(l.otherId)} hint={t('Cancel your request to {name}', { name: l.username })} />
               )} />
             ))}
           </Section>

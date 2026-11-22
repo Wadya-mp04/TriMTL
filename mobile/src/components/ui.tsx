@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 
+import { useT } from '../i18n';
 import { useApp } from '../state/AppState';
 import { motionMs } from '../lib/motion';
 import { CanvasBackground } from './World';
@@ -225,12 +226,13 @@ export function ScreenHeader({
 export function AvatarButton() {
   const router = useRouter();
   const { initials } = useApp();
+  const { t } = useT();
   return (
     <Spring
       onPress={() => router.push('/profile')}
       pressedScale={0.95}
       accessibilityRole="button"
-      accessibilityLabel="Open My Profile"
+      accessibilityLabel={t('Open My Profile')}
       style={[styles.avatar, shadow.md, { backgroundColor: colors.forest }]}
     >
       <T size="sm" weight="bold" color={colors.white}>{initials}</T>
