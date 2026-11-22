@@ -20,10 +20,12 @@ import { Backdrop } from '../../game/Backdrop';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
 import { skyInk, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
 import { useApp } from '../../state/AppState';
-import { bins, fonts } from '../../theme';
+import { BinKey, bins, fonts } from '../../theme';
 
 const XP_PER_HIT = 15;
 const ROUND_SIZE = 6;
+/** Street bins for players without a brown bin (stable array, so the game's layout isn't recomputed). */
+const NO_BROWN_BIN: BinKey[] = ['recycling', 'garbage', 'special'];
 
 const isToday = (iso?: string) => !!iso && new Date(iso).toDateString() === new Date().toDateString();
 const playable = (i: SortItem) => i.bin !== null;
@@ -60,7 +62,7 @@ function buildRounds(lastScan: SortItem[], saved: SortItem[], fromScan: boolean,
 
 export default function PlayScreen() {
   const { deck: deckParam } = useLocalSearchParams<{ deck?: string }>();
-  const { saved, lastScan, challengePool, addXp, recordGame, playTheme, setPlayTheme } = useApp();
+  const { saved, lastScan, challengePool, hasBrownBin, addXp, recordGame, playTheme, setPlayTheme } = useApp();
   const [seed, setSeed] = useState(0);
   const [roundIdx, setRoundIdx] = useState(0);
   const [result, setResult] = useState<RoundResult[] | null>(null);
@@ -76,10 +78,14 @@ export default function PlayScreen() {
   const measureHeader = () => headerRef.current?.measureInWindow((_x, y, _w, h) => setHeaderBottom(y + h + 12));
 
   const rounds = useMemo(
-    () => buildRounds(lastScan, saved, deckParam === 'scan', challengePool),
+    () => {
+      // No brown bin: the compost bin is hidden, so leave out anything only it could take.
+      const fits = (i: SortItem) => hasBrownBin || i.bin !== 'compost';
+      return buildRounds(lastScan.filter(fits), saved.filter(fits), deckParam === 'scan', challengePool.filter(fits));
+    },
     // `seed` reshuffles everything on "Play again".
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deckParam, lastScan, saved, challengePool, seed],
+    [deckParam, lastScan, saved, challengePool, hasBrownBin, seed],
   );
   const current = rounds[Math.min(roundIdx, rounds.length - 1)];
   const hasNext = roundIdx < rounds.length - 1;
@@ -167,7 +173,7 @@ export default function PlayScreen() {
             onAgain={again}
           />
         ) : (
-          <SortGame key={`${seed}-${roundIdx}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={setGroundY} onProgress={onProgress} />
+          <SortGame key={`${seed}-${roundIdx}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={setGroundY} onProgress={onProgress} shownBins={hasBrownBin ? undefined : NO_BROWN_BIN} />
         )}
       </View>
       </SafeAreaView>
