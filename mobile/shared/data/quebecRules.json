@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 7,
   "checkedOn": "2026-11-21",
   "bins": [
     "recycling",
@@ -697,8 +697,8 @@
         "paper cup"
       ],
       "explanation": {
-        "fr": "Les contenants de papier vont dans le bac de récupération, même souillés.",
-        "en": "Paper containers go in the recycling, even if soiled."
+        "fr": "Les gobelets de papier vidés vont dans le bac de récupération.",
+        "en": "Empty paper cups go in the recycling."
       },
       "specialInstruction": {
         "fr": "Videz-le. Le couvercle va aussi dans le bac.",
@@ -807,8 +807,8 @@
     {
       "id": "drink_can",
       "category": "drink_container",
-      "bin": "special",
-      "dropoff": "deposit",
+      "bin": "recycling",
+      "dropoff": null,
       "icon": "can",
       "name": {
         "fr": "Canette de boisson",
@@ -824,20 +824,26 @@
         "soda can"
       ],
       "explanation": {
-        "fr": "Les canettes de boisson en aluminium vont à la consigne.",
-        "en": "Aluminium drink cans go back for the deposit."
+        "fr": "Les canettes de boisson se recyclent. Elles sont aussi consignées (10 ¢).",
+        "en": "Drink cans are recyclable. They also carry a 10¢ deposit."
       },
-      "specialInstruction": null,
-      "mapsQuery": null,
+      "specialInstruction": {
+        "fr": "Encore mieux : rapportez-la à un lieu de retour pour récupérer vos 10 ¢.",
+        "en": "Even better: bring it to a return point to get your 10¢ back."
+      },
+      "mapsQuery": {
+        "fr": "lieu de retour Consignaction",
+        "en": "Consignaction return point"
+      },
       "links": [],
       "verified": true,
-      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+      "sourceUrl": "https://consignaction.ca/wp-content/uploads/2025/05/bilan-citoyens-15-mai-2025.pdf"
     },
     {
       "id": "drink_bottle",
       "category": "drink_container",
-      "bin": "special",
-      "dropoff": "deposit",
+      "bin": "recycling",
+      "dropoff": null,
       "icon": "bottle",
       "name": {
         "fr": "Bouteille de boisson en plastique",
@@ -854,14 +860,20 @@
         "juice bottle"
       ],
       "explanation": {
-        "fr": "Les contenants de boisson de 100 ml à 2 L vont à la consigne.",
-        "en": "Drink containers from 100 ml to 2 L go back for the deposit."
+        "fr": "Les bouteilles de boisson en plastique de 100 ml à 2 L se recyclent. Elles sont aussi consignées (10 ¢).",
+        "en": "Plastic drink bottles from 100 ml to 2 L are recyclable. They also carry a 10¢ deposit."
       },
-      "specialInstruction": null,
-      "mapsQuery": null,
+      "specialInstruction": {
+        "fr": "Encore mieux : rapportez-la à un lieu de retour pour récupérer vos 10 ¢.",
+        "en": "Even better: bring it to a return point to get your 10¢ back."
+      },
+      "mapsQuery": {
+        "fr": "lieu de retour Consignaction",
+        "en": "Consignaction return point"
+      },
       "links": [],
       "verified": true,
-      "sourceUrl": "https://montreal.ca/articles/quoi-mettre-dans-le-bac-des-matieres-recyclables-83068"
+      "sourceUrl": "https://consignaction.ca/wp-content/uploads/2025/05/bilan-citoyens-15-mai-2025.pdf"
     },
     {
       "id": "pizza_box_greasy",
@@ -1172,8 +1184,6 @@
       "links": [
         "info_collectes"
       ],
-      "verified": true,
-      "sourceUrl": "https://montreal.ca/collectes/collecte-des-matieres-organiques",
       "overrides": [
         {
           "when": {
@@ -1191,7 +1201,9 @@
           },
           "verified": true
         }
-      ]
+      ],
+      "verified": true,
+      "sourceUrl": "https://montreal.ca/collectes/collecte-des-matieres-organiques"
     },
     {
       "id": "diaper",
@@ -1398,8 +1410,8 @@
     {
       "id": "smoke_detector",
       "category": "household_object",
-      "bin": "garbage",
-      "dropoff": null,
+      "bin": "special",
+      "dropoff": "ecocentre",
       "icon": "smoke_detector",
       "name": {
         "fr": "Avertisseur de fumée",
@@ -1412,25 +1424,23 @@
         "smoke alarm"
       ],
       "explanation": {
-        "fr": "La Ville indique de jeter les avertisseurs de fumée aux ordures.",
-        "en": "The City says smoke detectors go in the garbage."
+        "fr": "Les avertisseurs de fumée vont à l'écocentre : ils contiennent une pile.",
+        "en": "Smoke detectors go to an écocentre: they contain a battery."
       },
       "specialInstruction": {
-        "fr": "Retirez d'abord la pile. Si elle est scellée et ne s'enlève pas, apportez-le au comptoir des résidus dangereux d'un écocentre.",
-        "en": "Take the battery out first. If it is sealed in, bring it to an écocentre's hazardous waste counter instead."
+        "fr": "Retirez la pile si elle s'enlève.",
+        "en": "Take the battery out if it comes out."
       },
       "mapsQuery": null,
-      "links": [
-        "info_collectes"
-      ],
+      "links": [],
       "verified": true,
       "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
     },
     {
       "id": "bulb_regular",
       "category": "lighting",
-      "bin": "garbage",
-      "dropoff": null,
+      "bin": "special",
+      "dropoff": "ecocentre",
       "icon": "bulb",
       "name": {
         "fr": "Ampoule DEL, halogène ou à filament",
@@ -1446,17 +1456,12 @@
         "bulb"
       ],
       "explanation": {
-        "fr": "Ces ampoules sont acceptées aux ordures.",
-        "en": "These bulbs are accepted in the garbage."
+        "fr": "Les écocentres recyclent les ampoules DEL, halogènes et à filament.",
+        "en": "Écocentres recycle LED, halogen and incandescent bulbs."
       },
-      "specialInstruction": {
-        "fr": "Idéalement, apportez-les à un écocentre pour qu'elles soient recyclées.",
-        "en": "Ideally, bring them to an écocentre so they get recycled."
-      },
+      "specialInstruction": null,
       "mapsQuery": null,
-      "links": [
-        "info_collectes"
-      ],
+      "links": [],
       "verified": true,
       "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
     },
@@ -1910,8 +1915,8 @@
     {
       "id": "foam_protective",
       "category": "plastic",
-      "bin": "special",
-      "dropoff": "ecocentre",
+      "bin": "garbage",
+      "dropoff": null,
       "icon": "foam",
       "name": {
         "fr": "Styromousse d'emballage",
@@ -1925,19 +1930,19 @@
         "packing foam"
       ],
       "explanation": {
-        "fr": "Celui qui se défait en billes ne va pas dans le bac de récupération.",
-        "en": "Foam that crumbles into beads doesn't go in the recycling."
+        "fr": "Le styromousse de protection qui s'effrite en billes ne va pas au recyclage : il va aux ordures.",
+        "en": "Protective foam that crumbles into beads doesn't go in the recycling: it goes in the garbage."
       },
       "specialInstruction": {
-        "fr": "Seuls les écocentres LaSalle et Saint-Laurent le recyclent. Sinon, il va aux ordures.",
-        "en": "Only the LaSalle and Saint-Laurent écocentres recycle it. Otherwise it goes in the garbage."
+        "fr": "Les écocentres LaSalle et Saint-Laurent le recyclent.",
+        "en": "The LaSalle and Saint-Laurent écocentres recycle it."
       },
       "mapsQuery": null,
       "links": [
-        "ecocentres"
+        "info_collectes"
       ],
       "verified": true,
-      "sourceUrl": "https://montreal.ca/articles/quoi-faire-avec-le-polystyrene-94375"
+      "sourceUrl": "https://montreal.ca/sujets/ordures-menageres"
     },
     {
       "id": "wood",
@@ -2150,8 +2155,8 @@
     {
       "id": "upholstered_furniture",
       "category": "furniture",
-      "bin": "garbage",
-      "dropoff": null,
+      "bin": "special",
+      "dropoff": "ecocentre",
       "icon": "sofa",
       "name": {
         "fr": "Matelas, sofa, fauteuil rembourré",
@@ -2172,19 +2177,17 @@
         "upholstered chair"
       ],
       "explanation": {
-        "fr": "Les meubles rembourrés, matelas et sommiers vont aux ordures ménagères.",
-        "en": "Upholstered furniture, mattresses and box springs go in household garbage."
+        "fr": "Les matelas, sofas et fauteuils rembourrés vont à l'écocentre.",
+        "en": "Mattresses, sofas and upholstered chairs go to an écocentre."
       },
       "specialInstruction": {
-        "fr": "Encore utilisable ? Donnez-le d'abord. Seul l'écocentre de Saint-Laurent recycle les matelas (projet pilote).",
-        "en": "Still usable? Give it away first. Only the Saint-Laurent écocentre recycles mattresses (pilot project)."
+        "fr": "Encore utilisable ? Donnez-le d'abord. L'écocentre de Saint-Laurent recycle les matelas.",
+        "en": "Still usable? Give it away first. The Saint-Laurent écocentre recycles mattresses."
       },
       "mapsQuery": null,
-      "links": [
-        "info_collectes"
-      ],
+      "links": [],
       "verified": true,
-      "sourceUrl": "https://montreal.ca/demarches/connaitre-les-modalites-de-la-collecte-des-ordures-menageres"
+      "sourceUrl": "https://montreal.ca/deposer-des-objets-lecocentre"
     }
   ]
 }

@@ -27,8 +27,7 @@ const item = (id: string, ctx: { borough?: string | null; hasBrownBin?: boolean 
 
 // ---------- Rules data ----------
 
-test("rules file is version 4 with 19 boroughs, 5 of them combined organics, every rule and override verified", () => {
-  assert.equal(RULES_VERSION, 4);
+test("rules file has 19 boroughs, 5 of them combined organics, every rule and override verified", () => {
   for (const r of RULES) {
     assert.equal(r.verified, true, r.id);
     for (const o of r.overrides) assert.equal(o.verified, true, `${r.id} ${JSON.stringify(o.when)}`);
@@ -122,6 +121,15 @@ test("dropoffNote: shown when it adds something, null when it would repeat speci
   assert.equal(item("cardboard").dropoffNote, null);
 });
 
+test("paper_towel -> compost by default, garbage without a brown bin", () => {
+  const def = item("paper_towel");
+  assert.equal(def.correctBin, "compost");
+  assert.equal(def.contextApplied, false);
+  const noBin = item("paper_towel", { hasBrownBin: false });
+  assert.equal(noBin.correctBin, "garbage");
+  assert.equal(noBin.contextApplied, true);
+});
+
 test("pizza_box_greasy without a brown bin -> recycling", () => {
   const it = item("pizza_box_greasy", { hasBrownBin: false });
   assert.equal(it.correctBin, "recycling");
@@ -137,10 +145,11 @@ test("Gemini category that disagrees with the rule's category -> needs verificat
 
 // ---------- Typed names (findRule) ----------
 
-test("typed names: matelas -> upholstered_furniture (garbage), canettes -> drink_can", () => {
+test("typed names: matelas -> upholstered_furniture (écocentre), canettes -> drink_can", () => {
   const matelas = findRule("matelas");
   assert.equal(matelas?.id, "upholstered_furniture");
-  assert.equal(matelas?.bin, "garbage");
+  assert.equal(matelas?.bin, "special");
+  assert.equal(matelas?.dropoff, "ecocentre");
   assert.equal(findRule("canettes")?.id, "drink_can");
 });
 
@@ -198,7 +207,7 @@ test("scan route: returns a valid ScanResponse and passes aiCategory + context t
     const res = await post(url, { imageBase64: image, mimeType: "image/jpeg", lang: "en", borough: "plateau-mont-royal", hasBrownBin: false });
     assert.equal(res.status, 200);
     const body = ScanResponseSchema.parse(await res.json());
-    assert.equal(body.rulesVersion, 4);
+    assert.equal(body.rulesVersion, RULES_VERSION);   // from the JSON, not hard-coded
     assert.deepEqual(body.context, { lang: "en", borough: "plateau-mont-royal", hasBrownBin: false });
     assert.equal(body.total, 4);
     assert.equal(body.sessionId, body.scanId);        // legacy fields still sent

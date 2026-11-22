@@ -1,11 +1,15 @@
 /**
- * Reads the bundled rules (mobile/shared/, a copy of the server's quebecRules.json: `npm run sync-shared`).
+ * The app's copy of the server's rules engine and data (mobile/shared/, made by `npm run sync-shared`
+ * in server/). The backend rules are the source of truth: never decide a bin in app code, ask `rules`.
  */
-import rules from '../../shared/data/quebecRules.json';
+import raw from '../../shared/data/quebecRules.json';
+import { createRulesEngine } from '../../shared/services/rulesEngine';
 import type { BinKey } from '../theme';
 
-export const BOROUGHS = Object.entries(rules.boroughs)
-  .map(([slug, b]) => ({ slug, name: b.name }))
+export const rules = createRulesEngine(raw);
+
+export const BOROUGHS = rules.BOROUGHS
+  .map(({ slug, name }) => ({ slug, name }))
   .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 
 export const boroughName = (slug: string | null) => BOROUGHS.find((b) => b.slug === slug)?.name ?? 'Montréal';
@@ -16,7 +20,6 @@ const SURPRISING = ['chip_bag', 'drink_can', 'coffee_cup', 'pizza_box_greasy', '
 export function tipOfTheDay(date = new Date()) {
   const day = Math.floor(date.getTime() / 86_400_000);
   const id = SURPRISING[day % SURPRISING.length];
-  const r = rules.items.find((i) => i.id === id)!;
-  const dropoff = r.dropoff ? rules.dropoffs[r.dropoff as keyof typeof rules.dropoffs].name.en : null;
-  return { name: r.name.en, bin: r.bin as BinKey, where: dropoff, text: r.explanation.en, url: r.sourceUrl };
+  const it = rules.toScanItem({ id, name: '', rule: rules.getRule(id), confidence: 'high', lang: 'en' });
+  return { name: rules.getRule(id)!.name.en, bin: it.correctBin as BinKey, where: it.dropoffName, text: it.explanation ?? '', url: it.sourceUrl ?? '' };
 }

@@ -1,7 +1,7 @@
 # TriMTL
 
-**Mission.** Montrealers sort waste wrong because the rules are surprising (drink cans go back for the
-deposit, chip bags go in the recycling since 2025, yard waste depends on your borough). TriMTL turns a
+**Mission.** Montrealers sort waste wrong because the rules are surprising (smoke detectors and mattresses
+go to the écocentre, chip bags go in the recycling since 2025, yard waste depends on your borough). TriMTL turns a
 photo of your trash into a short sorting game. Gemini recognises the objects, and a rules engine built
 from montreal.ca decides each bin. Every answer links to its official source, and anything we're not
 sure about is labelled "Needs verification" instead of guessed. Built in 24 h for the App|ETS Mobile
@@ -32,7 +32,7 @@ user. See [docs/DECISIONS.md](docs/DECISIONS.md) for why.
 | `recycling` | Blue or green recycling bin. Since 2025, *all* packaging, wrappers and coffee cups included. |
 | `compost` | Brown bin (food scraps, soiled paper; yard waste too in the 5 "combined" boroughs). |
 | `garbage` | Household garbage. |
-| `special` | Not a curbside bin. **`dropoff`** says where it goes: `deposit` (consigne), `ecocentre`, `pharmacy`, `donation`, `tree_collection`, `bulky_collection`, `yard_collection`. `dropoffName` is that place's name in the user's language. |
+| `special` | Not a curbside bin. **`dropoff`** says where it goes: `ecocentre`, `pharmacy`, `donation`, `tree_collection`, `bulky_collection`, `yard_collection` (`deposit` still exists in the type but no rule uses it: drink cans and bottles are `recycling`, with the 10¢ deposit as a tip). `dropoffName` is that place's name in the user's language. |
 
 The game has four bins so it stays playable. The real destination for `special` items is the dropoff,
 which the results screen shows.
@@ -71,6 +71,23 @@ npx expo start              # scan the QR code with Expo Go
 | `GEMINI_MODEL` | no | `gemini-3.1-flash-lite` | 2–4 s per photo in testing. |
 | `PORT` | no | `3001` | |
 
+### Accounts and saved data (Supabase)
+
+Optional: without it the app runs in demo mode with nothing saved.
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In **SQL Editor**, run [`supabase/migrations/20261121000000_init.sql`](supabase/migrations/20261121000000_init.sql). It creates
+   `profiles`, `scanned_items`, `game_scores` and `friendships`, all protected by row-level security
+   (each user can only read and write their own rows).
+3. For the demo, turn off **Authentication → Sign In / Providers → Email → Confirm email**, so sign-up
+   logs straight in. Otherwise the app shows "Check your email to confirm your account".
+4. `cp mobile/.env.example mobile/.env` and paste the **Project URL** and the **publishable (anon) key** from
+   Project Settings → API. Never the secret / service-role key: the app ships whatever is in this file.
+5. Restart `npx expo start`.
+
+Scanned items are stored as `rule_id` + category + context, **not** as a bin, so the rules engine
+decides the bin when an item is played and stored items follow rule updates.
+
 ## Checks
 
 ```bash
@@ -87,6 +104,18 @@ This runs, in order, and fails on the first error:
 6. `check-secrets`: no API key in any tracked or new file, and none mentioned in `mobile/`.
 
 After changing `types.ts`, `rulesEngine.ts` or `quebecRules.json`, run `npm run sync-shared`.
+
+Other checks:
+
+```bash
+supabase/tests/run.sh        # database: migrations + row-level security + leaderboard (needs Docker, throwaway container)
+cd mobile && npx tsc --noEmit
+cd mobile && npx expo export --platform android --output-dir /tmp/trimtl-export   # proves the app bundles
+```
+
+The app's demo lists and offline answers come from `mobile/shared/` (a copy of the server's rules), so
+the backend rules decide every bin. The leaderboard falls back to demo lists when signed out or when
+fewer than 3 players have scores today.
 
 ## Repo layout and owners
 
