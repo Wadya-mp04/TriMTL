@@ -46,7 +46,8 @@ export async function scanPhotos(
   const base = apiBaseUrl();
   if (!base) throw new Error(translate(lang, 'No server URL. Set EXPO_PUBLIC_API_URL in mobile/.env.'));
 
-  const results = await Promise.all(
+  // One failed photo (rate limit, bad reply) keeps the others' items; only all failing is an error.
+  const settled = await Promise.allSettled(
     uris.map(async (uri) => {
       const imageBase64 = await toBase64(uri, lang);
       // Aborts on the caller's cancel or after TIMEOUT_MS, whichever comes first.
@@ -80,6 +81,11 @@ export async function scanPhotos(
       }
     }),
   );
+
+  const results = settled.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  const failed = settled.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+  if (!results.length && failed.length) throw failed[0].reason;
+  if (failed.length) console.warn(`scan: ${failed.length} of ${settled.length} photos failed:`, (failed[0].reason as Error).message);
 
   return {
     items: results.flatMap((r) => r.items.map((it) => ({ ...fromScanItem(it, r.scanId), lang }))),
