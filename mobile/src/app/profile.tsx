@@ -10,13 +10,12 @@ import { AreaSheet } from '../components/AreaSheet';
 import { BentoBackdrop, CircleButton, Glass, Icon, Screen, ScreenHeader, Spring, T } from '../components/ui';
 import { boroughName } from '../data/rules';
 import { levelFor, useApp } from '../state/AppState';
-import { colors, radius, shadow, THEMES, ThemeKey } from '../theme';
-
-const THEME_TILES = (Object.keys(THEMES) as ThemeKey[]).map((key) => ({ key, label: THEMES[key].label, color: THEMES[key].forest }));
+import { THEME_ORDER, THEMES } from '../game/themes';
+import { APP_PALETTES, colors, radius, shadow } from '../theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { username, initials, xp, stats, games, theme, setTheme, signOut, borough, hasBrownBin } = useApp();
+  const { username, initials, xp, stats, games, playTheme, setPlayTheme, signOut, borough, hasBrownBin } = useApp();
   const [areaOpen, setAreaOpen] = useState(false);
   const { level, next, progress } = levelFor(xp);
   const accuracy = stats.answered ? Math.round((stats.correct / stats.answered) * 100) : 0;
@@ -79,16 +78,17 @@ export default function ProfileScreen() {
 
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-            <T size="sm" weight="bold">App theme</T>
-            <T size="xs" weight="semibold" color={colors.forest}>All 3 unlocked</T>
+            <T size="sm" weight="bold">Neighbourhood theme</T>
+            <T size="xs" color={colors.inkMuted}>Game and app</T>
           </View>
-          <View style={[styles.row, { gap: 10 }]}>
-            {THEME_TILES.map((t) => {
-              const active = theme === t.key;
+          <View style={[styles.row, { gap: 10, flexWrap: 'wrap' }]}>
+            {THEME_ORDER.map((key) => {
+              const t = { key, label: THEMES[key].name.en, color: APP_PALETTES[key].forest };
+              const active = playTheme === t.key;
               return (
                 <Spring
                   key={t.key}
-                  onPress={() => setTheme(t.key)}
+                  onPress={() => setPlayTheme(t.key)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: active }}
                   style={[styles.themeTile, active && { borderWidth: 2, borderColor: colors.forest }]}
@@ -96,7 +96,7 @@ export default function ProfileScreen() {
                   <View style={[styles.swatch, { backgroundColor: t.color }]}>
                     {active && <Icon name="check" size={16} color={colors.white} />}
                   </View>
-                  <T size="xs" weight={active ? 'bold' : 'semibold'}>{t.label}</T>
+                  <T size="xs" weight={active ? 'bold' : 'semibold'} numberOfLines={1}>{t.label}</T>
                 </Spring>
               );
             })}
@@ -144,7 +144,8 @@ const styles = StyleSheet.create({
   fill: { height: '100%', borderRadius: radius.full },
   stat: { flex: 1, borderRadius: radius['2xl'], padding: 12, alignItems: 'center' },
   themeTile: {
-    flex: 1,
+    flexBasis: '30%',
+    flexGrow: 1,
     borderRadius: radius['2xl'],
     padding: 12,
     alignItems: 'center',

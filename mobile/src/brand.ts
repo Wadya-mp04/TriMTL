@@ -8,5 +8,6 @@ export const brand = {
   appName: 'TriMTL',
   city: 'Montréal',
   tagline: 'Scan it. Sort it. Learn Montréal.',
-  defaultTheme: 'forest' as ThemeKey,
+  /** A neighbourhood from src/game/themes.ts; themes both the game and the app. */
+  defaultTheme: 'plateau' as ThemeKey,
 };

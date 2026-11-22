@@ -7,20 +7,20 @@
  */
 import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { type HostInstance, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AvatarButton, BrandMark, Icon, PrimaryButton, T, XpPill } from '../../components/ui';
+import { Icon, PrimaryButton, T } from '../../components/ui';
 import { CHALLENGE_POOL, SortItem } from '../../data/items';
 import { Backdrop } from '../../game/Backdrop';
 import { DeckEntry, RoundResult, SortGame } from '../../game/SortGame';
 import { skyInk, streetDark, THEME_ORDER, THEMES } from '../../game/themes';
 import { useApp } from '../../state/AppState';
-import { bins } from '../../theme';
+import { bins, fonts } from '../../theme';
 
 const XP_PER_HIT = 15;
 const ROUND_SIZE = 6;
@@ -68,6 +68,12 @@ export default function PlayScreen() {
   const [groundY, setGroundY] = useState(0);
   const theme = THEMES[playTheme];
   const ink = skyInk(theme);
+  // Buildings start just below the header, so the title never sits on a facade.
+  const headerRef = useRef<HostInstance>(null);
+  const [headerBottom, setHeaderBottom] = useState(150);
+  const [progress, setProgress] = useState({ index: 0, total: 0 });
+  const onProgress = useCallback((index: number, total: number) => setProgress({ index, total }), []);
+  const measureHeader = () => headerRef.current?.measureInWindow((_x, y, _w, h) => setHeaderBottom(y + h + 12));
 
   const rounds = useMemo(
     () => buildRounds(lastScan, saved, deckParam === 'scan'),
@@ -98,37 +104,29 @@ export default function PlayScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.lane }}>
-      <Backdrop theme={theme} groundY={groundY} />
+      <Backdrop theme={theme} groundY={groundY} landmarkTop={headerBottom} />
       <StatusBar style={theme.key === 'nuit' ? 'light' : 'dark'} />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-      <View style={styles.header}>
-        <View style={styles.row}>
-          <BrandMark size={36} />
-          <T size="lg" weight="bold" color={ink} style={{ letterSpacing: -0.45 }}>Let's sort!</T>
+      {/* Same header as the other tabs (small line + serif title), coloured for the neighbourhood's sky. */}
+      <View ref={headerRef} onLayout={measureHeader} style={styles.header}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <T size="sm" color={ink} style={{ opacity: 0.75, fontVariant: ['tabular-nums'] }}>
+            Round {roundIdx + 1}{!result && progress.total > 0 ? ` · Item ${progress.index + 1} of ${progress.total}` : ''}
+          </T>
+          <T display color={ink} accessibilityRole="header" style={styles.title}>{current.title}</T>
         </View>
-        <View style={styles.row}>
-          <XpPill />
-          <AvatarButton />
-        </View>
+        <Pressable
+          onPress={() => setPicking((p) => !p)}
+          accessibilityRole="button"
+          accessibilityLabel={`Theme: ${theme.name.en}, ${theme.name.fr}. Change theme`}
+          accessibilityState={{ expanded: picking }}
+          hitSlop={10}
+        >
+          <Swatch colors={theme.gradient} size={40} ring />
+        </Pressable>
       </View>
 
       <View style={styles.main}>
-        <View style={[styles.row, { justifyContent: 'space-between', minHeight: 36 }]}>
-          <T size="base" color={ink} accessibilityRole="header" style={{ fontVariant: ['tabular-nums'] }}>
-            <T size="base" weight="bold" color={ink}>Round {roundIdx + 1}</T>  {current.title}
-          </T>
-          <Pressable
-            onPress={() => setPicking((p) => !p)}
-            accessibilityRole="button"
-            accessibilityLabel={`Theme: ${theme.name.en}, ${theme.name.fr}. Change theme`}
-            accessibilityState={{ expanded: picking }}
-            hitSlop={10}
-            style={styles.row}
-          >
-            <T size="xs" weight="semibold" color={ink} style={{ opacity: 0.85 }}>{theme.name.en}</T>
-            <Swatch colors={theme.gradient} size={28} ring />
-          </Pressable>
-        </View>
 
         {picking && (
           <View style={styles.picker}>
@@ -165,7 +163,7 @@ export default function PlayScreen() {
             onAgain={again}
           />
         ) : (
-          <SortGame key={`${seed}-${roundIdx}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={setGroundY} />
+          <SortGame key={`${seed}-${roundIdx}`} deck={current.deck} theme={theme} xpPerHit={XP_PER_HIT} onHit={onHit} onFinish={onFinish} onGround={setGroundY} onProgress={onProgress} />
         )}
       </View>
       </SafeAreaView>
@@ -237,10 +235,10 @@ function Results({ results, accent, dark, ink, muted, roundNo, nextTitle, onNext
 
 const styles = StyleSheet.create({
   // Floats over the game so opening it never reflows the board.
-  picker: { position: 'absolute', top: 42, right: 12, zIndex: 50, flexDirection: 'row', gap: 4 },
+  picker: { position: 'absolute', top: 0, right: 12, zIndex: 50, flexDirection: 'row', gap: 4 },
   sheet: { borderRadius: 22, paddingHorizontal: 16, paddingBottom: 6 },
   guideRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  header: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { fontFamily: fonts.display, fontSize: 34, lineHeight: 40 },
   main: { flex: 1, paddingHorizontal: 16, paddingTop: 4, paddingBottom: TAB_BAR_SPACE, gap: 10 },
 });
