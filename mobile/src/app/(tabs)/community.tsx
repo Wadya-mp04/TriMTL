@@ -1,27 +1,36 @@
 /**
  * Community (ui-references/.../frosted_mint_social_podium_classic): boroughs compete to sort right.
- * Players: today's real city leaderboard from Supabase (public.leaderboard) when signed in and at least
- * 3 players have scored today (the podium needs 3); otherwise the demo list plus "You".
- * shortcut: borough standings are demo data plus the user's real XP today (accounts don't store a borough yet).
+ * Today (default) or This week, in Montréal time (week starts Monday); both boards follow the switch.
+ * Players: public.board(period), one list. The podium is the top 3 by XP; below it, you and your friends
+ * first, then everyone else, each keeping their overall rank. With fewer than 3 real players (the podium
+ * needs 3), demo players fill in and a note says so; real friends are never replaced.
+ * Boroughs: real totals from public.borough_board(period) for all 19 boroughs (0 where nobody lives).
+ * Signed out, both boards are demo data plus your own XP.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, ScrollView, Share, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
-import { SkyBackdrop } from '../../game/Backdrop';
 import { skyInk, THEMES } from '../../game/themes';
 import { useRouter } from 'expo-router';
 
 import { AvatarButton, CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
 import { CITY, Ranked } from '../../data/items';
 import { BOROUGHS } from '../../data/rules';
+import { motionMs } from '../../lib/motion';
 import { supabase } from '../../lib/supabase';
 import { useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
 import { brand } from '../../brand';
 
 type Scope = 'boroughs' | 'players';
+type Period = 'today' | 'week';
+/** A board row: friend = accepted friend (players only), demo = filler while fewer than 3 played. */
+type Row = Ranked & { friend?: boolean; demo?: boolean };
+
+/** Two characters from a username: "alice" -> "AL", "user_3333" -> "US". */
+const userInitials = (name: string) => name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?';
 
 /** Two letters from the borough's main words: "Le Plateau-Mont-Royal" -> "PM". */
 const initialsOf = (name: string) =>
@@ -66,57 +75,98 @@ function FirstBlock() {
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const { xpToday, initials, borough, userId, playTheme } = useApp();
-  const [scope, setScope] = useState<Scope>('boroughs');
-  const unit = scope === 'boroughs' ? 'pts' : 'XP';
-  const [live, setLive] = useState<Ranked[] | null>(null);
-
-  // Refetch the player board when it is shown or the player earns XP.
+  const { initials, borough, userId, playTheme, dailyDone } = useApp();
+  const [scope, setScope] = useState<Scope>('players');
+  const [period, setPeriod] = useState<Period>('today');
+  // Points = daily challenge scores (one attempt a day, out of 100); This week adds up the days. The backend
+  // ranks daily scores, so playing more Keep sorting rounds never changes the board.
+  const unit = 'pts';
+  const when = period === 'today' ? 'Today' : 'This week';
+  // Switching Players / Boroughs or Today / This week: the new ranking fades in with a slight rise.
+  const swap = useRef(new Animated.Value(1)).current;
+  const firstSwap = useRef(true);
   useEffect(() => {
-    if (!supabase || !userId || scope !== 'players') return;
-    let current = true;
-    supabase.rpc('leaderboard', { scope: 'city' }).then(({ data, error }) => {
-      if (!current || error || !data) return;
-      setLive((data as { username: string; xp_today: number; is_me: boolean }[]).map((r) => ({
-        name: r.is_me ? 'You' : r.username, initials: initialsOf(r.username), xp: r.xp_today, you: r.is_me,
-      })));
-    });
-    return () => { current = false; };
-  }, [scope, userId, xpToday]);
+    if (firstSwap.current) { firstSwap.current = false; return; }
+    swap.setValue(0);
+    Animated.timing(swap, { toValue: 1, duration: motionMs(280), easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [scope, period, swap]);
+  const swapStyle = { opacity: swap, transform: [{ translateY: swap.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] };
+  // Each reply is tagged with the period it answers, so switching never shows the other period's numbers.
+  const [live, setLive] = useState<{ period: Period; rows: Row[] } | null>(null);
+  const [areas, setAreas] = useState<{ period: Period; points: Map<string, number> } | null>(null);
 
-  const ranking = useMemo(() => {
+  // Refetch the board on show, on a period switch, and when the player earns XP.
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    let current = true;
+    if (scope === 'players') {
+      supabase.rpc('board', { period }).then(({ data, error }) => {
+        if (!current || error || !data) return;
+        setLive({ period, rows: (data as { username: string; xp: number; is_me: boolean; is_friend: boolean }[]).map((r) => ({
+          name: r.is_me ? 'You' : r.username, initials: r.is_me ? initials : userInitials(r.username), xp: r.xp, you: r.is_me, friend: r.is_friend,
+        })) });
+      });
+    } else {
+      supabase.rpc('borough_board', { period }).then(({ data, error }) => {
+        if (!current || error || !data) return;
+        setAreas({ period, points: new Map((data as { borough: string; points: number }[]).map((r) => [r.borough, r.points])) });
+      });
+    }
+    return () => { current = false; };
+  }, [scope, period, userId, dailyDone, initials]);
+
+  const ranking = useMemo((): Row[] => {
+    const byXp = (a: Row, b: Row) => b.xp - a.xp || a.name.localeCompare(b.name);
     if (scope === 'boroughs') {
-      // Your XP today counts for your borough.
+      const real = userId && areas?.period === period ? areas.points : null;
       return BOROUGHS.map((b) => ({
         name: b.name,
         initials: initialsOf(b.name),
-        xp: demoPoints(b.slug) + (b.slug === borough ? xpToday : 0),
+        // Demo: your XP counts for your borough on top of stable made-up points.
+        xp: real ? (real.get(b.slug) ?? 0) : demoPoints(b.slug) + (b.slug === borough ? dailyDone?.score ?? 0 : 0),
         you: b.slug === borough,
-      })).sort((a, b) => b.xp - a.xp);
+      })).sort(byXp);
     }
-    if (userId && live && live.length >= 3) return live;
-    const me: Ranked = { name: 'You', initials, xp: xpToday, you: true };
-    return [...CITY, me].sort((a, b) => b.xp - a.xp);
-  }, [scope, xpToday, initials, borough, userId, live]);
+    // Offline or not signed in: you appear once you've played today's challenge, with that score.
+    const rows: Row[] = userId && live?.period === period ? live.rows : dailyDone ? [{ name: 'You', initials, xp: dailyDone.score, you: true }] : [];
+    const filler = rows.length < 3 ? CITY.map((c) => ({ ...c, demo: true })) : [];
+    return [...rows, ...filler].sort(byXp);
+  }, [scope, period, dailyDone, initials, borough, userId, live, areas]);
 
   const [first, second, third] = ranking;
-  // Always show your own row, even if you're outside the top 8.
   const mine = ranking.findIndex((r) => r.you);
-  const rest = ranking.map((r, i) => ({ ...r, rank: i + 1 })).filter((r) => (r.rank > 3 && r.rank <= 8) || (r.you && r.rank > 3));
+  const below = ranking.map((r, i) => ({ ...r, rank: i + 1 })).slice(3);
+  // Players: you and your friends first, all of them; then the rest. Your own row always shows.
+  const circle = scope === 'players' ? below.filter((r) => r.you || r.friend) : [];
+  const others = below.filter((r) => !circle.includes(r)).filter((r) => r.rank <= (scope === 'players' ? 10 : 8) || r.you);
+  const hasDemo = scope === 'players' && ranking.some((r) => r.demo);
 
   const share = () => {
     const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${p.name} ${p.xp} ${unit}`);
     const what = scope === 'boroughs' ? 'borough podium' : 'player podium';
-    Share.share({ message: `This week's ${brand.appName} ${what} ♻️\n${lines.join('\n')}` });
+    Share.share({ message: `${period === 'today' ? "Today's" : "This week's"} ${brand.appName} ${what} ♻️\n${lines.join('\n')}` });
   };
+
+  const listRow = (p: Row & { rank: number }) => (
+    <Glass key={`${p.rank}-${p.name}`} style={[styles.listRow, p.you && { borderColor: colors.forest }]}>
+      <View style={[styles.row, { flex: 1, marginRight: 8 }]}>
+        <View style={[styles.listRank, p.you && { backgroundColor: colors.forest }]}>
+          <T size="xs" weight="bold" color={p.you ? colors.white : colors.ink}>{p.rank}</T>
+        </View>
+        <T size="sm" weight="semibold" numberOfLines={1} style={{ marginLeft: 4, flexShrink: 1 }}>{p.name}</T>
+        {p.demo && <T size="xs" color={colors.inkMuted}>demo</T>}
+      </View>
+      <T size="xs" weight="bold" color={p.you ? colors.forest : colors.inkMuted}>{p.xp} {unit}</T>
+    </Glass>
+  );
 
   // Text sitting straight on the page (not on a card) takes the Play ground's ink, so it reads on Nuit too.
   const ground = THEMES[playTheme];
   const youTone = (p: Ranked, base: string) => (p.you ? colors.forest : base);
 
   return (
-    <Screen edges={['top']} background={<SkyBackdrop theme={THEMES[playTheme]} />}>
-      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`This week · ${brand.city}`} title="Community" right={
+    <Screen edges={['top']} transparent>
+      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`${when} · ${brand.city}`} title="Community" right={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <CircleButton icon="group-add" label="Friends" onPress={() => router.push('/friends')} />
           <AvatarButton />
@@ -124,12 +174,37 @@ export default function CommunityScreen() {
       } />
 
       <ScrollView contentContainerStyle={styles.main} showsVerticalScrollIndicator={false}>
+        {/* Your status on today's challenge, in plain words: the board counts daily challenge scores. */}
+        <Glass style={styles.today}>
+          <Icon name={dailyDone ? 'check-circle' : 'emoji-events'} size={22} color={colors.forest} />
+          <View style={{ flex: 1 }}>
+            <T size="sm" weight="bold">{dailyDone ? "You did today's challenge" : "You haven't played today's challenge"}</T>
+            <T size="xs" color={colors.inkMuted}>{dailyDone ? 'Your score counts on the board' : 'Play it to get on the board'}</T>
+          </View>
+          {dailyDone ? (
+            <T size="lg" weight="bold" color={colors.forest} style={{ fontVariant: ['tabular-nums'] }}>{dailyDone.score}/100</T>
+          ) : (
+            <Spring onPress={() => router.navigate('/play')} accessibilityRole="button" style={[styles.playChip, { backgroundColor: colors.forest }]}>
+              <T size="sm" weight="semibold" color={colors.white}>Play</T>
+            </Spring>
+          )}
+        </Glass>
+
         <Segmented
-          options={[{ key: 'boroughs', label: 'Boroughs' }, { key: 'players', label: 'Players' }]}
+          options={[{ key: 'players', label: 'Players' }, { key: 'boroughs', label: 'Boroughs' }]}
           value={scope}
           onChange={setScope}
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.72)', borderColor: 'rgba(255, 255, 255, 0.88)', boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12)' }}
         />
+        <Segmented
+          compact
+          options={[{ key: 'today', label: 'Today' }, { key: 'week', label: 'This week' }]}
+          value={period}
+          onChange={setPeriod}
+          style={{ alignSelf: 'center', marginTop: -8 }}
+        />
+
+        <Animated.View style={[{ gap: 20 }, swapStyle]}>
 
         {scope === 'boroughs' && mine === -1 && (
           <Spring onPress={() => router.push('/profile')} accessibilityRole="button" pressedScale={0.98} style={styles.cta}>
@@ -139,7 +214,7 @@ export default function CommunityScreen() {
           </Spring>
         )}
 
-        <View accessibilityLabel="Top 3 this week" style={styles.podium}>
+        <View accessibilityLabel={`Top 3 ${period === 'today' ? 'today' : 'this week'}`} style={styles.podium}>
           {/* 2nd */}
           <View style={styles.col}>
             <View>
@@ -190,32 +265,45 @@ export default function CommunityScreen() {
           </View>
         </View>
 
-        <View style={{ gap: 8 }}>
-          <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-            <T size="xs" weight="semibold" color={ground.laneMuted} style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>{scope === 'boroughs' ? 'Other boroughs' : 'Also sorting'}</T>
-            <T size="xs" color={ground.laneMuted}>Resets Monday</T>
+        {circle.length > 0 && (
+          <View style={{ gap: 8 }}>
+            <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
+              <T size="xs" weight="semibold" color={ground.laneMuted} style={styles.sectionLabel}>You and friends</T>
+              <T size="xs" color={ground.laneMuted}>{period === 'today' ? 'Resets at midnight' : 'Resets Monday'}</T>
+            </View>
+            {circle.map(listRow)}
           </View>
-          {rest.map((p) => (
-            <Glass key={p.name} style={[styles.listRow, p.you && { borderColor: colors.forest }]}>
-              <View style={[styles.row, { flex: 1, marginRight: 8 }]}>
-                <View style={[styles.listRank, p.you && { backgroundColor: colors.forest }]}>
-                  <T size="xs" weight="bold" color={p.you ? colors.white : colors.ink}>{p.rank}</T>
-                </View>
-                <T size="sm" weight="semibold" numberOfLines={1} style={{ marginLeft: 4, flexShrink: 1 }}>{p.name}</T>
-              </View>
-              <T size="xs" weight="bold" color={youTone(p, colors.inkMuted)}>{p.xp} {unit}</T>
-            </Glass>
-          ))}
-        </View>
+        )}
 
-        <PrimaryButton label="Share this week's podium" icon="ios-share" onPress={share} style={{ gap: 8 }} />
+        {others.length > 0 && (
+          <View style={{ gap: 8 }}>
+            <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
+              <T size="xs" weight="semibold" color={ground.laneMuted} style={styles.sectionLabel}>{scope === 'boroughs' ? 'Other boroughs' : 'Also sorting'}</T>
+              {circle.length === 0 && <T size="xs" color={ground.laneMuted}>{period === 'today' ? 'Resets at midnight' : 'Resets Monday'}</T>}
+            </View>
+            {others.map(listRow)}
+          </View>
+        )}
+
+        {hasDemo && (
+          <T size="xs" color={ground.laneMuted} style={{ textAlign: 'center', marginTop: -8 }}>
+            {userId ? `Demo players fill in until 3 people play ${period === 'today' ? 'today' : 'this week'}.` : 'Demo players. Sign in to see real scores.'}
+          </T>
+        )}
+
+        </Animated.View>
+
+        <PrimaryButton label={`Share ${period === 'today' ? "today's" : "this week's"} podium`} icon="ios-share" onPress={share} style={{ gap: 8 }} />
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  today: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius['2xl'], padding: 14 },
+  playChip: { height: 36, paddingHorizontal: 16, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   podiumName: { maxWidth: 100, textAlign: 'center' },
+  sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.6 },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',

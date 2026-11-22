@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { BentoBackdrop, CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Spring, T } from '../components/ui';
+import { CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Spring, T } from '../components/ui';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../state/AppState';
 import { colors, fonts, radius, shadow } from '../theme';
@@ -116,7 +116,6 @@ export default function FriendsScreen() {
   if (!supabase || !userId) {
     return (
       <Screen>
-        <BentoBackdrop />
         <View style={styles.back}><CircleButton icon="arrow-back" label="Back" onPress={back} /></View>
         <ScreenHeader eyebrow="Sort together" title="Friends" style={{ paddingTop: 12 }} />
         <View style={styles.main}>
@@ -146,7 +145,6 @@ export default function FriendsScreen() {
 
   return (
     <Screen>
-      <BentoBackdrop />
       <View style={styles.back}><CircleButton icon="arrow-back" label="Back" onPress={back} /></View>
       <ScreenHeader
         eyebrow={friends.length ? `${friends.length} friend${friends.length === 1 ? '' : 's'}` : 'Sort together'}

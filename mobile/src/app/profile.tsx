@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AreaSheet } from '../components/AreaSheet';
-import { BentoBackdrop, CircleButton, Glass, Icon, Screen, ScreenHeader, Segmented, Spring, T } from '../components/ui';
+import { CircleButton, Glass, Icon, Screen, ScreenHeader, Segmented, Spring, T } from '../components/ui';
 import { boroughName } from '../data/rules';
 import { levelFor, useApp } from '../state/AppState';
 import { THEME_ORDER, THEMES } from '../game/themes';
@@ -22,7 +22,6 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <BentoBackdrop />
       <View style={styles.back}>
         <CircleButton icon="arrow-back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/community'))} />
       </View>
@@ -34,10 +33,11 @@ export default function ProfileScreen() {
             <View style={[styles.bigAvatar, shadow.md, { backgroundColor: colors.forest }]}>
               <T size="xl" weight="bold" color={colors.white}>{initials}</T>
             </View>
-            <View>
-              <T size="xl" weight="bold">{username}</T>
+            {/* flex + minWidth 0 keep long names inside the card; they end with "…" instead of overflowing. */}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <T size="xl" weight="bold" numberOfLines={1}>{username}</T>
               <View style={[styles.levelChip, shadow.sm]}>
-                <T size="xs" weight="semibold" color={colors.forest}>Level {level} • {boroughName(borough)}</T>
+                <T size="xs" weight="semibold" color={colors.forest} numberOfLines={1}>Level {level} • {boroughName(borough)}</T>
               </View>
             </View>
           </View>
@@ -70,7 +70,7 @@ export default function ProfileScreen() {
             <Icon name="location-city" size={20} color={colors.white} />
           </View>
           <View style={{ flex: 1 }}>
-            <T size="sm" weight="bold">{boroughName(borough)}</T>
+            <T size="sm" weight="bold" numberOfLines={2}>{boroughName(borough)}</T>
             <T size="xs" color={colors.inkMuted}>{hasBrownBin ? 'Brown bin' : 'No brown bin'} · answers match your area</T>
           </View>
           <Icon name="chevron-right" size={20} color={colors.inkMuted} />
@@ -86,7 +86,7 @@ export default function ProfileScreen() {
 
         <View style={{ gap: 8 }}>
           <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-            <T size="sm" weight="bold">Neighbourhood theme</T>
+            <T size="sm" weight="bold" color={colors.ink}>Neighbourhood theme</T>
             <T size="xs" color={colors.inkMuted}>Game and app</T>
           </View>
           <View style={[styles.row, { gap: 10, flexWrap: 'wrap' }]}>
@@ -112,7 +112,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ gap: 8 }}>
-          <T size="sm" weight="bold" style={{ paddingHorizontal: 4 }}>Recent games</T>
+          <T size="sm" weight="bold" color={colors.ink} style={{ paddingHorizontal: 4 }}>Recent games</T>
           {games.slice(0, 3).map((g, i) => {
             const score = Math.round((g.correct / Math.max(1, g.items)) * 100);
             return (
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   back: { paddingHorizontal: 20, paddingTop: 12 },
   identity: { borderRadius: radius['3xl'], padding: 20, gap: 16 },
   bigAvatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  levelChip: { alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 10, paddingVertical: 2, borderRadius: radius.full, backgroundColor: colors.white },
+  levelChip: { alignSelf: 'flex-start', maxWidth: '100%', marginTop: 4, paddingHorizontal: 10, paddingVertical: 2, borderRadius: radius.full, backgroundColor: colors.white },
   track: { height: 10, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.8)', overflow: 'hidden' },
   fill: { height: '100%', borderRadius: radius.full },
   stat: { flex: 1, borderRadius: radius['2xl'], padding: 12, alignItems: 'center' },

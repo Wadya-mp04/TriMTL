@@ -111,13 +111,13 @@ export default function AnalyzingScreen() {
         </Glass>
 
         {loading && (
-          <View style={styles.tip}>
+          <Glass style={styles.tip}>
             <T size="xs" weight="bold" color={colors.forest} style={{ letterSpacing: 0.6 }}>DID YOU KNOW?</T>
             <T size="sm" weight="semibold" style={{ textAlign: 'center' }}>
               {tip.name} → <T size="sm" weight="semibold" color={bins[tip.bin].deep}>{tip.where ?? bins[tip.bin].label}</T>
             </T>
             <T size="xs" color={colors.inkMuted} style={{ textAlign: 'center' }}>{tip.text}</T>
-          </View>
+          </Glass>
         )}
 
         {phase.kind === 'empty' && (
@@ -149,5 +149,5 @@ const styles = StyleSheet.create({
   bar: { position: 'absolute', top: 0, bottom: 0, width: '50%', borderRadius: radius.full },
   cta: { width: 'auto', paddingHorizontal: 24 },
   retry: { alignSelf: 'center', paddingVertical: 8 },
-  tip: { alignItems: 'center', gap: 4, paddingHorizontal: 12 },
+  tip: { alignSelf: 'stretch', alignItems: 'center', gap: 4, padding: 16, borderRadius: radius['2xl'] },
 });

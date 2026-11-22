@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { BinSections } from '../components/BinSections';
-import { BentoBackdrop, CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, T } from '../components/ui';
+import { CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, T } from '../components/ui';
 import { useApp } from '../state/AppState';
 import { BIN_ORDER, bins, colors, fonts, radius } from '../theme';
 
@@ -22,7 +22,6 @@ export default function LibraryScreen() {
 
   return (
     <Screen>
-      <BentoBackdrop />
       <View style={styles.back}>
         <CircleButton icon="arrow-back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/scan'))} />
       </View>

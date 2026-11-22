@@ -7,9 +7,10 @@
  */
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { CHALLENGE_POOL, DEMO_SAVED, fromRule, Lang, resolveItem, SortItem } from '../data/items';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { CHALLENGE_POOL, DEMO_SAVED, fromRule, Lang, resolveItem, SortItem } from '../data/items';
+import { montrealDay } from '../lib/daily';
 import { withRetry } from '../lib/retry';
 import { supabase } from '../lib/supabase';
 import { brand } from '../brand';
@@ -66,6 +67,10 @@ interface AppState {
   lang: Lang;
   setLang: (l: Lang) => void;
   setPlayTheme: (t: ThemeKey) => void;
+  /** Today's daily challenge result (Montréal day), or null if not played yet today. */
+  dailyDone: { day: string; score: number } | null;
+  /** False until today's saved daily result has been read, so Play never shows the wrong start state. */
+  dailyKnown: boolean;
 }
 
 // Apply the white-label default before the first render.
@@ -126,7 +131,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [stats, setStats] = useState(DEMO.stats);
   const [playTheme, setPlayThemeState] = useState<ThemeKey>(brand.defaultTheme);
   const [lastScanRaw, setLastScanRaw] = useState<SortItem[]>([]);
+  const [dailyResult, setDailyResult] = useState<{ day: string; score: number } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [dailyKnown, setDailyKnown] = useState(false);
+  // The Montréal day, re-checked every 30 s so a new challenge appears at midnight without a restart.
+  const [day, setDay] = useState(montrealDay);
+  useEffect(() => {
+    const t = setInterval(() => setDay(montrealDay()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  // Today's daily result is kept on the phone per user, so restarting the app can't reset it.
+  const dailyKey = `trimtl.daily.${userId ?? 'demo'}`;
+  useEffect(() => {
+    let alive = true;
+    setDailyKnown(false);
+    setDailyResult(null);
+    AsyncStorage.getItem(dailyKey)
+      .then((raw) => {
+        const r = raw ? (JSON.parse(raw) as { day: string; score: number }) : null;
+        if (alive && r?.day === montrealDay()) setDailyResult(r);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setDailyKnown(true); });
+    return () => { alive = false; };
+  }, [dailyKey]);
+  const keepDaily = useCallback((r: { day: string; score: number }) => {
+    setDailyResult(r);
+    AsyncStorage.setItem(dailyKey, JSON.stringify(r)).catch(() => {});
+  }, [dailyKey]);
   // Last user the profile was loaded for (undefined = not loaded yet).
   const loadedFor = useRef<string | null | undefined>(undefined);
 
@@ -145,7 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
       // Scoreboard: the signed-in user's own totals, recent rounds and today's XP (RLS limits it to them).
-      const [profile, totals, recent, board, scans] = await Promise.all([
+      const [profile, totals, recent, board, scans, daily] = await Promise.all([
         sb.from('profiles').select('username').eq('id', id).single(),
         sb.from('player_stats').select('games, answered, correct, xp').maybeSingle(),
         sb.from('game_scores').select('mode, items, correct, played_at').order('played_at', { ascending: false }).limit(5),
@@ -153,6 +185,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // shortcut: the newest 200 scans only; page through them if a library ever gets bigger.
         sb.from('scanned_items').select('id, rule_id, category, name, count, client_key, scanned_at')
           .order('scanned_at', { ascending: false }).limit(200),
+        sb.from('game_scores').select('items, correct, played_at').eq('mode', 'daily').order('played_at', { ascending: true }).limit(20),
       ]);
       if (loadedFor.current !== id) return; // signed out or switched user while loading: drop the stale reply
       if (profile.data?.username) setUsername(profile.data.username);
@@ -163,6 +196,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ({ title: TITLES[g.mode] ?? g.mode, items: g.items, correct: g.correct, when: dayLabel(g.played_at) })));
       const me = (board.data as { xp_today: number; is_me: boolean }[] | null)?.find((r) => r.is_me);
       setXpToday(me?.xp_today ?? 0);
+      // Today's daily challenge, from any device: the first daily round played today (Montréal day) is the one that counts.
+      const today = montrealDay();
+      const first = (daily.data as { items: number; correct: number; played_at: string }[] | null)?.find((r) => montrealDay(new Date(r.played_at)) === today);
+      // Only ever marks the day as done (a local result not yet synced is kept).
+      if (first) {
+        const r = { day: today, score: Math.round((first.correct * 100) / Math.max(1, first.items)) };
+        setDailyResult(r);
+        AsyncStorage.setItem(`trimtl.daily.${id}`, JSON.stringify(r)).catch(() => {}); // this user's key (not a stale closure)
+      }
       // The library follows the account: saved scans come back, and the engine decides their bins.
       type ScanRow = { id: number; rule_id: string | null; category: string | null; name: string; count: number; client_key: string | null; scanned_at: string };
       if (!scans.error) {
@@ -231,6 +273,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [saveItems]);
 
   const recordGame = useCallback((g: Omit<GameRecord, 'when'> & { mode: GameMode; xp: number }) => {
+    // Only the first daily round of the day counts; replays are recorded as normal rounds by Play.
+    if (g.mode === 'daily' && dailyResult?.day !== montrealDay()) keepDaily({ day: montrealDay(), score: Math.round((g.correct * 100) / Math.max(1, g.items)) });
     setGames((prev) => [{ title: g.title, items: g.items, correct: g.correct, when: 'Today' }, ...prev].slice(0, 5));
     setStats((s) => ({ games: s.games + 1, answered: s.answered + g.items, correct: s.correct + g.correct }));
     if (!supabase || !userId) return;
@@ -238,7 +282,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const row = { mode: g.mode, items: g.items, correct: g.correct, xp: g.xp, client_key: `${Date.now()}-${Math.random().toString(36).slice(2)}` };
     const sb = supabase;
     withRetry('save score', () => sb.from('game_scores').upsert(row, { onConflict: 'user_id,client_key', ignoreDuplicates: true }));
-  }, [userId]);
+  }, [userId, dailyResult, keepDaily]);
 
   // Changing brown bin or borough re-sorts everything at once: saved items, the last scan, the game.
   const saved = useMemo(() => savedRaw.map((i) => resolveItem(i, { borough, hasBrownBin }, lang)), [savedRaw, borough, hasBrownBin, lang]);
@@ -269,12 +313,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLastScan,
       saveItems,
       recordGame,
+      dailyDone: dailyResult?.day === day ? dailyResult : null,
+      dailyKnown,
       setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
       lang,
       setLang,
+      // Immediate, so the tapped tile and the background crossfade respond in the same frame; the heavy
+      // street and game take the change later (useDeferredValue in components/World and Play).
       setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
-    [username, xp, xpToday, saved, photos, lastScan, challengePool, borough, hasBrownBin, lang, setLang, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, challengePool, borough, hasBrownBin, lang, setLang, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame, dailyResult, dailyKnown, day],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

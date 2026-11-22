@@ -4,7 +4,7 @@
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { BrandMark, Glass, Icon, PrimaryButton, Screen, Segmented, Spring, T } from '../components/ui';
 import { useApp } from '../state/AppState';
@@ -12,6 +12,16 @@ import { colors, fonts, radius } from '../theme';
 import { brand } from '../brand';
 
 type Mode = 'signin' | 'signup';
+
+/** Close the keyboard and wait until it's gone (max 350 ms), so the layout doesn't jump during the page fade. */
+function hideKeyboard() {
+  if (!Keyboard.isVisible()) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const sub = Keyboard.addListener('keyboardDidHide', () => { sub.remove(); resolve(); });
+    setTimeout(() => { sub.remove(); resolve(); }, 350);
+    Keyboard.dismiss();
+  });
+}
 
 function Field({ label, ...input }: React.ComponentProps<typeof TextInput> & { label: string }) {
   const [focused, setFocused] = useState(false);
@@ -45,7 +55,11 @@ export default function AuthScreen() {
     const err = mode === 'signup' ? await signUp(name, email, password) : await signIn(email, password);
     setBusy(false);
     if (err) setError(err);
-    else router.replace('/scan');
+    else {
+      // Only on success: after a wrong password the keyboard stays open for retyping.
+      await hideKeyboard();
+      router.replace('/scan');
+    }
   };
 
   return (
@@ -55,8 +69,19 @@ export default function AuthScreen() {
           <View style={styles.brand}>
             <BrandMark size={64} />
             <View style={{ alignItems: 'center' }}>
-              <T size="4xl" display style={{ lineHeight: 45 }}>{brand.appName}</T>
+              <T size="4xl" display color={colors.ink} style={{ lineHeight: 45 }}>{brand.appName}</T>
               <T size="sm" color={colors.inkMuted} style={{ marginTop: 4 }}>{brand.tagline}</T>
+            </View>
+            {/* White-label partner line, from brand.ts: the client city and where its rules come from. */}
+            <View style={styles.partner} accessible accessibilityLabel={`Made for ${brand.partner.city}. Rules from ${brand.partner.rulesSource}`}>
+              {brand.partner.logo ? (
+                <Image source={brand.partner.logo} style={styles.partnerLogo} resizeMode="contain" />
+              ) : (
+                <Icon name="location-city" size={16} color={colors.forest} />
+              )}
+              <T size="xs" color={colors.inkMuted}>
+                Made for <T size="xs" weight="semibold" color={colors.ink}>{brand.partner.city}</T> · rules from {brand.partner.rulesSource}
+              </T>
             </View>
           </View>
 
@@ -77,9 +102,9 @@ export default function AuthScreen() {
             </View>
           </Glass>
 
-          <Spring onPress={() => router.replace('/scan')} style={styles.demo} accessibilityRole="link">
-            <T size="sm" weight="semibold" color={colors.forest}>Continue demo without account</T>
-            <Icon name="arrow-forward" size={18} color={colors.forest} />
+          <Spring onPress={() => hideKeyboard().then(() => router.replace('/scan'))} style={styles.demo} accessibilityRole="link">
+            <T size="sm" weight="semibold" color={colors.ink}>Continue demo without account</T>
+            <Icon name="arrow-forward" size={18} color={colors.ink} />
           </Spring>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -88,6 +113,18 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
+  partner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.88)',
+  },
+  partnerLogo: { width: 20, height: 20 },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 40, gap: 24 },
   brand: { alignItems: 'center', gap: 12 },
   card: { borderRadius: radius['3xl'], padding: 20, gap: 16 },

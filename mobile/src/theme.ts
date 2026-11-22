@@ -16,18 +16,12 @@ export const colors = {
   white: '#FFFFFF',
 };
 
-/** Background radial gradients. "pearl" is the default on every screen; "mint" is the original design variant. */
-export const canvasGradients: Record<'mint' | 'pearl', string[]> = {
-  mint: ['#FFFFFF', '#E5F3EA', '#D4EBDD'],
-  pearl: ['#FFFFFF', '#EAF6EE', '#D7EDE0'],
-};
-
 /** One theme system: the game's Montréal neighbourhoods also theme the rest of the app. */
 export type { ThemeKey };
 
 /**
  * Light app palette per neighbourhood (src/game/themes.ts). The game's own colours are tuned for its
- * street scene (Nuit MTL is dark), so the app gets a matching accent and a softly tinted canvas instead.
+ * street scene (Nuit MTL is dark), so the app gets a matching accent and a soft canvas gradient (drawn once by components/World).
  */
 export const APP_PALETTES: Record<ThemeKey, { forest: string; forestDeep: string; mintCanvas: string; canvas: string[] }> = {
   plateau: { forest: '#176B4D', forestDeep: '#123629', mintCanvas: '#EAF6EE', canvas: ['#FFFFFF', '#EAF6EE', '#D7EDE0'] },
@@ -45,8 +39,6 @@ export const APP_PALETTES: Record<ThemeKey, { forest: string; forestDeep: string
 export function applyTheme(key: ThemeKey) {
   const t = APP_PALETTES[key];
   Object.assign(colors, { forest: t.forest, forestDeep: t.forestDeep, mintCanvas: t.mintCanvas });
-  canvasGradients.mint = t.canvas;
-  canvasGradients.pearl = t.canvas;
 }
 
 export type BinKey = 'recycling' | 'compost' | 'garbage' | 'special';

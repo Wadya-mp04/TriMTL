@@ -67,7 +67,7 @@ export default function CameraScreen() {
     return (
       <Screen style={styles.ask}>
         <IconBubble icon="photo-camera" />
-        <T size="2xl" display style={{ marginTop: 16, textAlign: 'center' }}>Allow the camera</T>
+        <T size="2xl" display color={colors.ink} style={{ marginTop: 16, textAlign: 'center' }}>Allow the camera</T>
         <T size="sm" color={colors.inkMuted} style={{ marginTop: 6, textAlign: 'center' }}>
           {permission.canAskAgain
             ? `${brand.appName} needs your camera to photograph the items you want to sort.`
