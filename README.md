@@ -68,6 +68,7 @@ npx expo start              # scan the QR code with Expo Go
 | Variable | Required | Default | Notes |
 |---|---|---|---|
 | `GEMINI_API_KEY` | yes | none | **Only in `server/.env`** (git-ignored). Never in `mobile/`, never in a commit, never in logs. Without it `/api/scan` returns `500 no_key`. |
+| `GEMINI_API_KEY_BACKUP` | no | none | Used only after Gemini rejects the main key (revoked, expired, leaked); same rules as the main key. Never to spread quota across keys. |
 | `GEMINI_MODEL` | no | `gemini-3.1-flash-lite` | 2–4 s per photo in testing. |
 | `PORT` | no | `3001` | |
 

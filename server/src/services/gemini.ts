@@ -130,14 +130,31 @@ export function totalOf(items: Pick<DetectedItem, "count">[], modelTotal: number
   return { total, isEstimate: modelEstimate || total >= 20 };
 }
 
+/**
+ * True when Gemini rejected the API key itself (invalid, expired, revoked or reported as leaked), not the request.
+ * @param status HTTP status from the Gemini SDK error.
+ * @param message The SDK error message (never contains the key).
+ */
+export function isBadKey(status: number | undefined, message: string) {
+  return status === 401 || status === 403 || (status === 400 && /api[ _]key/i.test(message));
+}
+
+// Main key, then an optional backup used only once the main one is rejected (failover, never to spread quota).
+const keys = () => [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_BACKUP].filter((k): k is string => !!k);
+let keyIndex = 0;
 let client: GoogleGenAI | null = null;
 function ai() {
-  if (!process.env.GEMINI_API_KEY) throw new AiError("no_key", "GEMINI_API_KEY is not set in server/.env");
-  return (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }));
+  const key = keys()[keyIndex];
+  if (!key) {
+    throw new AiError("no_key", keyIndex === 0 ? "GEMINI_API_KEY is not set in server/.env"
+      : "Scanning is unavailable: the server's Gemini key was rejected. Put a valid GEMINI_API_KEY in server/.env and restart.");
+  }
+  return (client ??= new GoogleGenAI({ apiKey: key }));
 }
 
 async function callOnce(imageBase64: string, mimeType: string, lang: Lang): Promise<Detection> {
-  const call = ai().models.generateContent({
+  const used = ai();
+  const call = used.models.generateContent({
     model: MODEL,
     contents: [
       { inlineData: { mimeType, data: imageBase64 } },
@@ -154,6 +171,15 @@ async function callOnce(imageBase64: string, mimeType: string, lang: Lang): Prom
   } catch (err) {
     if (err instanceof AiError) throw err;
     const status = (err as { status?: number }).status;
+    if (isBadKey(status, (err as Error).message)) {
+      // Only the first request to hit the dead key moves on, so parallel scans can't skip the backup.
+      if (client === used) {
+        keyIndex++;
+        client = null;
+        console.warn(`Gemini key #${keyIndex} rejected (${status}); ${keys()[keyIndex] ? "switching to GEMINI_API_KEY_BACKUP" : "no backup key left"}`);
+      }
+      return callOnce(imageBase64, mimeType, lang); // next key, or no_key once none is left
+    }
     if (status === 429) throw new AiError("rate_limited", "Gemini quota reached; try again in a minute");
     throw new AiError("ai_failed", `Gemini error ${status ?? ""}: ${(err as Error).message}`.slice(0, 300));
   }

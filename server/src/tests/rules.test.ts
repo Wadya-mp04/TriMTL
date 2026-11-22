@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findRule, getRule, RULES, toScanItem } from "../services/sortingRules.js";
 import { pointsPerItem, score } from "../services/scoring.js";
-import { Detected, totalOf } from "../services/gemini.js";
+import { Detected, isBadKey, totalOf } from "../services/gemini.js";
 
 // Sources must be official: the city or Recyc-Québec.
 // Consignaction runs Québec's official deposit-return system.
@@ -90,4 +90,13 @@ test("a long item name or too many items is trimmed, never a failed scan", () =>
   const parsed = Detected.parse({ totalObjects: 1, isEstimate: false, subject: "", notWaste: false, items: Array(100).fill(item) });
   assert.equal(parsed.items[0].name.length, 80);
   assert.ok(parsed.items.length < 100);
+});
+
+test("a rejected Gemini key is told apart from other errors", () => {
+  assert.ok(isBadKey(400, "API key not valid. Please pass a valid API key. [API_KEY_INVALID]"));
+  assert.ok(isBadKey(400, "API key expired. Please renew the API key."));
+  assert.ok(isBadKey(403, "Your API key was reported as leaked."));
+  assert.ok(!isBadKey(400, "Request payload size exceeds the limit"));
+  assert.ok(!isBadKey(429, "Resource exhausted"));
+  assert.ok(!isBadKey(500, "Internal error"));
 });

@@ -286,9 +286,10 @@ Every error body is `ApiError`:
 | 429 | `rate_limited` | Gemini free-tier quota | "Busy, try again in a minute" plus the typed-name fallback |
 | 504 | `timeout` | Gemini took more than 20 s | Retry button |
 | 502 | `ai_failed` | Gemini error or bad JSON, twice (one retry) | Retry button |
-| 500 | `no_key` | `GEMINI_API_KEY` missing on the server | (dev only) |
+| 500 | `no_key` | `GEMINI_API_KEY` missing, or Gemini rejected it (and `GEMINI_API_KEY_BACKUP`, if set) | "Scanning is unavailable" plus demo results |
 
-Only `ai_failed` is retried, once. A quota error would fail again and use up more quota. A timeout retry
+A rejected key (401/403, or 400 naming the API key) is never retried with the same key: the server switches
+to `GEMINI_API_KEY_BACKUP` for the rest of its run, if set. Only `ai_failed` is retried, once. A quota error would fail again and use up more quota. A timeout retry
 would make the user wait 40 s, longer than the app's 25 s client timeout.
 
 ---
