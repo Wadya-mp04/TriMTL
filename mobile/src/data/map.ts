@@ -137,21 +137,3 @@ export function zonesAt(zones: Zone[], p: { lat: number; lng: number }): Partial
   }
   return out;
 }
-
-/** OSM tags every address on the island with this county; Laval and the South Shore have their own. */
-export const onIsland = (county?: string) => !!county && /Agglomération de Montréal/i.test(county);
-
-/**
- * Street and address search, Island of Montréal only (the trial's scope). Sends only the typed text.
- * Returns 'off-island' when the place exists but is not on the island.
- */
-export async function geocode(query: string): Promise<{ lat: number; lng: number; label: string } | 'off-island' | null> {
-  // The bbox narrows the search to the island and its edges; the county check below makes it exact.
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=ca&viewbox=-73.98,45.71,-73.47,45.41&bounded=1&q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { headers: { 'User-Agent': 'TriMTL/1.0 (map trial)', 'Accept-Language': 'en' } });
-  if (!res.ok) throw new Error(`geocoder ${res.status}`);
-  const hits = (await res.json()) as { lat: string; lon: string; display_name: string; address?: { county?: string } }[];
-  const hit = hits.find((h) => onIsland(h.address?.county));
-  if (!hit) return hits.length ? 'off-island' : null;
-  return { lat: Number(hit.lat), lng: Number(hit.lon), label: hit.display_name.split(',').slice(0, 2).join(',') };
-}

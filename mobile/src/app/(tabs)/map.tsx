@@ -22,7 +22,8 @@ import WebView, { type WebViewMessageEvent } from 'react-native-webview';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { CircleButton, Glass, Icon, IconBubble, PrimaryButton, SecondaryButton, Segmented, Spring, T } from '../../components/ui';
-import { BATTERY_LOCATOR, geocode, loadMapData, zoneKey, zonesAt, type MapData, type Material } from '../../data/map';
+import { BATTERY_LOCATOR, loadMapData, zoneKey, zonesAt, type MapData, type Material } from '../../data/map';
+import { suggest, type Suggestion } from '../../map/addressSearch';
 import { BottomSheet } from '../../map/BottomSheet';
 import { AreaDetails, Chip, zonePickups, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
 import { mapHtml, PLACE_STYLE } from '../../map/mapHtml';
@@ -40,6 +41,7 @@ const MATERIALS: { key: Material; label: string; icon: string; tint: string }[] 
   { key: 'medicines', label: 'Medicines', icon: 'medication', tint: PLACE_STYLE.pharmacy.color },
 ];
 const LIST_CAP = 25;
+const MIN_CHARS = 3;
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -62,7 +64,11 @@ export default function MapScreen() {
   const [selected, setSelected] = useState<Selection>(null);
   const [sheet, setSheet] = useState(0);
   const [query, setQuery] = useState('');
-  const [searching, setSearching] = useState(false);
+  const [places, setPlaces] = useState<Suggestion[]>([]);
+  const [offIsland, setOffIsland] = useState(false);
+  const [lookup, setLookup] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [retry, setRetry] = useState(0);
+  const searching = lookup === 'loading';
   const [focused, setFocused] = useState(false);
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -167,6 +173,8 @@ export default function MapScreen() {
 
   /** Look up the city sectors at a spot; outside them, say why rather than showing an empty card. */
   const pickSpot = (p: { lat: number; lng: number }, label: string) => {
+    Keyboard.dismiss();
+    setFocused(false);
     if (!data) return;
     const area = zonesAt(data.zones, p);
     if (!area.garbage && !area.recycling) {
@@ -174,7 +182,7 @@ export default function MapScreen() {
       return;
     }
     setNotice(null);
-    select({ kind: 'area', ...p, label, area });
+    select({ kind: 'area', lat: p.lat, lng: p.lng, label, area });
   };
 
   const onMessage = (e: WebViewMessageEvent) => {
@@ -216,31 +224,55 @@ export default function MapScreen() {
     }
   };
 
+  // Type-ahead: wait for a pause in typing, drop answers to questions that are no longer being asked.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < MIN_CHARS) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      setLookup('loading');
+      suggest(q, ctrl.signal).then(
+        (r) => { setPlaces(r.places); setOffIsland(r.offIsland); setLookup('idle'); },
+        (e) => { if (e?.name !== 'AbortError') setLookup('error'); },
+      );
+    }, 250);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [query, retry]);
+
   const matches = useMemo(() => {
     const q = fold(query.trim());
     if (!q || !data) return [];
     const drops = data.dropoffs
       .filter((d) => fold(`${d.name} ${d.address}`).includes(q))
       .map((d) => ({ kind: 'dropoff' as const, id: d.id, title: d.name, sub: d.address, icon: PLACE_STYLE[d.kind].icon }));
-    return drops.slice(0, 4);
+    return drops.slice(0, 2);
   }, [query, data]);
 
+  const typed = query.trim().length >= MIN_CHARS;
+  const shown = typed ? places.slice(0, 6) : [];
+
+  /** Fly to a suggestion and show the days for that address. */
+  const pickPlace = (p: Suggestion) => {
+    Keyboard.dismiss();
+    setFocused(false);
+    setQuery(p.title);
+    send({ type: 'place', lat: p.lat, lng: p.lng });
+    pickSpot(p, p.title);
+  };
+
+  // Enter takes the first row on screen; if the suggestions have not arrived yet, ask straight away.
   const submitSearch = async () => {
     if (matches[0]) return select({ kind: matches[0].kind, id: matches[0].id });
-    if (!query.trim() || !data) return;
-    setSearching(true);
+    if (shown[0]) return pickPlace(shown[0]);
+    if (!typed) return;
+    setLookup('loading');
     try {
-      const hit = await geocode(query.trim());
-      if (hit === 'off-island') return setNotice({ icon: 'search-off', text: 'This trial covers the Island of Montréal only. Try a street or address on the island.' });
-      if (!hit) return setNotice({ icon: 'search-off', text: `No street or address called "${query.trim()}" on the island. Try a street and number.` });
-      Keyboard.dismiss();
-      setFocused(false);
-      send({ type: 'place', ...hit });
-      pickSpot(hit, hit.label);
+      const r = await suggest(query.trim());
+      setLookup('idle');
+      if (r.places[0]) return pickPlace(r.places[0]);
+      setNotice({ icon: 'search-off', text: r.offIsland ? 'This trial covers the Island of Montréal only. Try a street or address on the island.' : `No street or address called "${query.trim()}" on the island. Try a street and number.` });
     } catch {
-      setNotice({ icon: 'cloud-off', text: "Search couldn't reach the map service. Check your connection and try again.", action: { label: 'Retry', run: submitSearch } });
-    } finally {
-      setSearching(false);
+      setLookup('error');
     }
   };
 
@@ -323,6 +355,8 @@ export default function MapScreen() {
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               onSubmitEditing={submitSearch}
+              autoCorrect={false}
+              autoCapitalize="words"
               placeholder="Search a street or address"
               placeholderTextColor={colors.inkMuted}
               returnKeyType="search"
@@ -353,10 +387,45 @@ export default function MapScreen() {
                 </View>
               </Spring>
             ))}
-            <Spring onPress={submitSearch} pressedScale={0.98} accessibilityRole="button" style={styles.result}>
-              <Icon name="travel-explore" size={18} color={colors.forest} />
-              <T size="sm" weight="semibold" color={colors.forest} numberOfLines={1} style={{ flex: 1 }}>Find "{query.trim()}" on the island</T>
-            </Spring>
+            {shown.map((p) => (
+              <Spring key={p.id + p.title} onPress={() => pickPlace(p)} pressedScale={0.98} accessibilityRole="button" accessibilityLabel={`${p.title}, ${p.subtitle}`} style={styles.result}>
+                <Icon name={p.kind === 'street' ? 'signpost' : 'place'} size={18} color={colors.inkMuted} />
+                <View style={{ flex: 1 }}>
+                  <T size="sm" weight="semibold" numberOfLines={1}>{p.title}</T>
+                  <T size="xs" color={colors.inkMuted} numberOfLines={1}>{p.subtitle}</T>
+                </View>
+              </Spring>
+            ))}
+            {!typed && !matches.length && (
+              <View style={styles.result}>
+                <Icon name="edit-location-alt" size={18} color={colors.inkMuted} />
+                <T size="sm" color={colors.inkMuted} style={{ flex: 1 }}>Keep typing an address, like 4200 Rue Saint-Denis</T>
+              </View>
+            )}
+            {typed && lookup === 'loading' && !shown.length && [0, 1].map((i) => (
+              <View key={i} style={styles.result} accessibilityLabel="Searching addresses">
+                <View style={styles.skelDot} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <View style={[styles.skelBar, { width: `${70 - i * 18}%` }]} />
+                  <View style={[styles.skelBar, { width: '40%', height: 8 }]} />
+                </View>
+              </View>
+            ))}
+            {typed && lookup === 'error' && (
+              <Spring onPress={() => { setLookup('idle'); setRetry((n) => n + 1); }} accessibilityRole="button" style={styles.result}>
+                <Icon name="cloud-off" size={18} color={colors.inkMuted} />
+                <T size="sm" color={colors.inkMuted} style={{ flex: 1 }}>Address search isn't reachable.</T>
+                <T size="sm" weight="bold" color={colors.forest}>Try again</T>
+              </Spring>
+            )}
+            {typed && lookup === 'idle' && !shown.length && !matches.length && (
+              <View style={styles.result}>
+                <Icon name="search-off" size={18} color={colors.inkMuted} />
+                <T size="sm" color={colors.inkMuted} style={{ flex: 1 }}>
+                  {offIsland ? 'This trial covers the Island of Montréal only.' : 'No street or address like that on the island.'}
+                </T>
+              </View>
+            )}
           </Glass>
         )}
 
@@ -491,10 +560,12 @@ const styles = StyleSheet.create({
   searchRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
   search: { flex: 1, height: 48, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
   input: { flex: 1, height: 48, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 15, color: colors.ink },
+  skelDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(18,41,31,0.1)' },
+  skelBar: { height: 12, borderRadius: 6, backgroundColor: 'rgba(18,41,31,0.1)' },
   clear: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   locate: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   tilt: { alignSelf: 'flex-end', marginRight: 16 },
-  results: { marginHorizontal: 16, borderRadius: radius['2xl'], paddingVertical: 6 },
+  results: { marginHorizontal: 16, borderRadius: radius['2xl'], paddingVertical: 6, backgroundColor: 'rgba(255, 255, 255, 0.96)' },
   result: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 16 },
   chips: { gap: 8, paddingHorizontal: 16, paddingVertical: 2 },
   notice: { marginHorizontal: 16, borderRadius: radius['2xl'], paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
