@@ -60,8 +60,11 @@ export function Screen({
   variant = 'pearl',
   edges = ['top', 'bottom'],
   style,
+  background,
 }: {
   children: ReactNode;
+  /** Replaces the canvas gradient (Scan and Community draw the Play sky here). */
+  background?: ReactNode;
   variant?: keyof typeof canvasGradients;
   edges?: Edge[];
   style?: StyleProp<ViewStyle>;
@@ -69,6 +72,7 @@ export function Screen({
   const stops = canvasGradients[variant];
   return (
     <View style={{ flex: 1, backgroundColor: stops[1] }}>
+      {background ?? (
       <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
         <Defs>
           {/* CSS: radial-gradient(120% 80% at 15% 0%, ...) */}
@@ -80,6 +84,7 @@ export function Screen({
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#canvas)" />
       </Svg>
+      )}
       <SafeAreaView edges={edges} style={[{ flex: 1 }, style]}>
         {children}
       </SafeAreaView>
@@ -230,17 +235,20 @@ export function ScreenHeader({
   title,
   right,
   style,
+  ink,
 }: {
   eyebrow: string;
   title: string;
+  /** Text colour over a dark sky. */
+  ink?: string;
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
     <View style={[styles.screenHeader, style]}>
       <View style={{ flex: 1, gap: 2 }}>
-        <T size="sm" color={colors.inkMuted}>{eyebrow}</T>
-        <T display style={styles.screenTitle}>{title}</T>
+        <T size="sm" color={ink ?? colors.inkMuted} style={ink ? { opacity: 0.75 } : undefined}>{eyebrow}</T>
+        <T display style={[styles.screenTitle, ink ? { color: ink } : null]}>{title}</T>
       </View>
       {right}
     </View>

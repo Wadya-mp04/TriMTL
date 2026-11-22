@@ -24,39 +24,126 @@ export interface GameTheme {
   backdrop: string;
 }
 
-const svg = (body: string) => `<svg viewBox="0 0 480 300" preserveAspectRatio="xMidYMax slice">${body}</svg>`;
+/**
+ * Every backdrop goes through `mute` so the six neighbourhoods share the app's soft undertone, the way
+ * Mile End's sage sky and greystone already do: saturation above 30% is compressed hard (a red brick
+ * stays brick but stops shouting), the darkest inks lift a little, and everything leans 10% toward a
+ * paper-coloured air. Already-quiet colours barely move, so Mile End is close to unchanged.
+ */
+const hex2 = (n: number) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
+export function muteColor(hex: string, air: string) {
+  const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const mx = Math.max(...v), mn = Math.min(...v), l = (mx + mn) / 2, d = mx - mn;
+  let h = 0;
+  const s0 = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (d) h = mx === v[0] ? ((v[1] - v[2]) / d + 6) % 6 : mx === v[1] ? (v[2] - v[0]) / d + 2 : (v[0] - v[1]) / d + 4;
+  const s1 = s0 <= 0.3 ? s0 : 0.3 + (s0 - 0.3) * 0.4, l1 = 0.08 + l * 0.9;
+  const c = (1 - Math.abs(2 * l1 - 1)) * s1, x = c * (1 - Math.abs((h % 2) - 1)), m = l1 - c / 2;
+  const [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x];
+  const a = [1, 3, 5].map((i) => parseInt(air.slice(i, i + 2), 16));
+  return '#' + [r, g, b].map((ch, i) => hex2((ch + m) * 255 * 0.9 + a[i] * 0.1)).join('');
+}
+const PAPER = '#F3F1EA', NIGHT_AIR = '#1E2433';
+const mute = (xml: string, air = PAPER) => xml.replace(/#[0-9A-Fa-f]{6}\b/g, (c) => muteColor(c, air));
+
+/** Sky drawn above the scene (viewBox units), so the real sky, not a flat fill, runs up behind the header. */
+export const SKY_EXT = 300;
+const svg = (body: string) => `<svg viewBox="0 -${SKY_EXT} 480 ${300 + SKY_EXT}" preserveAspectRatio="xMidYMax slice">${body}</svg>`;
+/** The scene's own gradient over 0..300, held at its top colour above that. */
 const sky = (id: string, stops: [number, string][]) =>
-  `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient></defs><rect width="480" height="300" fill="url(#${id})"/>`;
+  `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="-${SKY_EXT}" x2="0" y2="300"><stop offset="0" stop-color="${stops[0][1]}"/>${stops.map(([o, c]) => `<stop offset="${((SKY_EXT + o * 300) / (SKY_EXT + 300)).toFixed(3)}" stop-color="${c}"/>`).join('')}</linearGradient></defs><rect y="-${SKY_EXT}" width="480" height="${300 + SKY_EXT}" fill="url(#${id})"/>`;
 /** Deterministic scatter so a backdrop is identical on every render. */
 const rand = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 
-// ---------- Plateau: brick triplexes with the outdoor spiral stairs and painted doors.
+// ---------- Plateau: a row of brick triplexes, drawn from the ones on rue de Bullion and avenue de
+// l'Esplanade. Pressed-metal cornices on carved brackets, a slate mansard with a dormer, limestone
+// lintels over segmental windows, two storeys of painted wooden galleries on thin iron posts, paired
+// upstairs doors with transoms, and the curved iron outside stair that is the neighbourhood's signature.
 function plateau() {
-  const brick = ['#C9785A', '#D9946B', '#E3B48A'], win = '#FFF3CF', frame = '#F7F1E6', iron = '#2B302D', snow = '#FFFFFF';
-  const doors = ['#1F6B45', '#2E5E8C', '#8E3B46'];
-  let s = sky('pl', [[0, '#BFDDF0'], [1, '#F1F7FA']]);
-  s += `<circle cx="420" cy="34" r="16" fill="#FFFFFF" opacity=".7"/>`;
-  for (let i = 0; i < 3; i++) {
-    const x = i * 170 - 20, w = 160;
-    s += `<rect x="${x}" y="40" width="${w}" height="240" fill="${brick[i]}"/>`;
-    s += `<rect x="${x - 4}" y="32" width="${w + 8}" height="12" fill="${frame}"/><path d="M${x - 4} 32h${w + 8}" stroke="${iron}" stroke-width="2" opacity=".35"/><rect x="${x - 4}" y="27" width="${w + 8}" height="6" rx="3" fill="${snow}"/>`;
-    for (let fl = 0; fl < 3; fl++) {
-      const y = 62 + fl * 72;
-      s += `<rect x="${x + 18}" y="${y}" width="34" height="44" rx="2" fill="${win}" stroke="${frame}" stroke-width="4"/>`;
-      s += fl < 2
-        ? `<rect x="${x + 100}" y="${y}" width="26" height="54" rx="2" fill="${doors[i]}" stroke="${frame}" stroke-width="4"/><rect x="${x + 104}" y="${y + 5}" width="18" height="14" fill="${win}" opacity=".9"/>`
-        : `<rect x="${x + 100}" y="${y}" width="26" height="54" rx="2" fill="${win}" stroke="${frame}" stroke-width="4" opacity=".9"/>`;
-      s += `<path d="M${x + 6} ${y + 58}h${w - 12}" stroke="${iron}" stroke-width="3"/><path d="M${x + 6} ${y + 58}v14M${x + w - 6} ${y + 58}v14" stroke="${iron}" stroke-width="2"/>`;
-      for (let k = 0; k < 14; k++) s += `<path d="M${x + 14 + k * 10} ${y + 58}v14" stroke="${iron}" stroke-width="1.4"/>`;
-      s += `<rect x="${x + 4}" y="${y + 53}" width="${w - 8}" height="5" rx="2.5" fill="${snow}"/>`;
+  const snow = '#FFFFFF', stone = '#E9E1D0', stoneShade = '#C9BFA9', iron = '#23272B', glass = '#BFDDF2', lit = '#FFE3A1';
+  const GROUND = 265, FLOOR = 75; // street level and storey height, in viewBox units
+  let s = sky('pl', [[0, '#7DBDEB'], [0.7, '#CFE7F7'], [1, '#EEF7FC']]);
+  s += `<defs><pattern id="brk" width="16" height="8" patternUnits="userSpaceOnUse"><path d="M0 7.5h16M8 0v3.5M0 4v3.5M16 4v3.5" stroke="#000" stroke-width=".8" opacity=".13"/><path d="M0 3.75h16" stroke="#000" stroke-width=".8" opacity=".13"/></pattern>`
+    + `<pattern id="slate" width="8" height="7" patternUnits="userSpaceOnUse"><path d="M0 7a4 4 0 0 1 8 0M-4 3.5a4 4 0 0 1 8 0M4 3.5a4 4 0 0 1 8 0" fill="none" stroke="#1B2230" stroke-width=".9" opacity=".55"/></pattern></defs>`;
+  // the mountain and its cross, seen down the street over the roofs
+  s += `<path d="M-10 70Q150 18 260 26T490 62V120H-10z" fill="#9CC3DA" opacity=".7"/><rect x="331" y="12" width="2.4" height="16" fill="#FFFFFF" opacity=".9"/><rect x="327" y="17" width="10" height="2" fill="#FFFFFF" opacity=".9"/>`;
+
+  type House = { x: number; w: number; brick: string; trim: string; gallery: string; doors: [string, string, string]; roof: 'cornice' | 'mansard'; stair: boolean };
+  const houses: House[] = [
+    { x: -30, w: 170, brick: '#C2603F', trim: '#1E6E5C', gallery: '#2BA7A0', doors: ['#D7263D', '#2BA7A0', '#F2B632'], roof: 'cornice', stair: false },
+    { x: 140, w: 200, brick: '#B04A36', trim: '#2A2F3A', gallery: '#F2B632', doors: ['#2457A6', '#D7263D', '#6B4FA0'], roof: 'mansard', stair: true },
+    { x: 340, w: 170, brick: '#D27A45', trim: '#E8E2D2', gallery: '#6B4FA0', doors: ['#1E6E5C', '#F2B632', '#D7263D'], roof: 'cornice', stair: false },
+  ];
+
+  // segmental-arch window with a limestone lintel and sill
+  const win = (x: number, y: number, w: number, h: number, glow: boolean) =>
+    `<path d="M${x - 4} ${y + 2}Q${x + w / 2} ${y - 10} ${x + w + 4} ${y + 2}v5Q${x + w / 2} ${y - 5} ${x - 4} ${y + 7}z" fill="${stone}"/>`
+    + `<path d="M${x} ${y + 6}Q${x + w / 2} ${y - 2} ${x + w} ${y + 6}V${y + h}H${x}z" fill="${glow ? lit : glass}" stroke="#F4EFE4" stroke-width="2.5"/>`
+    + `<path d="M${x + w / 2} ${y + 3}V${y + h}M${x} ${y + h * 0.55}H${x + w}" stroke="#F4EFE4" stroke-width="1.6"/>`
+    + (glow ? '' : `<path d="M${x + 4} ${y + h - 6}l${w * 0.35} -${h * 0.5}" stroke="#FFFFFF" stroke-width="2" opacity=".5"/>`)
+    + `<rect x="${x - 4}" y="${y + h}" width="${w + 8}" height="4" fill="${stone}"/><rect x="${x - 4}" y="${y + h + 4}" width="${w + 8}" height="1.5" fill="${stoneShade}"/>`;
+  // painted door with a transom and a lit glass panel
+  const door = (x: number, y: number, c: string) =>
+    `<rect x="${x - 3}" y="${y - 14}" width="28" height="12" fill="${stone}"/><rect x="${x}" y="${y - 11}" width="22" height="8" fill="${lit}" opacity=".85"/>`
+    + `<rect x="${x}" y="${y}" width="22" height="46" fill="${c}"/><rect x="${x + 4}" y="${y + 5}" width="14" height="16" fill="${glass}" opacity=".85"/>`
+    + `<rect x="${x + 4}" y="${y + 26}" width="14" height="14" fill="none" stroke="#000" stroke-opacity=".2" stroke-width="1.2"/><circle cx="${x + 18}" cy="${y + 25}" r="1.4" fill="#F4D58A"/>`;
+  // a wooden gallery: deck, turned balusters, top rail, and the iron posts down to the deck below
+  const gallery = (x: number, w: number, y: number, c: string) => {
+    let g = `<rect x="${x}" y="${y}" width="${w}" height="5" fill="${c}"/><rect x="${x}" y="${y + 5}" width="${w}" height="2" fill="#000" opacity=".2"/>`;
+    g += `<rect x="${x}" y="${y - 20}" width="${w}" height="3.5" fill="${c}"/>`;
+    for (let k = 4; k < w - 2; k += 6) g += `<rect x="${x + k}" y="${y - 17}" width="2.6" height="17" rx="1.2" fill="${c}"/>`;
+    g += `<rect x="${x}" y="${y - 23}" width="${w}" height="3" rx="1.5" fill="${snow}"/>`;
+    for (const px of [x + 2, x + w - 4]) g += `<rect x="${px}" y="${y + 7}" width="2.4" height="${FLOOR - 7}" fill="${iron}"/>`;
+    return g;
+  };
+
+  for (const h of houses) {
+    const top = GROUND - 3 * FLOOR; // 40
+    s += `<rect x="${h.x}" y="${top}" width="${h.w}" height="${GROUND - top}" fill="${h.brick}"/><rect x="${h.x}" y="${top}" width="${h.w}" height="${GROUND - top}" fill="url(#brk)"/>`;
+    s += `<rect x="${h.x + h.w - 3}" y="${top}" width="3" height="${GROUND - top}" fill="#000" opacity=".12"/>`;
+    // roof
+    if (h.roof === 'mansard') {
+      s += `<path d="M${h.x - 4} ${top}L${h.x + 10} ${top - 30}H${h.x + h.w - 10}L${h.x + h.w + 4} ${top}z" fill="#3B4A63"/><path d="M${h.x - 4} ${top}L${h.x + 10} ${top - 30}H${h.x + h.w - 10}L${h.x + h.w + 4} ${top}z" fill="url(#slate)"/>`;
+      s += `<rect x="${h.x + 8}" y="${top - 33}" width="${h.w - 16}" height="4" rx="2" fill="${snow}"/>`;
+      const dx = h.x + h.w / 2 - 16;
+      s += `<path d="M${dx - 4} ${top - 24}L${dx + 16} ${top - 40}L${dx + 36} ${top - 24}z" fill="${h.trim}"/><rect x="${dx}" y="${top - 24}" width="32" height="22" fill="${h.trim}"/><rect x="${dx + 6}" y="${top - 20}" width="20" height="16" fill="${lit}"/><path d="M${dx + 16} ${top - 20}v16" stroke="${h.trim}" stroke-width="2"/>`;
+      s += `<path d="M${dx - 6} ${top - 24}L${dx + 16} ${top - 42}L${dx + 38} ${top - 24}" fill="none" stroke="${snow}" stroke-width="3" stroke-linecap="round"/>`;
+      s += `<rect x="${h.x - 6}" y="${top - 2}" width="${h.w + 12}" height="8" fill="${h.trim}"/>`;
+    } else {
+      s += `<rect x="${h.x - 6}" y="${top - 16}" width="${h.w + 12}" height="10" fill="${h.trim}"/><rect x="${h.x - 2}" y="${top - 6}" width="${h.w + 4}" height="6" fill="${h.trim}"/>`;
+      for (let k = 0; k < h.w; k += 5) s += `<rect x="${h.x + k}" y="${top - 6}" width="2.6" height="3" fill="#000" opacity=".25"/>`;
+      for (let k = 6; k < h.w; k += 26) s += `<path d="M${h.x + k} ${top - 6}h7v8q-3.5 4 -7 0z" fill="${h.trim}" stroke="#000" stroke-opacity=".25" stroke-width=".8"/>`;
+      s += `<rect x="${h.x - 8}" y="${top - 21}" width="${h.w + 16}" height="6" rx="3" fill="${snow}"/>`;
     }
-    s += `<path d="M${x + 150} 274 C ${x + 150} 230, ${x + 70} 236, ${x + 74} 196" fill="none" stroke="${iron}" stroke-width="3"/>`;
-    s += `<path d="M${x + 140} 274 C ${x + 140} 236, ${x + 62} 242, ${x + 64} 196" fill="none" stroke="${iron}" stroke-width="3"/>`;
-    for (let k = 0; k < 8; k++) {
-      const t = k / 7, xx = x + 145 - 76 * t, yy = 272 - 74 * t;
-      s += `<path d="M${xx - 6} ${yy}h14" stroke="${snow}" stroke-width="3" stroke-linecap="round"/>`;
+    // storeys, top to bottom: windows on the left, a door (or a tall window) on the right, galleries on floors 2 and 3
+    for (let fl = 0; fl < 3; fl++) {
+      const y = top + 14 + fl * FLOOR, glow = (fl + h.x) % 2 === 0;
+      s += win(h.x + 16, y, 30, 40, glow) + win(h.x + 58, y, 30, 40, !glow);
+      if (h.w > 180) s += win(h.x + 100, y, 30, 40, glow);
+      s += door(h.x + h.w - 40, y + 2 + (fl === 2 ? 0 : 0), h.doors[fl]);
+      if (fl < 2) s += gallery(h.x + 4, h.w - 8, top + (fl + 1) * FLOOR - 4, h.gallery);
+    }
+    // ground-floor stoop
+    s += `<rect x="${h.x + h.w - 46}" y="${GROUND - 6}" width="34" height="6" fill="${stoneShade}"/>`;
+    // the curved outside stair, sidewalk to the second-floor gallery
+    if (h.stair) {
+      const x0 = h.x + h.w - 60, y0 = GROUND, x1 = h.x + 120, y1 = top + 2 * FLOOR - 4;
+      const path = (o: number) => `M${x0 + o} ${y0}C${x0 + o} ${y0 - 46}, ${x1 + 40 + o} ${y1 + 22}, ${x1 + o} ${y1}`;
+      s += `<path d="${path(0)}" fill="none" stroke="${iron}" stroke-width="3.5"/><path d="${path(14)}" fill="none" stroke="${iron}" stroke-width="3.5"/>`;
+      for (let k = 0; k <= 11; k++) {
+        const t = k / 11, u = 1 - t;
+        const bx = u * u * u * x0 + 3 * u * u * t * x0 + 3 * u * t * t * (x1 + 40) + t * t * t * x1;
+        const by = u * u * u * y0 + 3 * u * u * t * (y0 - 46) + 3 * u * t * t * (y1 + 22) + t * t * t * y1;
+        s += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="16" height="3" fill="${iron}"/><rect x="${bx.toFixed(1)}" y="${(by - 2).toFixed(1)}" width="16" height="2.2" rx="1.1" fill="${snow}"/>`;
+        if (k % 2 === 0) s += `<path d="M${(bx + 1).toFixed(1)} ${by.toFixed(1)}v-14M${(bx + 15).toFixed(1)} ${by.toFixed(1)}v-14" stroke="${iron}" stroke-width="1.3"/>`;
+      }
+      s += `<path d="${path(0).replace(/(\d+(?:\.\d+)?) (\d+(?:\.\d+)?)/g, (_m, a, b) => `${a} ${+b - 14}`)}" fill="none" stroke="${iron}" stroke-width="2"/>`;
     }
   }
+  // sidewalk edge and the iron fence of the front yards
+  s += `<rect x="0" y="${GROUND - 2}" width="480" height="${300 - GROUND + 2}" fill="#C8CFD4"/>`;
+  for (let k = 0; k < 480; k += 9) s += `<path d="M${k} ${GROUND - 2}v-12" stroke="${iron}" stroke-width="1.3"/><circle cx="${k}" cy="${GROUND - 15}" r="1.3" fill="${iron}"/>`;
+  s += `<path d="M0 ${GROUND - 12}H480" stroke="${iron}" stroke-width="1.6"/><rect x="0" y="${GROUND - 4}" width="480" height="4" fill="${snow}"/>`;
   return svg(s);
 }
 
@@ -103,7 +190,7 @@ function saintLaurent() {
 function montRoyal() {
   let s = sky('mr', [[0, '#3E2C5E'], [0.45, '#8E4F78'], [0.8, '#E0896F'], [1, '#F4B27C']]);
   const r = rand(11);
-  for (let k = 0; k < 18; k++) s += `<circle cx="${(r() * 480).toFixed(0)}" cy="${(r() * 60).toFixed(0)}" r="${(0.6 + r()).toFixed(1)}" fill="#FFF4E0" opacity=".8"/>`;
+  for (let k = 0; k < 18 + 60; k++) s += `<circle cx="${(r() * 480).toFixed(0)}" cy="${(k < 18 ? r() * 60 : -r() * SKY_EXT).toFixed(0)}" r="${(0.6 + r()).toFixed(1)}" fill="#FFF4E0" opacity=".8"/>`;
   s += `<circle cx="90" cy="150" r="46" fill="#FFC98A" opacity=".35"/>`;
   // mountain layers
   s += `<path d="M-10 170Q110 112 240 56Q370 112 490 150V300H-10z" fill="#6A4580"/>`;
@@ -169,10 +256,10 @@ function mileEnd() {
 function nuit() {
   let s = sky('nu', [[0, '#090D2B'], [0.6, '#1A2250'], [1, '#2B3A4A']]);
   const r = rand(23);
-  for (let k = 0; k < 40; k++) s += `<circle cx="${(r() * 480).toFixed(0)}" cy="${(r() * 110).toFixed(0)}" r="${(0.5 + r() * 1.1).toFixed(1)}" fill="#FFFFFF" opacity="${(0.4 + r() * 0.6).toFixed(2)}"/>`;
+  for (let k = 0; k < 40 + 90; k++) s += `<circle cx="${(r() * 480).toFixed(0)}" cy="${(k < 40 ? r() * 110 : -r() * SKY_EXT).toFixed(0)}" r="${(0.5 + r() * 1.1).toFixed(1)}" fill="#FFFFFF" opacity="${(0.4 + r() * 0.6).toFixed(2)}"/>`;
   s += `<circle cx="70" cy="36" r="13" fill="#F4F1E0"/><circle cx="76" cy="31" r="12" fill="#0E1436"/>`;
   // beacon beams from Place Ville Marie
-  s += `<path d="M232 36L120 0H160z" fill="#5FF2B8" opacity=".14"/><path d="M232 36L360 0H330z" fill="#5FF2B8" opacity=".1"/>`;
+  s += `<path d="M232 36L-253 -120H-80z" fill="#5FF2B8" opacity=".14"/><path d="M232 36L786 -120H656z" fill="#5FF2B8" opacity=".1"/>`;
   const tower = '#1F2A44', tower2 = '#26324F', lit = '#FFD98A', mint = '#5FF2B8';
   const windows = (x: number, y: number, w: number, h: number, density: number) => {
     let o = '';
@@ -231,34 +318,34 @@ function vieuxQuebec() {
   for (let k = 0; k < 4; k++) s += `<rect x="${374 + k * 18}" y="178" width="12" height="10" fill="${stone2}"/>`;
   // snowfall
   const r = rand(31);
-  for (let k = 0; k < 70; k++) s += `<circle cx="${(r() * 480).toFixed(0)}" cy="${(r() * 260).toFixed(0)}" r="${(0.8 + r() * 1.8).toFixed(1)}" fill="#FFFFFF" opacity="${(0.5 + r() * 0.5).toFixed(2)}"/>`;
+  for (let k = 0; k < 70 + 80; k++) s += `<circle cx="${(r() * 480).toFixed(0)}" cy="${(k < 70 ? r() * 260 : -r() * SKY_EXT).toFixed(0)}" r="${(0.8 + r() * 1.8).toFixed(1)}" fill="#FFFFFF" opacity="${(0.5 + r() * 0.5).toFixed(2)}"/>`;
   return svg(s);
 }
 
 export const THEMES: Record<ThemeKey, GameTheme> = {
   plateau: {
-    key: 'plateau', name: { en: 'Plateau Brick', fr: 'Brique du Plateau' }, gradient: ['#C9785A', '#E8C9A0'],
-    accent: '#1F6B45', onAccent: '#FFFFFF', lane: '#D9DED8', snow: '#FFFFFF', snowShade: '#DBE7EE', laneInk: '#12291F', laneMuted: '#415E52', backdrop: plateau(),
+    key: 'plateau', name: { en: 'Plateau Brick', fr: 'Brique du Plateau' }, gradient: [muteColor('#C9785A', PAPER), muteColor('#E8C9A0', PAPER)],
+    accent: '#1F6B45', onAccent: '#FFFFFF', lane: '#D9DED8', snow: '#FFFFFF', snowShade: '#DBE7EE', laneInk: '#12291F', laneMuted: '#415E52', backdrop: mute(plateau()),
   },
   'saint-laurent': {
-    key: 'saint-laurent', name: { en: 'St-Laurent', fr: 'Saint-Laurent' }, gradient: ['#2F7F86', '#4F6D8F'],
-    accent: '#0F5E63', onAccent: '#FFFFFF', lane: '#D3DBDF', snow: '#F6FBFD', snowShade: '#CFE0E8', laneInk: '#13282E', laneMuted: '#3E5A63', backdrop: saintLaurent(),
+    key: 'saint-laurent', name: { en: 'St-Laurent', fr: 'Saint-Laurent' }, gradient: [muteColor('#2F7F86', PAPER), muteColor('#4F6D8F', PAPER)],
+    accent: '#0F5E63', onAccent: '#FFFFFF', lane: '#D3DBDF', snow: '#F6FBFD', snowShade: '#CFE0E8', laneInk: '#13282E', laneMuted: '#3E5A63', backdrop: mute(saintLaurent()),
   },
   'mont-royal': {
-    key: 'mont-royal', name: { en: 'Mont-Royal', fr: 'Mont-Royal' }, gradient: ['#5B3A6B', '#E59A6B'],
-    accent: '#8E2C6B', onAccent: '#FFFFFF', lane: '#E3D6DA', snow: '#FFF7F2', snowShade: '#E8CFD6', laneInk: '#2A1630', laneMuted: '#5E4566', backdrop: montRoyal(),
+    key: 'mont-royal', name: { en: 'Mont-Royal', fr: 'Mont-Royal' }, gradient: [muteColor('#5B3A6B', PAPER), muteColor('#E59A6B', PAPER)],
+    accent: '#8E2C6B', onAccent: '#FFFFFF', lane: '#E3D6DA', snow: '#FFF7F2', snowShade: '#E8CFD6', laneInk: '#2A1630', laneMuted: '#5E4566', backdrop: mute(montRoyal()),
   },
   'mile-end': {
-    key: 'mile-end', name: { en: 'Mile End', fr: 'Mile-End' }, gradient: ['#8FAE8B', '#E6DFCC'],
-    accent: '#4E6B2E', onAccent: '#FFFFFF', lane: '#DEDCCD', snow: '#FBFAF4', snowShade: '#DCDDCB', laneInk: '#1F2A17', laneMuted: '#4E5A44', backdrop: mileEnd(),
+    key: 'mile-end', name: { en: 'Mile End', fr: 'Mile-End' }, gradient: [muteColor('#8FAE8B', PAPER), muteColor('#E6DFCC', PAPER)],
+    accent: '#4E6B2E', onAccent: '#FFFFFF', lane: '#DEDCCD', snow: '#FBFAF4', snowShade: '#DCDDCB', laneInk: '#1F2A17', laneMuted: '#4E5A44', backdrop: mute(mileEnd()),
   },
   nuit: {
-    key: 'nuit', name: { en: 'Nuit MTL', fr: 'Nuit MTL' }, gradient: ['#1B1F4A', '#2B3A4A'],
-    accent: '#5FF2B8', onAccent: '#0B1A14', lane: '#1E2836', snow: '#C9D9E8', snowShade: '#8FA6BC', laneInk: '#EAF2F0', laneMuted: '#A9BBC8', backdrop: nuit(),
+    key: 'nuit', name: { en: 'Nuit MTL', fr: 'Nuit MTL' }, gradient: [muteColor('#1B1F4A', PAPER), muteColor('#2B3A4A', PAPER)],
+    accent: '#5FF2B8', onAccent: '#0B1A14', lane: '#1E2836', snow: '#C9D9E8', snowShade: '#8FA6BC', laneInk: '#EAF2F0', laneMuted: '#A9BBC8', backdrop: mute(nuit(), NIGHT_AIR),
   },
   'vieux-quebec': {
-    key: 'vieux-quebec', name: { en: 'Old Québec', fr: 'Vieux-Québec' }, gradient: ['#5E9C8F', '#C8B79A'],
-    accent: '#9A4A2C', onAccent: '#FFFFFF', lane: '#DCDADF', snow: '#FFFFFF', snowShade: '#D6D8E2', laneInk: '#2A211B', laneMuted: '#5E524A', backdrop: vieuxQuebec(),
+    key: 'vieux-quebec', name: { en: 'Old Québec', fr: 'Vieux-Québec' }, gradient: [muteColor('#5E9C8F', PAPER), muteColor('#C8B79A', PAPER)],
+    accent: '#9A4A2C', onAccent: '#FFFFFF', lane: '#DCDADF', snow: '#FFFFFF', snowShade: '#D6D8E2', laneInk: '#2A211B', laneMuted: '#5E524A', backdrop: mute(vieuxQuebec()),
   },
 };
 export const THEME_ORDER: ThemeKey[] = ['plateau', 'saint-laurent', 'mont-royal', 'mile-end', 'nuit', 'vieux-quebec'];
