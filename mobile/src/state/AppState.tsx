@@ -91,17 +91,8 @@ export type Visibility = 'public' | 'friends' | 'private';
 export type GameMode = 'mine' | 'daily' | 'challenge';
 const TITLES: Record<GameMode, string> = { mine: 'Your items', daily: 'Daily challenge', challenge: 'Challenge' };
 
-/** The demo profile from the designs, shown when signed out or without Supabase. */
-const DEMO = {
-  username: 'EcoSorter',
-  xp: 320,
-  xpToday: 75,
-  games: [
-    { title: 'My scanned items', items: 4, correct: 4, when: 'Today' },
-    { title: 'Daily challenge', items: 5, correct: 4, when: 'Yesterday' },
-  ] as GameRecord[],
-  stats: { games: 12, answered: 50, correct: 44 },
-};
+/** The guest profile, shown when signed out or without Supabase: starts empty, like a new account. */
+const DEMO = { username: 'EcoSorter', xp: 0, xpToday: 0, games: [] as GameRecord[], stats: { games: 0, answered: 0, correct: 0 } };
 
 function dayLabel(iso: string) {
   const d = new Date(iso);

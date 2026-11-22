@@ -2,10 +2,9 @@
  * Community (ui-references/.../frosted_mint_social_podium_classic): boroughs compete to sort right.
  * Today (default) or This week, in Montréal time (week starts Monday); both boards follow the switch.
  * Players: public.board(period), one list. The podium is the top 3 by XP; below it, you and your friends
- * first, then everyone else, each keeping their overall rank. With fewer than 3 real players (the podium
- * needs 3), demo players fill in and a note says so; real friends are never replaced.
+ * first, then everyone else, each keeping their overall rank. Real players only: empty podium spots show a dash.
  * Boroughs: real totals from public.borough_board(period) for all 19 boroughs (0 where nobody lives).
- * Signed out, both boards are demo data plus your own XP.
+ * Signed out: both boards show only you (once you've played), no made-up scores.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, ScrollView, Share, StyleSheet, View } from 'react-native';
@@ -16,7 +15,7 @@ import { skyInk, THEMES } from '../../game/themes';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { AvatarButton, CircleButton, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
-import { CITY, Ranked } from '../../data/items';
+import { Ranked } from '../../data/items';
 import { BOROUGHS } from '../../data/rules';
 import { motionMs } from '../../lib/motion';
 import { supabase } from '../../lib/supabase';
@@ -27,8 +26,10 @@ import { brand } from '../../brand';
 
 type Scope = 'boroughs' | 'players';
 type Period = 'today' | 'week';
-/** A board row: friend = accepted friend (players only), demo = filler while fewer than 3 played. */
-type Row = Ranked & { friend?: boolean; demo?: boolean };
+/** A board row: friend = accepted friend (players only), empty = podium spot nobody holds yet. */
+type Row = Ranked & { friend?: boolean; empty?: boolean };
+const EMPTY: Row = { name: '—', initials: '', xp: 0, empty: true };
+const pts = (p: Row, unit: string) => (p.empty ? '' : `${p.xp} ${unit}`);
 
 /** Two characters from a username: "alice" -> "AL", "user_3333" -> "US". */
 const userInitials = (name: string) => name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?';
@@ -36,9 +37,6 @@ const userInitials = (name: string) => name.replace(/[^A-Za-z0-9]/g, '').slice(0
 /** Two letters from the borough's main words: "Le Plateau-Mont-Royal" -> "PM". */
 const initialsOf = (name: string) =>
   name.split(/[\s–'-]+/).filter((w) => /^[A-ZÀ-Ý]/.test(w) && !['Le', 'La', 'L'].includes(w)).slice(0, 2).map((w) => w[0]).join('');
-
-/** Stable demo points per borough, so the standings don't jump between renders. */
-const demoPoints = (slug: string) => 300 + ([...slug].reduce((n, c) => n * 31 + c.charCodeAt(0), 7) % 600);
 
 function Avatar({ p, size, bg, fg }: { p: Ranked; size: number; bg: string; fg: string }) {
   return (
@@ -132,24 +130,22 @@ export default function CommunityScreen() {
       return BOROUGHS.map((b) => ({
         name: b.name,
         initials: initialsOf(b.name),
-        // Demo: your XP counts for your borough on top of stable made-up points.
-        xp: real ? (real.get(b.slug) ?? 0) : demoPoints(b.slug) + (b.slug === borough ? dailyDone?.score ?? 0 : 0),
+        // Signed out: only your own score, for your borough.
+        xp: real ? (real.get(b.slug) ?? 0) : b.slug === borough ? dailyDone?.score ?? 0 : 0,
         you: b.slug === borough,
       })).sort(byXp);
     }
     // Offline or not signed in: you appear once you've played today's challenge, with that score.
     const rows: Row[] = userId && live?.period === period ? live.rows : dailyDone ? [{ name: 'You', initials, xp: dailyDone.score, you: true }] : [];
-    const filler = rows.length < 3 ? CITY.map((c) => ({ ...c, demo: true })) : [];
-    return [...rows, ...filler].sort(byXp);
+    return [...rows].sort(byXp);
   }, [scope, period, dailyDone, initials, borough, userId, live, areas]);
 
-  const [first, second, third] = ranking;
+  const [first = EMPTY, second = EMPTY, third = EMPTY] = ranking;
   const mine = ranking.findIndex((r) => r.you);
   const below = ranking.map((r, i) => ({ ...r, rank: i + 1 })).slice(3);
   // Players: you and your friends first, all of them; then the rest. Your own row always shows.
   const circle = scope === 'players' ? below.filter((r) => r.you || r.friend) : [];
   const others = below.filter((r) => !circle.includes(r)).filter((r) => r.rank <= (scope === 'players' ? 10 : 8) || r.you);
-  const hasDemo = scope === 'players' && ranking.some((r) => r.demo);
 
   const share = () => {
     const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${nameOf(p)} ${p.xp} ${unit}`);
@@ -166,7 +162,6 @@ export default function CommunityScreen() {
           <T size="xs" weight="bold" color={p.you ? colors.white : colors.ink}>{p.rank}</T>
         </View>
         <T size="sm" weight="semibold" numberOfLines={1} style={{ marginLeft: 4, flexShrink: 1 }}>{nameOf(p)}</T>
-        {p.demo && <T size="xs" color={colors.inkMuted}>{t('demo')}</T>}
       </View>
       <T size="xs" weight="bold" color={p.you ? colors.forest : colors.inkMuted}>{p.xp} {unit}</T>
     </Glass>
@@ -235,7 +230,7 @@ export default function CommunityScreen() {
             </View>
             <View style={{ alignItems: 'center' }}>
               <T size="xs" weight={second.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{nameOf(second)}</T>
-              <T weight="semibold" color={youTone(second, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{second.xp} {unit}</T>
+              <T weight="semibold" color={youTone(second, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{pts(second, unit)}</T>
             </View>
             {second.you ? (
               <View style={[styles.block, styles.youBlock, { height: 96, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>2</T></View>
@@ -254,7 +249,7 @@ export default function CommunityScreen() {
             </View>
             <View style={{ alignItems: 'center' }}>
               <T size="xs" weight="bold" numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{nameOf(first)}</T>
-              <T size="xs" weight="bold" color={colors.forest}>{first.xp} {unit}</T>
+              <T size="xs" weight="bold" color={colors.forest}>{pts(first, unit)}</T>
             </View>
             <FirstBlock />
           </View>
@@ -267,7 +262,7 @@ export default function CommunityScreen() {
             </View>
             <View style={{ alignItems: 'center' }}>
               <T size="xs" weight={third.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{nameOf(third)}</T>
-              <T weight="semibold" color={youTone(third, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{third.xp} {unit}</T>
+              <T weight="semibold" color={youTone(third, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{pts(third, unit)}</T>
             </View>
             {third.you ? (
               <View style={[styles.block, styles.youBlock, { height: 80, backgroundColor: colors.forest }]}><T size="2xl" display color={colors.white}>3</T></View>
@@ -297,11 +292,6 @@ export default function CommunityScreen() {
           </View>
         )}
 
-        {hasDemo && (
-          <T size="xs" color={ground.laneMuted} style={{ textAlign: 'center', marginTop: -8 }}>
-            {t(userId ? (period === 'today' ? 'Demo players fill in until 3 people play today.' : 'Demo players fill in until 3 people play this week.') : 'Demo players. Sign in to see real scores.')}
-          </T>
-        )}
 
         </Animated.View>
 
