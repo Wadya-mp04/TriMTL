@@ -165,10 +165,6 @@ const FR = {
   "Daily challenge": "Défi du jour",
   "Decline": "Refuser",
   "Decline {name}'s request": "Refuser la demande de {name}",
-  "demo": "démo",
-  "Demo players fill in until 3 people play this week.": "Des joueurs de démo complètent jusqu'à ce que 3 personnes jouent cette semaine.",
-  "Demo players fill in until 3 people play today.": "Des joueurs de démo complètent jusqu'à ce que 3 personnes jouent aujourd'hui.",
-  "Demo players. Sign in to see real scores.": "Joueurs de démo. Connectez-vous pour voir les vrais scores.",
   "DID YOU KNOW?": "LE SAVIEZ-VOUS?",
   "Done": "Terminé",
   "Email": "Courriel",
@@ -256,6 +252,7 @@ const FR = {
   "Right first try.": "Bon du premier coup.",
   "Round {n}: {title}": "Manche {n} : {title}",
   "Saved to today's leaderboard": "Enregistré au classement d'aujourd'hui",
+  "Sign in to get on the leaderboard": "Connectez-vous pour figurer au classement",
   "Saved to your library automatically": "Enregistré automatiquement dans votre bibliothèque",
   "Scan": "Scanner",
   "Search a username": "Chercher un nom d'utilisateur",
@@ -340,6 +337,12 @@ const FR = {
   "{n} of {max} photos": "{n} sur {max} photos",
   "{n} {city} items · same for everyone": "{n} objets de {city} · les mêmes pour tous",
   "· rules from {source}": "· règles de {source}",
+  "Who sees my scores": "Qui voit mes scores",
+  "Everyone": "Tout le monde",
+  "Only me": "Moi seul",
+  "Anyone signed in sees your scores on the boards.": "Toute personne connectée voit vos scores dans les classements.",
+  "Only your friends see your scores. Others can still find you to send a request.": "Seuls vos amis voient vos scores. Les autres peuvent quand même vous trouver pour envoyer une demande.",
+  "Nobody sees your scores. People can still find you to send a request, and your points count for your borough.": "Personne ne voit vos scores. On peut quand même vous trouver pour une demande, et vos points comptent pour votre arrondissement.",
 } as const satisfies Record<string, string>;
 
 /** Any interface string the app shows. */

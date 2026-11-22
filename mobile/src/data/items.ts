@@ -226,10 +226,3 @@ export interface Ranked {
   you?: boolean;
 }
 
-export const CITY: Ranked[] = [
-  { name: 'HochelagaHero', initials: 'HH', xp: 410 },
-  { name: 'OutremontOak', initials: 'OO', xp: 365 },
-  { name: 'MileEndLeaf', initials: 'ML', xp: 120 },
-  { name: 'PlateauGreen', initials: 'PG', xp: 95 },
-  { name: 'VerdunRecycle', initials: 'VR', xp: 50 },
-];

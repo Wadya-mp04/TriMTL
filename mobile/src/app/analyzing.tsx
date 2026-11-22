@@ -22,6 +22,10 @@ export default function AnalyzingScreen() {
   const { t, binLabel } = useT();
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const abort = useRef<AbortController | null>(null);
+  // The latest area, language and setter, read when a scan starts: the account's profile loading mid-scan
+  // must not cancel and resend it (a second Gemini call). Only new photos or Try again start a scan.
+  const ctx = useRef({ borough, hasBrownBin, lang, setLastScan });
+  useEffect(() => { ctx.current = { borough, hasBrownBin, lang, setLastScan }; });
 
   const pulse = useRef(new Animated.Value(1)).current;
   const sweep = useRef(new Animated.Value(0)).current;
@@ -44,6 +48,7 @@ export default function AnalyzingScreen() {
     const ctrl = new AbortController();
     abort.current = ctrl;
     setPhase({ kind: 'loading' });
+    const { borough, hasBrownBin, lang } = ctx.current;
     try {
       const { items, messages } = await scanPhotos(photos, { borough, hasBrownBin, lang }, ctrl.signal);
       if (ctrl.signal.aborted) return;
@@ -53,14 +58,14 @@ export default function AnalyzingScreen() {
         return;
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setLastScan(items);
+      ctx.current.setLastScan(items);
       router.replace('/results');
     } catch (e) {
       if (ctrl.signal.aborted) return;
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setPhase({ kind: 'error', message: (e as Error).message });
     }
-  }, [photos, borough, hasBrownBin, lang, router, setLastScan]);
+  }, [photos, router]);
 
   useEffect(() => {
     run();

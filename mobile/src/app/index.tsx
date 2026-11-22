@@ -48,7 +48,7 @@ const APP_ERRORS: TKey[] = [
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp } = useApp();
+  const { signIn, signUp, signOut } = useApp();
   const { t, lang } = useT();
   const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
@@ -110,7 +110,8 @@ export default function AuthScreen() {
             </View>
           </Glass>
 
-          <Spring onPress={() => hideKeyboard().then(() => router.replace('/scan'))} style={styles.demo} accessibilityRole="link">
+          {/* A saved login survives app restarts, so the demo signs it out (otherwise the round counts for that account). */}
+          <Spring onPress={() => { signOut(); hideKeyboard().then(() => router.replace('/scan')); }} style={styles.demo} accessibilityRole="link">
             <T size="sm" weight="semibold" color={colors.ink}>{t('Continue demo without account')}</T>
             <Icon name="arrow-forward" size={18} color={colors.ink} />
           </Spring>

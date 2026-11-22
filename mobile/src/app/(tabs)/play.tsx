@@ -72,7 +72,7 @@ function practiceDeck(lastScan: SortItem[], saved: SortItem[], review: SortItem[
 }
 
 export default function PlayScreen() {
-  const { saved, lastScan, challengePool, hasBrownBin, borough, lang, addXp, recordGame, playTheme, dailyDone, dailyKnown } = useApp();
+  const { saved, lastScan, challengePool, hasBrownBin, borough, lang, addXp, recordGame, playTheme, dailyDone, dailyKnown, userId } = useApp();
   const { t } = useT();
   // No brown bin: the compost bin is hidden, so leave out anything only it could take.
   const fits = useCallback((i: SortItem) => hasBrownBin || i.bin !== 'compost', [hasBrownBin]);
@@ -117,8 +117,11 @@ export default function PlayScreen() {
   const keepSorting = () => start({ mode: 'practice', deck: practiceDeck(lastScan, saved, reviewNow, challengePool, fits) });
 
   // Today's challenge already done: Play is simply the game (Keep sorting), no start card.
+  // Not done but a Keep sorting run is up (another account signed in, or Montréal midnight): back to the start card.
   useEffect(() => {
-    if (dailyKnown && dailyDone && !run) keepSorting();
+    if (!dailyKnown) return;
+    if (dailyDone && !run) keepSorting();
+    else if (!dailyDone && run?.mode === 'practice') { setRun(null); setResult(null); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dailyKnown, dailyDone, run]);
 
@@ -182,6 +185,7 @@ export default function PlayScreen() {
             muted={theme.laneMuted}
             label={t(current.mode === 'daily' ? "Today's challenge" : 'This round')}
             counted={current.mode === 'daily'}
+            signedIn={!!userId}
             onKeepSorting={keepSorting}
           />
         ) : (
@@ -208,8 +212,8 @@ export default function PlayScreen() {
 }
 
 
-function Results({ results, accent, dark, ink, muted, label, counted, onKeepSorting }: {
-  results: RoundResult[]; accent: string; dark: boolean; ink: string; muted: string; label: string; counted: boolean; onKeepSorting: () => void;
+function Results({ results, accent, dark, ink, muted, label, counted, signedIn, onKeepSorting }: {
+  results: RoundResult[]; accent: string; dark: boolean; ink: string; muted: string; label: string; counted: boolean; signedIn: boolean; onKeepSorting: () => void;
 }) {
   const { t, binLabel } = useT();
   const n = results.length, good = results.filter((r) => r.first).length;
@@ -228,7 +232,7 @@ function Results({ results, accent, dark, ink, muted, label, counted, onKeepSort
           <T size="sm" weight="semibold" color={ink}>
             {label}: {good === n ? t('every item in the right bin.') : t('{good} right first try, {review} to review.', { good, review: n - good })}
           </T>
-          <T size="xs" color={muted} style={{ marginTop: 2 }}>{counted ? t("Saved to today's leaderboard") : `+${good * XP_PER_HIT} XP`}</T>
+          <T size="xs" color={muted} style={{ marginTop: 2 }}>{counted ? t(signedIn ? "Saved to today's leaderboard" : 'Sign in to get on the leaderboard') : `+${good * XP_PER_HIT} XP`}</T>
         </View>
         {results.map(({ item, first }) => {
           const b = bins[item.bin!];

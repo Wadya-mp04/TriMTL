@@ -92,20 +92,21 @@ export const SCHEMA = {
 
 // Never trust the model's JSON blindly: validate, clamp, and drop anything malformed.
 // An unknown category becomes null (no sanity check) rather than failing the whole scan.
-const Detected = z.object({
+/** Validates Gemini's JSON: clamps and trims bad values instead of failing the scan. Exported for tests. */
+export const Detected = z.object({
   totalObjects: z.number().int().catch(0),
   isEstimate: z.boolean().catch(false),
   subject: z.string().trim().max(80).catch(""),
   notWaste: z.boolean().catch(false),
   items: z.array(z.object({
-    name: z.string().trim().min(1).max(80),
+    name: z.string().trim().min(1).transform(s => s.slice(0, 80)), // a long product name is cut, not a failed scan
     kind: z.string().trim().max(80).catch(""),
     category: z.enum(CATEGORIES).nullable().catch(null),
     ruleId: z.string(),
     count: z.number().int().catch(1).transform(n => Math.min(Math.max(n, 1), 99)),
     confidence: z.number().catch(0).transform(c => Math.min(Math.max(c, 0), 1)),
     closedBag: z.boolean().optional().default(false),
-  })).max(MAX_ITEMS * 2),
+  })).transform(a => a.slice(0, MAX_ITEMS * 2)),
 });
 
 /** One object as Gemini described it, after validation. Has no bin field by design. */
