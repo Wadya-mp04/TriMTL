@@ -18,29 +18,9 @@ import {
   Spring,
   T,
 } from '../../components/ui';
-import { SortItem } from '../../data/items';
 import { levelFor, useApp } from '../../state/AppState';
-import { bins, colors, radius, shadow } from '../../theme';
+import { colors, radius, shadow } from '../../theme';
 import { brand } from '../../brand';
-
-function SavedTile({ item }: { item: SortItem }) {
-  const b = item.bin ? bins[item.bin] : null;
-  const fg = b?.fg ?? colors.inkMuted;
-  const bg = b?.bg ?? '#F3F4F6';
-  return (
-    <Spring pressedScale={0.98} style={styles.tile}>
-      <View style={styles.tileTop}>
-        <View style={[styles.tileIcon, { backgroundColor: bg }]}>
-          <Icon name={item.icon} size={19} color={fg} />
-        </View>
-        <View style={[styles.badge, { backgroundColor: bg }]}>
-          <T size="xs" weight="semibold" color={fg}>{b?.label ?? 'Check'}</T>
-        </View>
-      </View>
-      <T size="sm" weight="semibold" numberOfLines={1}>{item.name}</T>
-    </Spring>
-  );
-}
 
 /** Brackets gently "focus" in and out while the icon floats: a calm, camera-like idle state. */
 function Viewfinder() {
@@ -76,12 +56,6 @@ function Viewfinder() {
   );
 }
 
-function pairs<X>(xs: X[]): [X, X | undefined][] {
-  const out: [X, X | undefined][] = [];
-  for (let i = 0; i < xs.length; i += 2) out.push([xs[i], xs[i + 1]]);
-  return out;
-}
-
 export default function ScanScreen() {
   const router = useRouter();
   const { saved, username, xp } = useApp();
@@ -109,17 +83,19 @@ export default function ScanScreen() {
             </Spring>
           </Glass>
 
-          <View style={{ gap: 12 }}>
-            <T size="sm" weight="bold" style={{ paddingHorizontal: 4 }}>Saved items</T>
-            <View style={{ gap: 10 }}>
-              {pairs(saved.slice(0, 2)).map(([a, b]) => (
-                <View key={a.id} style={styles.gridRow}>
-                  <SavedTile item={a} />
-                  {b ? <SavedTile item={b} /> : <View style={{ flex: 1 }} />}
-                </View>
-              ))}
+          {/* Every scan is saved to the library automatically; this card is the way in. */}
+          <Spring onPress={() => router.push('/library')} accessibilityRole="button" accessibilityLabel={`You've sorted ${saved.length} items. Open my library`} pressedScale={0.98} style={styles.impact}>
+            <View style={{ flex: 1 }}>
+              <T size="xs" color={colors.inkMuted}>You've sorted</T>
+              <T size="lg" weight="bold">
+                <T size="lg" weight="bold" color={colors.forest}>{saved.length}</T> {saved.length === 1 ? 'item' : 'items'}
+              </T>
             </View>
-          </View>
+            <View style={[styles.libraryButton, { backgroundColor: colors.forest }]}>
+              <T size="sm" weight="semibold" color={colors.white}>My library</T>
+              <Icon name="chevron-right" size={18} color={colors.white} />
+            </View>
+          </Spring>
         </View>
       </View>
     </Screen>
@@ -152,18 +128,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gridRow: { flexDirection: 'row', gap: 10 },
-  tile: {
-    flex: 1,
-    borderRadius: radius['2xl'],
-    padding: 14,
-    gap: 8,
+  impact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: radius['3xl'],
+    paddingVertical: 14,
+    paddingLeft: 20,
+    paddingRight: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.72)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.88)',
     boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12), inset 0px 1px 0px rgba(255, 255, 255, 0.9)',
   },
-  tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  tileIcon: { width: 36, height: 36, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.full },
+  libraryButton: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 44, paddingLeft: 16, paddingRight: 10, borderRadius: radius.full },
 });

@@ -39,6 +39,7 @@ export default function RootLayout() {
         <Stack.Screen name="analyzing" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="results" />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="library" />
       </Stack>
     </AppProvider>
   );

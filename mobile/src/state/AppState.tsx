@@ -5,7 +5,7 @@
  */
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 
-import { DEMO_SAVED, DEMO_SCAN, SortItem } from '../data/items';
+import { DEMO_SAVED, SortItem } from '../data/items';
 import { brand } from '../brand';
 import { applyTheme, ThemeKey } from '../theme';
 
@@ -31,11 +31,10 @@ interface AppState {
   initials: string;
   xp: number;
   xpToday: number;
+  /** The library: every item the user has scanned, newest first (auto-saved; Supabase will store it per user). */
   saved: SortItem[];
   photos: string[];
   lastScan: SortItem[];
-  /** Every item ever scanned, newest first: the Scan page analytics read this. */
-  history: SortItem[];
   /** Borough slug from quebecRules.json, or null for the city-wide default. */
   borough: string | null;
   hasBrownBin: boolean;
@@ -48,7 +47,6 @@ interface AppState {
   addXp: (n: number) => void;
   setPhotos: (uris: string[]) => void;
   setLastScan: (items: SortItem[]) => void;
-  saveItems: (items: SortItem[]) => void;
   recordGame: (g: Omit<GameRecord, 'when'>) => void;
   setArea: (borough: string | null, hasBrownBin: boolean) => void;
   setPlayTheme: (t: ThemeKey) => void;
@@ -71,8 +69,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [xpToday, setXpToday] = useState(75);
   const [saved, setSaved] = useState<SortItem[]>(DEMO_SAVED);
   const [photos, setPhotos] = useState<string[]>([]);
-  // Demo profile starts with the design's sample scans.
-  const [history, setHistory] = useState<SortItem[]>([...DEMO_SCAN, ...DEMO_SAVED]);
   const [borough, setBorough] = useState<string | null>(null);
   const [hasBrownBin, setHasBrownBin] = useState(true);
   const [games, setGames] = useState<GameRecord[]>([
@@ -83,25 +79,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [playTheme, setPlayThemeState] = useState<ThemeKey>(brand.defaultTheme);
   const [lastScan, setLastScanRaw] = useState<SortItem[]>([]);
 
-  // Stamp scan time so the game can tell today's items from earlier ones; every scan also feeds history.
+  // Stamp scan time so the game can tell today's items from earlier ones; every scan is saved to the library.
   const setLastScan = useCallback((items: SortItem[]) => {
     const now = new Date().toISOString();
     const stamped = items.map((i) => ({ ...i, scannedAt: i.scannedAt ?? now }));
     setLastScanRaw(stamped);
-    setHistory((h) => [...stamped, ...h]);
+    setSaved((prev) => {
+      const ids = new Set(stamped.map((i) => i.id));
+      return [...stamped, ...prev.filter((p) => !ids.has(p.id))];
+    });
   }, []);
 
   const addXp = useCallback((n: number) => {
     setXp((v) => v + n);
     setXpToday((v) => v + n);
-  }, []);
-
-  const saveItems = useCallback((items: SortItem[]) => {
-    setSaved((prev) => {
-      const ids = new Set(prev.map((p) => p.id));
-      const now = new Date().toISOString();
-      return [...items.filter((i) => !ids.has(i.id)).map((i) => ({ ...i, scannedAt: i.scannedAt ?? now })), ...prev];
-    });
   }, []);
 
   const recordGame = useCallback((g: Omit<GameRecord, 'when'>) => {
@@ -118,7 +109,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saved,
       photos,
       lastScan,
-      history,
       borough,
       hasBrownBin,
       games,
@@ -129,12 +119,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addXp,
       setPhotos,
       setLastScan,
-      saveItems,
       recordGame,
       setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
       setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
-    [username, xp, xpToday, saved, photos, lastScan, history, borough, hasBrownBin, games, stats, playTheme, addXp, setLastScan, saveItems, recordGame],
+    [username, xp, xpToday, saved, photos, lastScan, borough, hasBrownBin, games, stats, playTheme, addXp, setLastScan, recordGame],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
