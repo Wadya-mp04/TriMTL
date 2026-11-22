@@ -27,10 +27,17 @@ const item = (id: string, ctx: { borough?: string | null; hasBrownBin?: boolean 
 
 // ---------- Rules data ----------
 
+// Overrides added on purpose before anyone checked them on montreal.ca: they show "Needs verification".
+// Remove an entry once it is verified (and set "verified": true in quebecRules.json).
+const KNOWN_UNVERIFIED = new Set(['yard_waste {"hasBrownBin":false,"organics":"combined"}']);
+
 test("rules file has 19 boroughs, 5 of them combined organics, every rule and override verified", () => {
   for (const r of RULES) {
     assert.equal(r.verified, true, r.id);
-    for (const o of r.overrides) assert.equal(o.verified, true, `${r.id} ${JSON.stringify(o.when)}`);
+    for (const o of r.overrides) {
+      const key = `${r.id} ${JSON.stringify(o.when)}`;
+      assert.equal(o.verified, !KNOWN_UNVERIFIED.has(key), key);
+    }
   }
   assert.equal(BOROUGHS.length, 19);
   assert.deepEqual(
@@ -55,7 +62,7 @@ test("every rule resolves in fr and en, with no context and in every borough, wi
 test("integrity check rejects an override that would inherit a dropoff onto a non-special bin", () => {
   const raw = JSON.parse(readFileSync(new URL("../data/quebecRules.json", import.meta.url), "utf8"));
   const yard = raw.items.find((i: { id: string }) => i.id === "yard_waste");
-  delete yard.overrides[0].dropoff; // compost + inherited yard_collection
+  delete yard.overrides.find((o: { bin: string }) => o.bin === "compost").dropoff; // compost + inherited yard_collection
   assert.throws(() => createRulesEngine(raw), /yard_waste.*dropoff/);
 });
 
@@ -77,6 +84,19 @@ test("yard_waste: combined-organics borough -> compost; food_only borough -> spe
   assert.equal(none.dropoff, "yard_collection");
   // An unknown slug (e.g. an independent municipality) also falls back to the city-wide default.
   assert.equal(item("yard_waste", { borough: "westmount" }).correctBin, "special");
+});
+
+test("yard_waste without a brown bin in a combined-organics borough -> écocentre (unverified); elsewhere unchanged", () => {
+  const plateauNoBin = item("yard_waste", { borough: "plateau-mont-royal", hasBrownBin: false });
+  assert.equal(plateauNoBin.correctBin, "special");
+  assert.equal(plateauNoBin.dropoff, "ecocentre");
+  assert.equal(plateauNoBin.contextApplied, true);
+  assert.equal(plateauNoBin.needsVerification, true);
+  assert.equal(item("yard_waste", { borough: "plateau-mont-royal", hasBrownBin: true }).correctBin, "compost");
+  const verdunNoBin = item("yard_waste", { borough: "verdun", hasBrownBin: false }); // own yard collection anyway
+  assert.equal(verdunNoBin.correctBin, "special");
+  assert.equal(verdunNoBin.dropoff, "yard_collection");
+  assert.equal(verdunNoBin.contextApplied, false);
 });
 
 test("food_scraps without a brown bin -> garbage, context applied, verified since v4", () => {
@@ -219,7 +239,7 @@ test("scan route: returns a valid ScanResponse and passes aiCategory + context t
     const [food, yard, mismatch, none] = body.items;
     assert.equal(food.correctBin, "garbage");         // ctx.hasBrownBin reached the engine
     assert.equal(food.contextApplied, true);
-    assert.equal(yard.correctBin, "compost");         // ctx.borough reached the engine
+    assert.equal(yard.dropoff, "ecocentre");          // ctx.borough + hasBrownBin reached the engine (Plateau, no brown bin)
     assert.equal(mismatch.needsVerification, true);   // aiCategory reached the engine
     assert.equal(none.ruleId, null);                  // "none" -> no rule, no bin
     assert.equal(none.correctBin, null);
