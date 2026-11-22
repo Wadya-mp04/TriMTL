@@ -13,8 +13,8 @@ instructions come from `quebecRules.json` through the rules engine. Nothing the 
 disposal is ever used.
 
 **Why.**
-- Montréal's rules are counter-intuitive (cans go back for the deposit, chip bags go in recycling since
-  2025). A general model gives the *common* answer, which is often wrong *here*, and gives it confidently.
+- Montréal's rules are counter-intuitive (smoke detectors go to the écocentre, chip bags go in recycling
+  since 2025). A general model gives the *common* answer, which is often wrong *here*, and gives it confidently.
 - With the enum, the model can't invent a rule. With the bin in our data, every answer has a montreal.ca
   `sourceUrl` that we can show a judge.
 - Fixing a wrong answer means editing one JSON entry and adding a test, not prompt-tuning.

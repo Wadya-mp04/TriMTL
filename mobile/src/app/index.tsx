@@ -1,6 +1,6 @@
 /**
  * Sign in & Sign up (ui-references/.../frosted_mint_sign_in_sign_up).
- * Local only for now: there is no auth endpoint on the server.
+ * Uses Supabase email/password accounts when configured; otherwise any input enters the demo.
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -31,15 +31,21 @@ function Field({ label, ...input }: React.ComponentProps<typeof TextInput> & { l
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn } = useApp();
+  const { signIn, signUp } = useApp();
   const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const enter = () => {
-    signIn(mode === 'signup' ? name : undefined);
-    router.replace('/scan');
+  const enter = async () => {
+    setBusy(true);
+    setError(null);
+    const err = mode === 'signup' ? await signUp(name, email, password) : await signIn(email, password);
+    setBusy(false);
+    if (err) setError(err);
+    else router.replace('/scan');
   };
 
   return (
@@ -66,7 +72,8 @@ export default function AuthScreen() {
               )}
               <Field label="Email" placeholder="ecosorter@montreal.ca" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
               <Field label="Password" placeholder="••••••••" value={password} onChangeText={setPassword} secureTextEntry />
-              <PrimaryButton label={mode === 'signin' ? 'Sign in' : 'Create account'} onPress={enter} style={{ marginTop: 8 }} />
+              <PrimaryButton label={mode === 'signin' ? 'Sign in' : 'Create account'} onPress={enter} disabled={busy} style={{ marginTop: 8 }} />
+              {!!error && <T size="xs" accessibilityRole="alert" style={{ paddingLeft: 4 }}>{error}</T>}
             </View>
           </Glass>
 

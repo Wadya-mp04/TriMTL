@@ -97,7 +97,11 @@ export default function PlayScreen() {
   const onFinish = useCallback(
     (r: RoundResult[]) => {
       setResult(r);
-      recordGame({ title: `Round ${roundIdx + 1}: ${current.title}`, items: r.length, correct: r.filter((x) => x.first).length });
+      const correct = r.filter((x) => x.first).length;
+      recordGame({
+        title: `Round ${roundIdx + 1}: ${current.title}`, items: r.length, correct,
+        mode: current.title === 'Your items' ? 'mine' : 'challenge', xp: correct * XP_PER_HIT, // XP only on a first try
+      });
     },
     [roundIdx, current, recordGame],
   );

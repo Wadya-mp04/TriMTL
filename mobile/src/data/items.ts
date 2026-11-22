@@ -3,6 +3,7 @@
  * Stitch designs (saved items, daily deck, leaderboards).
  */
 import type { BinKey } from '../theme';
+import { rules } from './rules';
 
 export interface SortItem {
   id: string;
@@ -19,18 +20,24 @@ export interface SortItem {
   art?: string;
   /** When it was scanned (ISO). Drives "today" vs earlier days in the game. */
   scannedAt?: string;
+  /** Set only on items from a real scan (undefined on demo items), so only those get saved to the account. */
+  ruleId?: string | null;
+  category?: string | null;
+  count?: number;
 }
 
 /** Subset of server/src/types.ts ScanItem that the app reads. */
 export interface ScanItemDTO {
   id: string;
+  ruleId: string | null;
+  category: string | null;
   name: string;
   kind: string;
   count: number;
   icon: string;
   correctBin: BinKey | null;
   dropoffName: string | null;
-  explanation: string;
+  explanation: string | null;
   specialInstruction: string | null;
   needsVerification: boolean;
 }
@@ -100,63 +107,73 @@ export function fromScanItem(it: ScanItemDTO, scanId: string): SortItem {
     detail: it.needsVerification && it.correctBin === null ? 'Needs verification' : parts.join(' • '),
     icon: ICONS[it.icon] ?? 'help-outline',
     bin: it.correctBin,
-    note: it.explanation,
+    note: it.explanation ?? '',
     art: it.icon,
+    ruleId: it.ruleId,
+    category: it.category,
+    count: it.count,
   };
 }
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
 
-// Demo content. Bins and wording follow server/src/data/quebecRules.json, so the game never
-// teaches an answer the rules engine would contradict (drink containers are deposit returns,
-// which the app files under Special).
+/**
+ * A demo item resolved by the rules engine (mobile/shared/, a copy of the server's), so its bin and
+ * text always match the backend rules. ruleId etc. are cleared so demo items are never saved to an account.
+ */
+function demo(id: string, ruleId: string, name: string, scannedAt?: string): SortItem {
+  const it = rules.toScanItem({ id, name, rule: rules.getRule(ruleId), confidence: 'high', lang: 'en' });
+  return { ...fromScanItem(it, 'demo'), id, scannedAt, ruleId: undefined, category: undefined, count: undefined };
+}
 
 /** Saved items on the Scan screen before the user has scanned anything (from the design). */
 export const DEMO_SAVED: SortItem[] = [
-  { id: 'd1', name: 'Plastic bottle', detail: 'Deposit return', icon: 'local-drink', bin: 'special', note: 'Drink containers from 100 ml to 2 L go back for the deposit.', art: 'bottle', scannedAt: daysAgo(1) },
-  { id: 'd2', name: 'Energy can', detail: 'Deposit return', icon: 'sports-bar', bin: 'special', note: 'Aluminium drink cans go back for the deposit.', art: 'can', scannedAt: daysAgo(2) },
-  { id: 'd3', name: 'Snack wrapper', detail: 'All packaging is recyclable', icon: 'fastfood', bin: 'recycling', note: 'All packaging now goes in the recycling.', art: 'wrapper', scannedAt: daysAgo(3) },
-  { id: 'd4', name: 'Battery', detail: 'Écocentre or retail battery bin', icon: 'battery-charging-full', bin: 'special', note: 'Batteries never go in the garbage or the recycling.', art: 'battery', scannedAt: daysAgo(5) },
+  demo('d1', 'drink_bottle', 'Plastic bottle', daysAgo(1)),
+  demo('d2', 'drink_can', 'Energy can', daysAgo(2)),
+  demo('d3', 'chip_bag', 'Snack wrapper', daysAgo(3)),
+  demo('d4', 'battery', 'Battery', daysAgo(5)),
 ];
 
 /** Result shown by "See demo results" when the server can't be reached (Sorted breakdown design). */
 export const DEMO_SCAN: SortItem[] = [
-  { id: 's1', name: 'Plastic water bottle', detail: 'Deposit return', icon: 'local-drink', bin: 'special', note: 'Drink containers from 100 ml to 2 L go back for the deposit.', art: 'bottle' },
-  { id: 's2', name: 'Aluminum beverage can', detail: 'Deposit return', icon: 'sports-bar', bin: 'special', note: 'Aluminium drink cans go back for the deposit.', art: 'can' },
-  { id: 's3', name: 'Banana peel', detail: 'Montréal brown bin', icon: 'eco', bin: 'compost', note: 'Anything edible goes in the brown bin, raw, cooked or spoiled, bones included.', art: 'food' },
-  { id: 's4', name: 'Snack packaging', detail: 'All packaging is recyclable', icon: 'fastfood', bin: 'recycling', note: 'All packaging now goes in the recycling.', art: 'wrapper' },
-  { id: 's5', name: 'Household battery', detail: 'Écocentre or retail battery bin', icon: 'battery-charging-full', bin: 'special', note: 'Batteries never go in the garbage or the recycling.', art: 'battery' },
+  demo('s1', 'drink_bottle', 'Plastic water bottle'),
+  demo('s2', 'drink_can', 'Aluminum beverage can'),
+  demo('s3', 'food_scraps', 'Banana peel'),
+  demo('s4', 'chip_bag', 'Snack packaging'),
+  demo('s5', 'battery', 'Household battery'),
 ];
 
 /** "Daily" game deck (Play design). */
 export const DAILY_DECK: SortItem[] = [
-  { id: 'q1', name: 'Plastic bottle', detail: '', icon: 'local-drink', bin: 'special', note: 'Drink containers from 100 ml to 2 L go back for the deposit.', art: 'bottle' },
-  { id: 'q2', name: 'Battery', detail: '', icon: 'battery-charging-full', bin: 'special', note: 'Batteries never go in the garbage or the recycling.', art: 'battery' },
-  { id: 'q3', name: 'Snack wrapper', detail: '', icon: 'fastfood', bin: 'recycling', note: 'All packaging now goes in the recycling.', art: 'wrapper' },
-  { id: 'q4', name: 'Banana peel', detail: '', icon: 'compost', bin: 'compost', note: 'Anything edible goes in the brown bin, raw, cooked or spoiled, bones included.', art: 'food' },
+  demo('q1', 'drink_bottle', 'Plastic bottle'),
+  demo('q2', 'battery', 'Battery'),
+  demo('q3', 'chip_bag', 'Snack wrapper'),
+  demo('q4', 'food_scraps', 'Banana peel'),
 ];
 
-/** Challenge items the player may never have scanned. Copied from quebecRules.json (id, bin,
- *  explanation, specialInstruction) so answers match the rules engine. */
-const pool = (id: string, name: string, art: string, bin: BinKey, note: string, detail = ''): SortItem =>
-  ({ id: `pool:${id}`, name, detail, icon: ICONS[art] ?? 'help-outline', bin, note, art });
+/** Challenge items the player may never have scanned; bin, explanation and tip come from the engine. */
+const pool = (ruleId: string, name: string): SortItem => {
+  const it = demo(`pool:${ruleId}`, ruleId, name);
+  const r = rules.toScanItem({ id: it.id, name, rule: rules.getRule(ruleId), confidence: 'high', lang: 'en' });
+  return { ...it, detail: r.dropoffName ?? r.specialInstruction ?? '' };
+};
 export const CHALLENGE_POOL: SortItem[] = [
-  pool('pizza_box_greasy', 'Greasy pizza box', 'pizza_box', 'compost', 'Cardboard soaked with grease or sauce goes in the brown bin.'),
-  pool('coffee_cup', 'Coffee cup', 'cup', 'recycling', 'Paper containers go in the recycling, even if soiled.', 'Empty it. The lid goes in the bin too.'),
-  pool('aerosol', 'Aerosol can', 'spray', 'special', 'Pressurized containers are refused in the recycling.', 'Écocentre'),
-  pool('eggshells', 'Eggshells', 'egg', 'compost', 'Eggs and their shells go in the brown bin.'),
-  pool('milk_carton', 'Milk carton', 'carton', 'recycling', 'Multi-layer cartons go in the recycling.', 'Empty and rinse.'),
-  pool('glass_jar', 'Glass jar', 'glass_jar', 'recycling', 'Glass containers go in the recycling.', 'Empty and rinse. Unscrew metal lids and put them in the bin separately.'),
-  pool('smoke_detector', 'Smoke detector', 'smoke_detector', 'garbage', 'The City says smoke detectors go in the garbage.', 'Take the battery out first.'),
-  pool('broken_glassware', 'Broken plate', 'broken_glass', 'garbage', "Dishes, drinking glasses and mirrors don't go in the recycling.", 'Wrap sharp pieces before throwing them out.'),
-  pool('plastic_bags', 'Plastic bag', 'plastic_bag', 'recycling', 'Plastic bags and wrapping film go in the recycling.', 'Except garbage bags, which are not recyclable.'),
-  pool('bulb_regular', 'LED bulb', 'bulb', 'garbage', 'These bulbs are accepted in the garbage.', 'Ideally, bring them to an écocentre so they get recycled.'),
-  pool('paint', 'Paint can', 'paint', 'special', 'These are household hazardous waste.', 'Écocentre'),
-  pool('paper_towel', 'Paper towel', 'tissue', 'compost', 'Soiled paper goes in the brown bin, never in the recycling.'),
-  pool('food_can', 'Food can', 'can', 'recycling', 'Metal containers are recyclable.', 'Empty and rinse.'),
-  pool('plastic_utensils', 'Plastic fork and straw', 'utensils', 'garbage', 'Plastic cutlery and straws go in the garbage.'),
-  pool('cardboard', 'Cardboard box', 'box', 'recycling', 'Cardboard is recyclable.', 'Break boxes down and flatten them.'),
-  pool('paper', 'Newspaper', 'paper', 'recycling', 'Printed paper is recyclable, even window envelopes and stapled sheets.'),
+  pool('pizza_box_greasy', 'Greasy pizza box'),
+  pool('coffee_cup', 'Coffee cup'),
+  pool('aerosol', 'Aerosol can'),
+  pool('eggshells', 'Eggshells'),
+  pool('milk_carton', 'Milk carton'),
+  pool('glass_jar', 'Glass jar'),
+  pool('smoke_detector', 'Smoke detector'),
+  pool('broken_glassware', 'Broken plate'),
+  pool('plastic_bags', 'Plastic bag'),
+  pool('bulb_regular', 'LED bulb'),
+  pool('paint', 'Paint can'),
+  pool('paper_towel', 'Paper towel'),
+  pool('food_can', 'Food can'),
+  pool('plastic_utensils', 'Plastic fork and straw'),
+  pool('cardboard', 'Cardboard box'),
+  pool('paper', 'Newspaper'),
 ];
 
 export interface Ranked {

@@ -1,8 +1,10 @@
 /**
  * Community (ui-references/.../frosted_mint_social_podium_classic): boroughs compete to sort right.
- * shortcut: standings are demo data plus the user's real XP today; switch to Supabase totals once accounts exist.
+ * Players: today's real city leaderboard from Supabase (public.leaderboard) when signed in and at least
+ * 3 players have scored today (the podium needs 3); otherwise the demo list plus "You".
+ * shortcut: borough standings are demo data plus the user's real XP today (accounts don't store a borough yet).
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -12,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { AvatarButton, BentoBackdrop, Glass, Icon, PrimaryButton, Screen, ScreenHeader, Segmented, Spring, T } from '../../components/ui';
 import { CITY, Ranked } from '../../data/items';
 import { BOROUGHS } from '../../data/rules';
+import { supabase } from '../../lib/supabase';
 import { useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
 import { brand } from '../../brand';
@@ -61,9 +64,23 @@ function FirstBlock() {
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const { xpToday, initials, borough } = useApp();
+  const { xpToday, initials, borough, userId } = useApp();
   const [scope, setScope] = useState<Scope>('boroughs');
   const unit = scope === 'boroughs' ? 'pts' : 'XP';
+  const [live, setLive] = useState<Ranked[] | null>(null);
+
+  // Refetch the player board when it is shown or the player earns XP.
+  useEffect(() => {
+    if (!supabase || !userId || scope !== 'players') return;
+    let current = true;
+    supabase.rpc('leaderboard', { scope: 'city' }).then(({ data, error }) => {
+      if (!current || error || !data) return;
+      setLive((data as { username: string; xp_today: number; is_me: boolean }[]).map((r) => ({
+        name: r.is_me ? 'You' : r.username, initials: initialsOf(r.username), xp: r.xp_today, you: r.is_me,
+      })));
+    });
+    return () => { current = false; };
+  }, [scope, userId, xpToday]);
 
   const ranking = useMemo(() => {
     if (scope === 'boroughs') {
@@ -75,9 +92,10 @@ export default function CommunityScreen() {
         you: b.slug === borough,
       })).sort((a, b) => b.xp - a.xp);
     }
+    if (userId && live && live.length >= 3) return live;
     const me: Ranked = { name: 'You', initials, xp: xpToday, you: true };
     return [...CITY, me].sort((a, b) => b.xp - a.xp);
-  }, [scope, xpToday, initials, borough]);
+  }, [scope, xpToday, initials, borough, userId, live]);
 
   const [first, second, third] = ranking;
   // Always show your own row, even if you're outside the top 8.
