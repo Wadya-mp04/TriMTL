@@ -193,7 +193,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // shortcut: the newest 200 scans only; page through them if a library ever gets bigger.
         sb.from('scanned_items').select('id, rule_id, category, name, count, client_key, scanned_at')
           .order('scanned_at', { ascending: false }).limit(200),
-        sb.from('game_scores').select('items, correct, played_at').eq('mode', 'daily').order('played_at', { ascending: true }).limit(20),
+        // Montréal midnight is never more than 26 h ago (any DST), so this window always holds today's first round.
+        sb.from('game_scores').select('items, correct, played_at').eq('mode', 'daily')
+          .gte('played_at', new Date(Date.now() - 26 * 3600_000).toISOString()).order('played_at', { ascending: true }).limit(20),
       ]);
       if (loadedFor.current !== id) return; // signed out or switched user while loading: drop the stale reply
       if (profile.data?.username) setUsername(profile.data.username);
