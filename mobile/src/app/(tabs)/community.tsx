@@ -109,6 +109,7 @@ export default function CommunityScreen() {
     let current = true;
     if (scope === 'players') {
       supabase.rpc('board', { period }).then(({ data, error }) => {
+        if (error) console.warn('board failed:', error.message); // otherwise a missing migration just shows the demo list
         if (!current || error || !data) return;
         setLive({ period, rows: (data as { username: string; xp: number; is_me: boolean; is_friend: boolean }[]).map((r) => ({
           name: r.is_me ? 'You' : r.username, initials: r.is_me ? initials : userInitials(r.username), xp: r.xp, you: r.is_me, friend: r.is_friend,
@@ -116,6 +117,7 @@ export default function CommunityScreen() {
       });
     } else {
       supabase.rpc('borough_board', { period }).then(({ data, error }) => {
+        if (error) console.warn('borough_board failed:', error.message);
         if (!current || error || !data) return;
         setAreas({ period, points: new Map((data as { borough: string; points: number }[]).map((r) => [r.borough, r.points])) });
       });
