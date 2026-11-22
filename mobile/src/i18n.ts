@@ -129,6 +129,7 @@ const FR = {
   "Right first try.": "Bon du premier coup.",
   "Round {n}: {title}": "Manche {n} : {title}",
   "Saved to today's leaderboard": "Enregistré au classement d'aujourd'hui",
+  "Sign in to get on the leaderboard": "Connectez-vous pour figurer au classement",
   "Saved to your library automatically": "Enregistré automatiquement dans votre bibliothèque",
   "Scan": "Scanner",
   "Search a username": "Chercher un nom d'utilisateur",
