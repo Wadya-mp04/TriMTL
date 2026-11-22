@@ -76,9 +76,10 @@ npx expo start              # scan the QR code with Expo Go
 Optional: without it the app runs in demo mode with nothing saved.
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In **SQL Editor**, run [`supabase/migrations/20261121000000_init.sql`](supabase/migrations/20261121000000_init.sql). It creates
-   `profiles`, `scanned_items`, `game_scores` and `friendships`, all protected by row-level security
-   (each user can only read and write their own rows).
+2. In **SQL Editor**, run every file in [`supabase/migrations/`](supabase/migrations/) in filename order, each once.
+   `20261121000000_init.sql` creates `profiles`, `scanned_items`, `game_scores` and `friendships`, all protected by
+   row-level security (each user can only read and write their own rows); the later files add the leaderboard,
+   retries, challenge rounds and the social features (profile visibility, boards, player search).
 3. For the demo, turn off **Authentication → Sign In / Providers → Email → Confirm email**, so sign-up
    logs straight in. Otherwise the app shows "Check your email to confirm your account".
 4. `cp mobile/.env.example mobile/.env` and paste the **Project URL** and the **publishable (anon) key** from
