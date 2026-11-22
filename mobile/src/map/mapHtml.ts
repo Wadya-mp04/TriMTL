@@ -7,13 +7,8 @@
  */
 import { bins, canvasGradients, colors, radius } from '../theme';
 
-export const DROPOFF_STYLE = {
-  recycling: { label: 'Recycling', icon: 'recycling', color: bins.recycling.fg },
-  ewaste: { label: 'E-waste', icon: 'devices', color: bins.special.fg },
-  hazardous: { label: 'Hazardous', icon: 'warning', color: bins.special.deep },
-  compost: { label: 'Compost', icon: 'compost', color: bins.compost.fg },
-  donation: { label: 'Donation', icon: 'volunteer-activism', color: colors.forest },
-} as const;
+/** Écocentres take what the "special" bin means in the rest of the app, so they wear its colour. */
+export const ECOCENTRE_STYLE = { label: 'Écocentre', icon: 'warehouse', color: bins.special.fg } as const;
 
 /** Garbage is a solid line, recycling a dashed one, a shared day both: shape carries the meaning, not only colour. */
 export const LANE_STYLE = {

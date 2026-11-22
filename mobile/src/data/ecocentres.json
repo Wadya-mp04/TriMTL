@@ -1,0 +1,79 @@
+{
+ "source": "RECYC-QUÉBEC, Écocentres et points de dépôt municipaux (CC-BY 4.0)",
+ "sourceUrl": "https://www.donneesquebec.ca/recherche/dataset/ecocentres-et-points-de-depot-municipaux",
+ "fetchedOn": "2026-11-21",
+ "ecocentres": [
+  {
+   "id": "ecocentre-acadie",
+   "name": "Écocentre Acadie",
+   "area": "Ahuntsic-Cartierville",
+   "city": "Montréal",
+   "address": "1200, boulevard Henri-Bourassa Ouest, Montréal H3M 3G1",
+   "lat": 45.5396149688555,
+   "lng": -73.6750496694309
+  },
+  {
+   "id": "ecocentre-cote-des-neiges",
+   "name": "Écocentre Côte-des-Neiges",
+   "area": "Côte-des-Neiges-Notre-Dame-de-Grâce",
+   "city": "Montréal",
+   "address": "6925, chemin de la Côte-des-Neiges, Montréal H3S 2B6",
+   "lat": 45.505723470722,
+   "lng": -73.6383317453062
+  },
+  {
+   "id": "ecocentre-la-petite-patrie",
+   "name": "Écocentre La Petite-Patrie",
+   "area": "Rosemont-La Petite-Patrie",
+   "city": "Montréal",
+   "address": "1100, rue des Carrières, Montréal H2S 2A8",
+   "lat": 45.5339960120369,
+   "lng": -73.5918696153189
+  },
+  {
+   "id": "ecocentre-riviere-des-prairies",
+   "name": "Écocentre Rivière-des-Prairies",
+   "area": "Rivière-des-Prairies-Pointe-aux-Trembles",
+   "city": "Montréal",
+   "address": "11400, rue Léopold-Christin, Montréal H1E 7R3",
+   "lat": 45.6405866981477,
+   "lng": -73.5610462490856
+  },
+  {
+   "id": "ecocentre-saint-michel",
+   "name": "Écocentre Saint-Michel",
+   "area": "Villeray-Saint-Michel-Parc-Extension",
+   "city": "Montréal",
+   "address": "2475, rue des Regrattiers, Montréal H1Z 4P2",
+   "lat": 45.559449844103,
+   "lng": -73.6166547074038
+  },
+  {
+   "id": "ecocentre-de-pointe-claire",
+   "name": "Écocentre de Pointe-Claire",
+   "area": "Pointe-Claire",
+   "city": "Pointe-Claire",
+   "address": "50, avenue Terra-Cotta, Pointe-Claire H9R 5A4",
+   "lat": 45.4488755877789,
+   "lng": -73.8098599783613
+  },
+  {
+   "id": "ecocentre-lasalle",
+   "name": "Écocentre LaSalle",
+   "area": "Montréal",
+   "city": "Montréal",
+   "address": "7272, rue Saint-Patrick, Montréal H8N 2W7",
+   "lat": 45.4475079511442,
+   "lng": -73.626471984714
+  },
+  {
+   "id": "ecocentre-saint-laurent",
+   "name": "Écocentre Saint-Laurent",
+   "area": "Montréal",
+   "city": "Montréal",
+   "address": "3535, rue Sartelon, Montréal H4R 1E6",
+   "lat": 45.5116896023763,
+   "lng": -73.7393199260691
+  }
+ ]
+}

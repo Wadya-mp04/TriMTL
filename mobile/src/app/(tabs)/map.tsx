@@ -1,7 +1,6 @@
 /**
- * Map: garbage and recycling days for any spot on the island, and eco drop-offs. A 3D MapLibre map in a
- * WebView is the hero; search, filter chips and a draggable sheet float over it. Data: src/data/map.ts
- * (collection days are the city's real open data; drop-offs are sample data).
+ * Map: garbage and recycling days for any spot on the island, and its écocentres. A 3D MapLibre map in a
+ * WebView is the hero; search and a draggable sheet float over it. Data: src/data/map.ts (all open data).
  */
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,17 +21,16 @@ import WebView, { type WebViewMessageEvent } from 'react-native-webview';
 
 import { TAB_BAR_SPACE } from '../../components/TabBar';
 import { CircleButton, Glass, Icon, IconBubble, PrimaryButton, SecondaryButton, Segmented, Spring, T } from '../../components/ui';
-import { geocode, loadMapData, zoneKey, zonesAt, type DropoffType, type MapData } from '../../data/map';
+import { geocode, loadMapData, zoneKey, zonesAt, type MapData } from '../../data/map';
 import { BottomSheet } from '../../map/BottomSheet';
-import { AreaDetails, areaRules, Chip, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
-import { DROPOFF_STYLE, mapHtml } from '../../map/mapHtml';
+import { AreaDetails, areaRules, DropoffDetails, DropoffRow, Legend, type Area } from '../../map/Details';
+import { ECOCENTRE_STYLE, mapHtml } from '../../map/mapHtml';
 import { localKey, upcoming } from '../../map/schedule';
 import { colors, glass, radius, shadow } from '../../theme';
 
 type Selection = { kind: 'dropoff'; id: string } | { kind: 'area'; lat: number; lng: number; label: string; area: Area } | null;
 type Notice = { icon: string; text: string; action?: { label: string; run: () => void } } | null;
 
-const TYPES = Object.keys(DROPOFF_STYLE) as DropoffType[];
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -51,7 +49,6 @@ export default function MapScreen() {
   const [dataError, setDataError] = useState(false);
   const [mapState, setMapState] = useState<'loading' | 'ready' | 'offline'>('loading');
   const [webKey, setWebKey] = useState(0);
-  const [filter, setFilter] = useState<DropoffType | 'all'>('all');
   const [when, setWhen] = useState<'today' | 'week'>('week');
   const [selected, setSelected] = useState<Selection>(null);
   const [sheet, setSheet] = useState(0);
@@ -87,7 +84,7 @@ export default function MapScreen() {
   const send = useCallback((m: object) => web.current?.injectJavaScript(`window.receive && window.receive(${JSON.stringify(m)});true;`), []);
 
   // Sheet heights: peek clears the floating tab bar; full stops below the search bar.
-  const TOP = insets.top + 112;
+  const TOP = insets.top + 72;
   const [headerH, setHeaderH] = useState(150);
   const snaps = useMemo(() => [TAB_BAR_SPACE + 28 + headerH, Math.round(height * 0.52), height - insets.top - 64], [height, insets.top, headerH]);
 
@@ -106,15 +103,13 @@ export default function MapScreen() {
 
   const pins = useMemo(
     () =>
-      (data?.dropoffs ?? [])
-        .filter((d) => filter === 'all' || d.type === filter)
-        .map((d) => ({
+      (data?.dropoffs ?? []).map((d) => ({
           id: d.id, lat: d.lat, lng: d.lng, name: d.name,
-          icon: DROPOFF_STYLE[d.type].icon.replace(/-/g, '_'),
-          color: DROPOFF_STYLE[d.type].color,
-          a11y: `${d.name}, ${DROPOFF_STYLE[d.type].label}`,
+          icon: ECOCENTRE_STYLE.icon.replace(/-/g, '_'),
+          color: ECOCENTRE_STYLE.color,
+          a11y: `${d.name}, ${d.area}`,
         })),
-    [data, filter],
+    [data],
   );
 
   // The sectors go to the page once per load (they are large); pins and highlight state on every change.
@@ -144,7 +139,8 @@ export default function MapScreen() {
       setFocused(false);
       setSelected(s);
       if (s) {
-        const idx = Math.max(sheet, 1);
+        // Half height always: at full the sheet would hide what was just selected.
+        const idx = 1;
         setSheet(idx);
         send({ type: 'pad', top: TOP, bottom: snaps[idx] });
       }
@@ -209,7 +205,7 @@ export default function MapScreen() {
     if (!q || !data) return [];
     const drops = data.dropoffs
       .filter((d) => fold(`${d.name} ${d.address}`).includes(q))
-      .map((d) => ({ kind: 'dropoff' as const, id: d.id, title: d.name, sub: d.address, icon: DROPOFF_STYLE[d.type].icon }));
+      .map((d) => ({ kind: 'dropoff' as const, id: d.id, title: d.name, sub: d.address, icon: ECOCENTRE_STYLE.icon }));
     return drops.slice(0, 4);
   }, [query, data]);
 
@@ -235,9 +231,9 @@ export default function MapScreen() {
   const area = selected?.kind === 'area' ? selected : undefined;
   const drop = selected?.kind === 'dropoff' ? data?.dropoffs.find((d) => d.id === selected.id) : undefined;
   const visibleDrops = useMemo(() => {
-    const list = (data?.dropoffs ?? []).filter((d) => filter === 'all' || d.type === filter);
+    const list = data?.dropoffs ?? [];
     return me ? [...list].sort((a, b) => metres(me, a) - metres(me, b)) : list;
-  }, [data, filter, me]);
+  }, [data, me]);
 
   const todayCount = (stream: 'garbage' | 'recycling') => [...todayKeys].filter((k) => k.startsWith(stream)).length;
   const summary = !data
@@ -254,7 +250,7 @@ export default function MapScreen() {
         <View style={styles.titleRow}>
           <View style={{ flex: 1, gap: 2 }}>
             <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>
-              {area ? 'Collection days · Ville de Montréal' : `${DROPOFF_STYLE[drop!.type].label} drop-off · Sample`}
+              {area ? 'Collection days · Ville de Montréal' : `Écocentre · ${drop!.area}`}
             </T>
             <T display style={styles.title} numberOfLines={2} accessibilityRole="header">{area ? area.label : drop!.name}</T>
           </View>
@@ -348,14 +344,6 @@ export default function MapScreen() {
           </Glass>
         )}
 
-        {!focused && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityRole="tablist">
-            <Chip label="All" active={filter === 'all'} onPress={() => setFilter('all')} />
-            {TYPES.map((t) => (
-              <Chip key={t} label={DROPOFF_STYLE[t].label} icon={DROPOFF_STYLE[t].icon} tint={DROPOFF_STYLE[t].color} active={filter === t} onPress={() => setFilter(filter === t ? 'all' : t)} />
-            ))}
-          </ScrollView>
-        )}
 
         {notice && !focused && (
           <Glass style={[styles.notice, shadow.md]}>
@@ -395,7 +383,7 @@ export default function MapScreen() {
           ) : area ? (
             <AreaDetails area={area.area} today={today} fetchedOn={data.fetchedOn} sourceUrl={data.sourceUrl} />
           ) : drop ? (
-            <DropoffDetails d={drop} now={now} />
+            <DropoffDetails d={drop} />
           ) : (
             <>
               <Glass style={styles.emptyCard}>
@@ -408,20 +396,11 @@ export default function MapScreen() {
                 </T>
               </Glass>
               <T size="xs" weight="semibold" color={colors.inkMuted} style={[styles.eyebrow, { marginTop: 12 }]}>
-                {filter === 'all' ? 'Drop-offs' : `${DROPOFF_STYLE[filter].label} drop-offs`} · sample{me ? ' · nearest first' : ''}
+                Écocentres on the island{me ? ' · nearest first' : ''}
               </T>
-              {visibleDrops.length ? (
-                visibleDrops.map((d) => <DropoffRow key={d.id} d={d} now={now} distance={me ? metres(me, d) : undefined} onPress={() => select({ kind: 'dropoff', id: d.id })} />)
-              ) : (
-                <Glass style={styles.emptyCard}>
-                  <T size="sm" color={colors.inkMuted}>No {DROPOFF_STYLE[filter as DropoffType].label.toLowerCase()} drop-offs in the sample yet.</T>
-                  <Spring onPress={() => setFilter('all')} accessibilityRole="button" hitSlop={8}>
-                    <T size="sm" weight="bold" color={colors.forest}>Show all</T>
-                  </Spring>
-                </Glass>
-              )}
+              {visibleDrops.map((d) => <DropoffRow key={d.id} d={d} distance={me ? metres(me, d) : undefined} onPress={() => select({ kind: 'dropoff', id: d.id })} />)}
               <T size="xs" color={colors.inkMuted} style={{ marginTop: 8 }}>
-                Collection days: Ville de Montréal open data, {data.fetchedOn}. Drop-offs, addresses and hours are sample data for this trial.
+                Collection days: Ville de Montréal open data, {data.fetchedOn}. Écocentres: RECYC-QUÉBEC open data.
               </T>
             </>
           )}
@@ -453,7 +432,7 @@ function MapCover({ state, onRetry, top, bottom }: { state: 'loading' | 'offline
         <View style={styles.offline}>
           <IconBubble icon="cloud-off" color={colors.inkMuted} />
           <T display style={styles.title}>The map didn't load</T>
-          <T size="sm" color={colors.inkMuted} style={{ textAlign: 'center' }}>You might be offline. Drop-offs are still listed below.</T>
+          <T size="sm" color={colors.inkMuted} style={{ textAlign: 'center' }}>You might be offline. The écocentres are still listed below.</T>
           <PrimaryButton label="Try again" icon="refresh" size="md" onPress={onRetry} style={{ width: 200 }} />
         </View>
       )}

@@ -8,8 +8,8 @@ import Svg, { Line } from 'react-native-svg';
 import { Glass, Icon, PrimaryButton, Spring, T } from '../components/ui';
 import type { Dropoff, Zone } from '../data/map';
 import { bins, colors, radius, shadow } from '../theme';
-import { DROPOFF_STYLE, LANE_STYLE } from './mapHtml';
-import { addDays, clock, countdown, humanDay, openStatus, shortWeekday, upcoming, weekdayOf, weekly, type Stream } from './schedule';
+import { ECOCENTRE_STYLE, LANE_STYLE } from './mapHtml';
+import { addDays, countdown, humanDay, shortWeekday, upcoming, weekdayOf, weekly, type Stream } from './schedule';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -42,54 +42,24 @@ export function Legend() {
   );
 }
 
-/** Pill with the designs' chip press; active chips are ink, like the tab bar highlight. */
-export function Chip({ label, icon, tint, active, onPress }: { label: string; icon?: string; tint?: string; active: boolean; onPress: () => void }) {
-  return (
-    <Spring
-      onPress={onPress}
-      pressedScale={0.95}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={`${label} drop-offs`}
-      hitSlop={{ top: 4, bottom: 4 }}
-      style={[styles.chip, active ? { backgroundColor: colors.ink, borderColor: colors.ink } : styles.chipIdle, shadow.sm]}
-    >
-      {icon && <Icon name={icon} size={16} color={active ? colors.white : tint} />}
-      <T size="xs" weight="semibold" color={active ? colors.white : colors.ink}>{label}</T>
-    </Spring>
-  );
-}
-
-function TypeBubble({ type, size = 40 }: { type: Dropoff['type']; size?: number }) {
-  const s = DROPOFF_STYLE[type];
+function EcoBubble({ size = 40 }: { size?: number }) {
   return (
     <View style={[styles.bubble, shadow.sm, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Icon name={s.icon} size={size * 0.5} color={s.color} />
-    </View>
-  );
-}
-
-function OpenLine({ hours, now }: { hours: Dropoff['hours']; now: Date }) {
-  const st = openStatus(hours, now);
-  return (
-    <View style={styles.row}>
-      <View style={[styles.dot, { backgroundColor: st.open ? colors.forest : 'rgba(65,94,82,0.45)' }]} />
-      <T size="xs" weight="semibold" color={st.open ? colors.forest : colors.inkMuted}>{st.open ? 'Open now' : 'Closed'}</T>
-      <T size="xs" color={colors.inkMuted}>· {st.label}</T>
+      <Icon name={ECOCENTRE_STYLE.icon} size={size * 0.5} color={ECOCENTRE_STYLE.color} />
     </View>
   );
 }
 
 export const distanceLabel = (m: number) => (m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
 
-export function DropoffRow({ d, now, distance, onPress }: { d: Dropoff; now: Date; distance?: number; onPress: () => void }) {
+export function DropoffRow({ d, distance, onPress }: { d: Dropoff; distance?: number; onPress: () => void }) {
   return (
-    <Spring onPress={onPress} pressedScale={0.98} accessibilityRole="button" accessibilityLabel={`${d.name}, ${DROPOFF_STYLE[d.type].label}, ${openStatus(d.hours, now).label}`}>
+    <Spring onPress={onPress} pressedScale={0.98} accessibilityRole="button" accessibilityLabel={`${d.name}, ${d.area}${distance !== undefined ? `, ${distanceLabel(distance)} away` : ''}`}>
       <Glass style={styles.listRow}>
-        <TypeBubble type={d.type} />
+        <EcoBubble />
         <View style={{ flex: 1, gap: 2 }}>
           <T size="sm" weight="semibold" numberOfLines={1}>{d.name}</T>
-          <OpenLine hours={d.hours} now={now} />
+          <T size="xs" color={colors.inkMuted} numberOfLines={1}>{d.area}</T>
         </View>
         {distance !== undefined && <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.num}>{distanceLabel(distance)}</T>}
         <Icon name="chevron-right" size={18} color={colors.inkMuted} />
@@ -229,36 +199,37 @@ export function openDirections(d: Dropoff) {
   Linking.openURL(url).catch(() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}`));
 }
 
-export function DropoffDetails({ d, now }: { d: Dropoff; now: Date }) {
+export function DropoffDetails({ d }: { d: Dropoff }) {
   return (
     <View style={{ gap: 16 }}>
-      <View style={{ gap: 6 }}>
-        <View style={styles.row}><Icon name="place" size={16} color={colors.inkMuted} /><T size="sm" color={colors.inkMuted} style={{ flex: 1 }}>{d.address}</T></View>
-        <OpenLine hours={d.hours} now={now} />
+      <View style={styles.row}>
+        <Icon name="place" size={16} color={colors.inkMuted} />
+        <T size="sm" color={colors.inkMuted} style={{ flex: 1 }}>{d.address}</T>
       </View>
       <PrimaryButton label="Get directions" icon="directions" size="md" onPress={() => openDirections(d)} />
       <Glass style={styles.card}>
-        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Takes</T>
-        <View style={styles.wrap}>
-          {d.materials.map((m) => (
-            <View key={m} style={styles.material}><T size="xs" weight="semibold">{m}</T></View>
-          ))}
-        </View>
+        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Hours</T>
+        <T size="sm" color={colors.inkMuted}>Hours change with the season and aren't in the open data.</T>
+        <Spring onPress={() => Linking.openURL(d.infoUrl)} accessibilityRole="link" hitSlop={8}>
+          <T size="sm" weight="bold" color={colors.forest}>{d.city === 'Montréal' ? "Check today's hours on montreal.ca" : `Check hours with ${d.city}`}</T>
+        </Spring>
       </Glass>
       <Glass style={styles.card}>
-        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Hours</T>
-        {[1, 2, 3, 4, 5, 6, 0].map((i) => {
-          const h = d.hours[i];
-          const isToday = i === now.getDay();
-          const text = h === '00:00-24:00' ? 'Open 24 hours' : h ? `${clock(h.split('-')[0])} – ${clock(h.split('-')[1])}` : 'Closed';
-          return (
-            <View key={i} style={styles.kv}>
-              <T size="sm" weight={isToday ? 'bold' : 'regular'} color={isToday ? colors.ink : colors.inkMuted}>{WEEKDAYS[i]}</T>
-              <T size="sm" weight={isToday ? 'bold' : 'medium'} color={h ? colors.ink : colors.inkMuted} style={styles.num}>{text}</T>
+        <T size="xs" weight="semibold" color={colors.inkMuted} style={styles.eyebrow}>Takes</T>
+        {d.materials ? (
+          <>
+            <View style={styles.wrap}>
+              {d.materials.map((m) => (
+                <View key={m} style={styles.material}><T size="xs" weight="semibold">{m}</T></View>
+              ))}
             </View>
-          );
-        })}
+            {d.note && <T size="xs" color={colors.inkMuted}>{d.note}</T>}
+          </>
+        ) : (
+          <T size="sm" color={colors.inkMuted}>Run by {d.city}, which sets its own list and who can use it.</T>
+        )}
       </Glass>
+      <T size="xs" color={colors.inkMuted}>Location: RECYC-QUÉBEC open data.{d.materials ? " Items: TriMTL's Montréal sorting rules." : ''}</T>
     </View>
   );
 }
@@ -269,10 +240,7 @@ const styles = StyleSheet.create({
   eyebrow: { textTransform: 'uppercase', letterSpacing: 0.6 },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1 },
-  chipIdle: { backgroundColor: 'rgba(255, 255, 255, 0.86)', borderColor: 'rgba(255, 255, 255, 0.95)' },
   bubble: { backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
-  dot: { width: 7, height: 7, borderRadius: 4 },
   listRow: { borderRadius: radius['2xl'], paddingHorizontal: 14, paddingVertical: 12, minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12 },
   strokeCell: { width: 40, alignItems: 'center' },
   card: { borderRadius: radius['2xl'], padding: 16, gap: 10 },
