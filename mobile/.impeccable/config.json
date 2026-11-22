@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-11-22T02:37:45.153Z",
+        "reason": "existing app brand font: mobile/src/theme.ts fonts.* is Plus Jakarta Sans; the map page must match it"
+      }
+    ]
+  }
+}
