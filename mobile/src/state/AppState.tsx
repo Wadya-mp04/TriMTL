@@ -11,6 +11,7 @@ import { CHALLENGE_POOL, DEMO_SAVED, fromRule, Lang, resolveItem, SortItem } fro
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { montrealDay } from '../lib/daily';
+import { rules } from '../data/rules';
 import { withRetry } from '../lib/retry';
 import { supabase } from '../lib/supabase';
 import { brand } from '../brand';
@@ -63,6 +64,9 @@ interface AppState {
   saveItems: (items: SortItem[]) => void;
   recordGame: (g: Omit<GameRecord, 'when'> & { mode: GameMode; xp: number }) => void;
   setArea: (borough: string | null, hasBrownBin: boolean) => void;
+  /** Who sees this player's scores (profiles.visibility); saved to the account when signed in. */
+  visibility: Visibility;
+  setVisibility: (v: Visibility) => void;
   /** Language of rule and scan text (FR/EN). Kept on this phone; the app's own labels stay English. */
   lang: Lang;
   setLang: (l: Lang) => void;
@@ -79,6 +83,9 @@ applyTheme(brand.defaultTheme);
 const Ctx = createContext<AppState | null>(null);
 
 const LANG_KEY = 'trimtl.lang';
+
+/** public = everyone signed in, friends = accepted friends only (default), private = nobody but you. */
+export type Visibility = 'public' | 'friends' | 'private';
 
 /** Round types stored in game_scores.mode. */
 export type GameMode = 'mine' | 'daily' | 'challenge';
@@ -119,6 +126,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<string[]>([]);
   const [borough, setBorough] = useState<string | null>(null);
   const [hasBrownBin, setHasBrownBin] = useState(true);
+  const [visibility, setVisibilityState] = useState<Visibility>('friends');
   const [lang, setLangState] = useState<Lang>('en');
   useEffect(() => {
     AsyncStorage.getItem(LANG_KEY).then((v) => { if (v === 'fr' || v === 'en') setLangState(v); }).catch(() => {});
@@ -173,12 +181,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUserId(id);
       if (!id) {
         setUsername(DEMO.username); setXp(DEMO.xp); setXpToday(DEMO.xpToday); setGames(DEMO.games); setStats(DEMO.stats);
-        setSaved(DEMO_SAVED); setLastScanRaw([]);
+        setSaved(DEMO_SAVED); setLastScanRaw([]); setVisibilityState('friends');
         return;
       }
       // Scoreboard: the signed-in user's own totals, recent rounds and today's XP (RLS limits it to them).
       const [profile, totals, recent, board, scans, daily] = await Promise.all([
-        sb.from('profiles').select('username').eq('id', id).single(),
+        sb.from('profiles').select('username, visibility, borough, has_brown_bin').eq('id', id).single(),
         sb.from('player_stats').select('games, answered, correct, xp').maybeSingle(),
         sb.from('game_scores').select('mode, items, correct, played_at').order('played_at', { ascending: false }).limit(5),
         sb.rpc('leaderboard', { scope: 'friends' }),
@@ -189,6 +197,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ]);
       if (loadedFor.current !== id) return; // signed out or switched user while loading: drop the stale reply
       if (profile.data?.username) setUsername(profile.data.username);
+      // The area and visibility follow the account; an unknown borough slug falls back to the city default.
+      if (profile.data) {
+        const p = profile.data as { visibility: Visibility; borough: string | null; has_brown_bin: boolean };
+        setVisibilityState(p.visibility);
+        setBorough(p.borough && rules.boroughInfo(p.borough) ? p.borough : null);
+        setHasBrownBin(p.has_brown_bin);
+      }
       const t = totals.data;
       setXp(t?.xp ?? 0);
       setStats({ games: t?.games ?? 0, answered: t?.answered ?? 0, correct: t?.correct ?? 0 });
@@ -284,6 +299,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     withRetry('save score', () => sb.from('game_scores').upsert(row, { onConflict: 'user_id,client_key', ignoreDuplicates: true }));
   }, [userId, dailyResult, keepDaily]);
 
+  // Settings writes are idempotent (same value twice changes nothing), so retrying them is safe.
+  const saveProfile = useCallback((what: string, patch: Record<string, unknown>) => {
+    if (!supabase || !userId) return;
+    const sb = supabase;
+    withRetry(what, () => sb.from('profiles').update(patch).eq('id', userId));
+  }, [userId]);
+
+  const setArea = useCallback((b: string | null, brown: boolean) => {
+    setBorough(b);
+    setHasBrownBin(brown);
+    saveProfile('save area', { borough: b, has_brown_bin: brown });
+  }, [saveProfile]);
+
+  const setVisibility = useCallback((v: Visibility) => {
+    setVisibilityState(v);
+    saveProfile('save visibility', { visibility: v });
+  }, [saveProfile]);
+
   // Changing brown bin or borough re-sorts everything at once: saved items, the last scan, the game.
   const saved = useMemo(() => savedRaw.map((i) => resolveItem(i, { borough, hasBrownBin }, lang)), [savedRaw, borough, hasBrownBin, lang]);
   const lastScan = useMemo(() => lastScanRaw.map((i) => resolveItem(i, { borough, hasBrownBin }, lang)), [lastScanRaw, borough, hasBrownBin, lang]);
@@ -315,14 +348,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       recordGame,
       dailyDone: dailyResult?.day === day ? dailyResult : null,
       dailyKnown,
-      setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
+      setArea,
+      visibility,
+      setVisibility,
       lang,
       setLang,
       // Immediate, so the tapped tile and the background crossfade respond in the same frame; the heavy
       // street and game take the change later (useDeferredValue in components/World and Play).
       setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
-    [username, xp, xpToday, saved, photos, lastScan, challengePool, borough, hasBrownBin, lang, setLang, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame, dailyResult, dailyKnown, day],
+    [username, xp, xpToday, saved, photos, lastScan, challengePool, borough, hasBrownBin, lang, setLang, visibility, setArea, setVisibility, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame, dailyResult, dailyKnown, day],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

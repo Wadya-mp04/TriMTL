@@ -217,6 +217,12 @@ const FR = {
   "{n} of {max} photos": "{n} sur {max} photos",
   "{n} {city} items · same for everyone": "{n} objets de {city} · les mêmes pour tous",
   "· rules from {source}": "· règles de {source}",
+  "Who sees my scores": "Qui voit mes scores",
+  "Everyone": "Tout le monde",
+  "Only me": "Moi seul",
+  "Anyone signed in sees your scores on the boards.": "Toute personne connectée voit vos scores dans les classements.",
+  "Only your friends see your scores. Others can still find you to send a request.": "Seuls vos amis voient vos scores. Les autres peuvent quand même vous trouver pour envoyer une demande.",
+  "Nobody sees your scores. People can still find you to send a request, and your points count for your borough.": "Personne ne voit vos scores. On peut quand même vous trouver pour une demande, et vos points comptent pour votre arrondissement.",
 } as const satisfies Record<string, string>;
 
 /** Any interface string the app shows. */
