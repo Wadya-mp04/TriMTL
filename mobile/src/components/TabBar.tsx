@@ -1,5 +1,5 @@
 /**
- * Floating glass pill tab bar (Scan / Play / Community). The dark highlight follows the swipe position.
+ * Floating glass pill tab bar (Scan / Map / Play / Community). The dark highlight follows the swipe position.
  */
 import type { MaterialTopTabBarProps } from 'expo-router/js-top-tabs';
 import { useState } from 'react';
@@ -11,6 +11,7 @@ import { Icon, Spring, T } from './ui';
 
 const TABS: Record<string, { label: string; icon: string }> = {
   scan: { label: 'Scan', icon: 'qr-code-scanner' },
+  map: { label: 'Map', icon: 'map' },
   play: { label: 'Play', icon: 'sports-esports' },
   community: { label: 'Community', icon: 'groups' },
 };
@@ -49,7 +50,7 @@ export function FrostedTabBar({ state, navigateToTab, position }: MaterialTopTab
               style={styles.tab}
             >
               <Icon name={tab.icon} size={19} color={color} />
-              <T size="xs" weight="semibold" color={color}>{tab.label}</T>
+              <T size="xs" weight="semibold" color={color} numberOfLines={1}>{tab.label}</T>
             </Spring>
           );
         })}
@@ -60,7 +61,8 @@ export function FrostedTabBar({ state, navigateToTab, position }: MaterialTopTab
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 18, right: 18, alignItems: 'center' },
-  bar: { width: '100%', maxWidth: 354, borderRadius: radius.full, padding: PAD, flexDirection: 'row', gap: GAP },
+  bar: { width: '100%', maxWidth: 380, borderRadius: radius.full, padding: PAD, flexDirection: 'row', gap: GAP },
   highlight: { position: 'absolute', top: PAD, bottom: PAD, left: PAD, borderRadius: radius.full, backgroundColor: colors.ink },
-  tab: { flex: 1, minHeight: 48, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  // Four tabs no longer fit icon-beside-label at phone width, so the icon sits above its label.
+  tab: { flex: 1, minHeight: 52, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', gap: 1 },
 });
