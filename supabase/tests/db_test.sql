@@ -61,7 +61,8 @@ select pg_temp.ok((select array_agg(username order by xp_today desc) = '{user_33
 select pg_temp.ok((select is_me from public.leaderboard('city') where username = 'user_33333333'), 'is_me flag');
 select set_config('request.jwt.claim.sub', :'bob', false);
 select pg_temp.ok((select array_agg(username order by xp_today desc) = '{alice,bob}' from public.leaderboard('friends')), 'bob friends board');
-select pg_temp.ok((select xp_today = 135 from public.leaderboard('friends') where username = 'alice'), 'today xp summed');
+-- leaderboard() wraps board('today') (20261121000500), so it reports daily points too: Alice's daily 4/4 = 100.
+select pg_temp.ok((select xp_today = 100 from public.leaderboard('friends') where username = 'alice'), 'today daily points');
 
 -- ---------- Social (20261121000500_social.sql, owner: Juan) ----------
 -- Settings: friends-only, no borough, brown bin by default; each user edits only their own.
@@ -78,27 +79,33 @@ select pg_temp.refused($$select * from public.board('month')$$, 'unknown period'
 select pg_temp.ok((select array_agg(username order by username) = '{alice,bob}' from public.profiles), 'bob sees only friends profiles');
 
 -- Board: Bob's friends are on it with is_friend; Carol isn't (not a friend, not public).
-select pg_temp.ok((select array_agg(username || ':' || xp || ':' || is_friend order by xp desc) = '{alice:135:true,bob:30:false}' from public.board('today')), 'bob today board');
+-- Boards count daily challenge scores only (20261122000000_daily_boards.sql): Alice's daily 4/4 = 100, her two
+-- practice rounds don't count; Bob played no daily round today = 0.
+select pg_temp.ok((select array_agg(username || ':' || xp || ':' || is_friend order by xp desc) = '{alice:100:true,bob:0:false}' from public.board('today')), 'bob today board');
 select pg_temp.ok((select is_me from public.board('today') where username = 'bob'), 'board is_me');
 
 -- Dave: Bob's friend with no rounds (still listed at 0), and has a pending request to Carol.
 reset role;
 insert into auth.users values ('44444444-4444-4444-4444-444444444444', '{"username":"dave"}');
 insert into public.friendships values ('44444444-4444-4444-4444-444444444444', :'bob', 'accepted'), ('44444444-4444-4444-4444-444444444444', :'carol', 'pending');
--- Bob: one round at the start of this week, one 8 days ago (in no period). Deleted at the end of this section.
+-- Bob: a daily round at the start of this week (2/2 = 100), one 8 days ago (in no period). Alice: a second,
+-- worse daily round today, which must not replace her first. Deleted at the end of this section.
 insert into public.game_scores (user_id, mode, items, correct, xp, played_at, client_key) values
-  (:'bob', 'mine', 2, 2, 20, public.period_start('week') + interval '1 second', 'j1-week'),
-  (:'bob', 'mine', 2, 2, 50, now() - interval '8 days', 'j1-old');
+  (:'bob', 'daily', 2, 2, 30, public.period_start('week') + interval '1 second', 'j1-week'),
+  (:'bob', 'daily', 2, 2, 30, now() - interval '8 days', 'j1-old'),
+  (:'alice', 'daily', 4, 1, 15, now() + interval '1 second', 'j1-second');
 -- On a Monday this week's first round is also today's. period_start is admin-only, so read it here.
 select public.period_start('today') = public.period_start('week') as monday \gset
 set role authenticated;
 
 select pg_temp.ok((select xp = 0 and is_friend from public.board('today') where username = 'dave'), 'friend with no rounds listed at 0');
--- Week includes this week's round; today includes it only on a Monday. The 8-day-old round is in neither.
+-- Week adds up daily scores: Bob's 100 from this week; today includes it only on a Monday. The 8-day-old
+-- daily is in neither. Only the first daily per day counts: Alice stays at 100 despite her second round.
 select pg_temp.ok((
-  select w.xp - t.xp = case when :'monday' then 0 else 20 end and t.xp >= 30
+  select w.xp = 100 and t.xp = case when :'monday' then 100 else 0 end
   from public.board('week') w, public.board('today') t where w.username = 'bob' and t.username = 'bob'
 ), 'week vs today totals');
+select pg_temp.ok((select xp = 100 from public.board('today') where username = 'alice'), 'only the first daily round of the day counts');
 
 -- Search: substring, case-insensitive, 2+ characters, never yourself, status from your side.
 select pg_temp.ok((select array_agg(username || ':' || friendship_status order by username) = '{alice:friends}' from public.find_players('ALI')), 'bob finds his friend');
@@ -122,7 +129,7 @@ update public.profiles set borough = 'verdun' where id = auth.uid();
 select pg_temp.ok((select array_agg(username || ':' || is_friend order by xp desc) = '{alice:false,user_33333333:false}' from public.board('today')), 'public player on a stranger board');
 select pg_temp.ok((select array_agg(username order by xp_today desc) = '{alice,user_33333333}' from public.leaderboard('city')), 'public player on the city leaderboard');
 select pg_temp.ok(exists (select 1 from public.profiles where username = 'alice'), 'public profile readable');
--- Friends and you first, then everyone else: Carol (15) is listed before the stranger Alice (135).
+-- Friends and you first, then everyone else: Carol (0) is listed before the stranger Alice (100).
 select pg_temp.ok((select array_agg(username order by n) = '{user_33333333,alice}' from public.board('today') with ordinality b(username, xp, is_me, is_friend, n)), 'board lists you and friends first');
 
 -- Private hides scores, never the username: Carol (private) can still be found to add; Dave (private) is off
@@ -135,18 +142,20 @@ select set_config('request.jwt.claim.sub', :'bob', false);
 select pg_temp.ok(not exists (select 1 from public.board('today') where username = 'dave'), 'private friend off the board');
 select pg_temp.ok((select friendship_status = 'friends' from public.find_players('dave')), 'private friend still found by friends');
 
--- Borough totals count everyone with a borough, private players too. Today: Verdun = Bob 30 (+20 on Mondays)
--- + private Carol 15; Plateau = Alice 135.
+-- Borough points = average daily points of its players who played (everyone with a borough counts as a player,
+-- private too). Today: Plateau = Alice 100; Verdun = Bob 100 on a Monday (else nobody played: 0, 0 active),
+-- Carol never played a daily. This week: Verdun = Bob's 100.
 select pg_temp.ok((
   select array_agg(borough || ':' || players || ':' || active || ':' || is_mine order by borough)
-       = '{plateau-mont-royal:1:1:false,verdun:2:2:true}' from public.borough_board('today')
+       = array['plateau-mont-royal:1:1:false', 'verdun:2:' || case when :'monday' then 1 else 0 end || ':true']
+  from public.borough_board('today')
 ), 'borough players and is_mine');
-select pg_temp.ok((select points = 135 from public.borough_board('today') where borough = 'plateau-mont-royal'), 'plateau total');
-select pg_temp.ok((select points - 45 = case when :'monday' then 20 else 0 end from public.borough_board('today') where borough = 'verdun'), 'verdun total today');
-select pg_temp.ok((select points = 65 from public.borough_board('week') where borough = 'verdun'), 'verdun total this week');
+select pg_temp.ok((select points = 100 from public.borough_board('today') where borough = 'plateau-mont-royal'), 'plateau average');
+select pg_temp.ok((select points = case when :'monday' then 100 else 0 end from public.borough_board('today') where borough = 'verdun'), 'verdun average today');
+select pg_temp.ok((select points = 100 from public.borough_board('week') where borough = 'verdun'), 'verdun average this week');
 
 reset role;
-delete from public.game_scores where client_key in ('j1-week', 'j1-old');
+delete from public.game_scores where client_key in ('j1-week', 'j1-old', 'j1-second');
 delete from auth.users where id = '44444444-4444-4444-4444-444444444444';
 set role authenticated;
 select set_config('request.jwt.claim.sub', :'bob', false);
