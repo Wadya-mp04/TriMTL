@@ -18,12 +18,14 @@ import {
   T,
 } from '../../components/ui';
 import { skyInk, THEMES } from '../../game/themes';
+import { useT } from '../../i18n';
 import { levelFor, useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
 import { brand } from '../../brand';
 
 /** Brackets gently "focus" in and out while the icon floats: a calm, camera-like idle state. */
 function Viewfinder() {
+  const { t: tr } = useT();
   const t = useRef(new Animated.Value(0)).current;
   const intro = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -49,8 +51,8 @@ function Viewfinder() {
         <IconBubble icon="qr-code-scanner" size={76} iconSize={38} />
       </Animated.View>
       <Animated.View style={[{ alignItems: 'center', gap: 6 }, rise]}>
-        <T display style={styles.headline}>Point at up to 5 items</T>
-        <T size="sm" color={colors.inkMuted}>Instant {brand.city} bin match · 1–3 photos</T>
+        <T display style={styles.headline}>{tr('Point at up to 5 items')}</T>
+        <T size="sm" color={colors.inkMuted}>{tr('Instant {city} bin match · 1–3 photos', { city: brand.city })}</T>
       </Animated.View>
     </>
   );
@@ -59,8 +61,9 @@ function Viewfinder() {
 export default function ScanScreen() {
   const router = useRouter();
   const { saved, username, xp, playTheme } = useApp();
+  const { t } = useT();
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const greeting = t(hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
   const openCamera = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/camera');
@@ -69,29 +72,29 @@ export default function ScanScreen() {
   return (
     <Screen edges={['top']} transparent>
       <View style={styles.page}>
-        <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`${greeting} · Level ${levelFor(xp).level}`} title={`Welcome back, ${username}`} />
+        <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={t('{greeting} · Level {level}', { greeting, level: levelFor(xp).level })} title={t('Welcome back, {name}', { name: username })} />
 
         <View style={styles.main}>
           <Glass style={styles.finderCard}>
-            <Spring onPress={openCamera} pressedScale={0.99} accessibilityLabel="Open camera" style={styles.finder}>
+            <Spring onPress={openCamera} pressedScale={0.99} accessibilityLabel={t('Open camera')} style={styles.finder}>
               <Viewfinder />
             </Spring>
 
-            <Spring onPress={openCamera} accessibilityRole="button" accessibilityLabel="Analyze items" pressedScale={0.97} style={[styles.scanButton, shadow.xl]}>
-              <T size="lg" weight="semibold" color={colors.white}>Analyze items</T>
+            <Spring onPress={openCamera} accessibilityRole="button" accessibilityLabel={t('Analyze items')} pressedScale={0.97} style={[styles.scanButton, shadow.xl]}>
+              <T size="lg" weight="semibold" color={colors.white}>{t('Analyze items')}</T>
             </Spring>
           </Glass>
 
           {/* Every scan is saved to the library automatically; this card is the way in. */}
-          <Spring onPress={() => router.push('/library')} accessibilityRole="button" accessibilityLabel={`You've sorted ${saved.length} items. Open my library`} pressedScale={0.98} style={styles.impact}>
+          <Spring onPress={() => router.push('/library')} accessibilityRole="button" accessibilityLabel={t("You've sorted {n} items. Open my library", { n: saved.length })} pressedScale={0.98} style={styles.impact}>
             <View style={{ flex: 1 }}>
-              <T size="xs" color={colors.inkMuted}>You've sorted</T>
+              <T size="xs" color={colors.inkMuted}>{t("You've sorted")}</T>
               <T size="lg" weight="bold">
-                <T size="lg" weight="bold" color={colors.forest}>{saved.length}</T> {saved.length === 1 ? 'item' : 'items'}
+                <T size="lg" weight="bold" color={colors.forest}>{saved.length}</T> {t(saved.length === 1 ? 'item' : 'items')}
               </T>
             </View>
             <View style={[styles.libraryButton, { backgroundColor: colors.forest }]}>
-              <T size="sm" weight="semibold" color={colors.white}>My library</T>
+              <T size="sm" weight="semibold" color={colors.white}>{t('My library')}</T>
               <Icon name="chevron-right" size={18} color={colors.white} />
             </View>
           </Spring>

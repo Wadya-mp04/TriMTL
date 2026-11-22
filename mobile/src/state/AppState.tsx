@@ -7,7 +7,7 @@
  */
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { CHALLENGE_POOL, DEMO_SAVED, fromRule, resolveItem, SortItem } from '../data/items';
+import { CHALLENGE_POOL, DEMO_SAVED, fromRule, Lang, resolveItem, SortItem } from '../data/items';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { montrealDay } from '../lib/daily';
@@ -63,6 +63,9 @@ interface AppState {
   saveItems: (items: SortItem[]) => void;
   recordGame: (g: Omit<GameRecord, 'when'> & { mode: GameMode; xp: number }) => void;
   setArea: (borough: string | null, hasBrownBin: boolean) => void;
+  /** Language of rule and scan text (FR/EN). Kept on this phone; the app's own labels stay English. */
+  lang: Lang;
+  setLang: (l: Lang) => void;
   setPlayTheme: (t: ThemeKey) => void;
   /** Today's daily challenge result (Montréal day), or null if not played yet today. */
   dailyDone: { day: string; score: number } | null;
@@ -74,6 +77,8 @@ interface AppState {
 applyTheme(brand.defaultTheme);
 
 const Ctx = createContext<AppState | null>(null);
+
+const LANG_KEY = 'trimtl.lang';
 
 /** Round types stored in game_scores.mode. */
 export type GameMode = 'mine' | 'daily' | 'challenge';
@@ -114,6 +119,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<string[]>([]);
   const [borough, setBorough] = useState<string | null>(null);
   const [hasBrownBin, setHasBrownBin] = useState(true);
+  const [lang, setLangState] = useState<Lang>('en');
+  useEffect(() => {
+    AsyncStorage.getItem(LANG_KEY).then((v) => { if (v === 'fr' || v === 'en') setLangState(v); }).catch(() => {});
+  }, []);
+  const setLang = useCallback((l: Lang) => {
+    setLangState(l);
+    AsyncStorage.setItem(LANG_KEY, l).catch(() => {}); // a failed write only means English after a restart
+  }, []);
   const [games, setGames] = useState<GameRecord[]>(DEMO.games);
   const [stats, setStats] = useState(DEMO.stats);
   const [playTheme, setPlayThemeState] = useState<ThemeKey>(brand.defaultTheme);
@@ -272,9 +285,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [userId, dailyResult, keepDaily]);
 
   // Changing brown bin or borough re-sorts everything at once: saved items, the last scan, the game.
-  const saved = useMemo(() => savedRaw.map((i) => resolveItem(i, { borough, hasBrownBin })), [savedRaw, borough, hasBrownBin]);
-  const lastScan = useMemo(() => lastScanRaw.map((i) => resolveItem(i, { borough, hasBrownBin })), [lastScanRaw, borough, hasBrownBin]);
-  const challengePool = useMemo(() => CHALLENGE_POOL.map((i) => resolveItem(i, { borough, hasBrownBin })), [borough, hasBrownBin]);
+  const saved = useMemo(() => savedRaw.map((i) => resolveItem(i, { borough, hasBrownBin }, lang)), [savedRaw, borough, hasBrownBin, lang]);
+  const lastScan = useMemo(() => lastScanRaw.map((i) => resolveItem(i, { borough, hasBrownBin }, lang)), [lastScanRaw, borough, hasBrownBin, lang]);
+  const challengePool = useMemo(() => CHALLENGE_POOL.map((i) => resolveItem(i, { borough, hasBrownBin }, lang)), [borough, hasBrownBin, lang]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -303,11 +316,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       dailyDone: dailyResult?.day === day ? dailyResult : null,
       dailyKnown,
       setArea: (b, brown) => { setBorough(b); setHasBrownBin(brown); },
+      lang,
+      setLang,
       // Immediate, so the tapped tile and the background crossfade respond in the same frame; the heavy
       // street and game take the change later (useDeferredValue in components/World and Play).
       setPlayTheme: (t) => { applyTheme(t); setPlayThemeState(t); },
     }),
-    [username, xp, xpToday, saved, photos, lastScan, challengePool, borough, hasBrownBin, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame, dailyResult, dailyKnown, day],
+    [username, xp, xpToday, saved, photos, lastScan, challengePool, borough, hasBrownBin, lang, setLang, games, stats, playTheme, userId, signIn, signUp, signOut, addXp, setLastScan, saveItems, recordGame, dailyResult, dailyKnown, day],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

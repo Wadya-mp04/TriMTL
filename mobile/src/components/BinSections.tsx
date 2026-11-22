@@ -7,9 +7,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { SortItem } from '../data/items';
 import { BIN_ORDER, BinKey, bins, colors, radius } from '../theme';
+import { TKey, useT } from '../i18n';
 import { Glass, Icon, T } from './ui';
 
-const SECTION_LABEL: Record<BinKey, string> = {
+const SECTION_LABEL: Record<BinKey, TKey> = {
   recycling: 'Recycling',
   compost: 'Compost',
   garbage: 'Garbage',
@@ -20,6 +21,7 @@ const UNSURE = { fg: colors.inkMuted, deep: colors.inkMuted, bg: '#F3F4F6', bord
 
 function Section({ label, icon, tone, items }: { label: string; icon: string; tone: typeof UNSURE; items: SortItem[] }) {
   const [open, setOpen] = useState<string | null>(null);
+  const { t } = useT();
   const n = items.length;
   return (
     <Glass style={[styles.section, { borderColor: tone.border }]}>
@@ -28,7 +30,7 @@ function Section({ label, icon, tone, items }: { label: string; icon: string; to
           <Icon name={icon} size={16} color={tone.deep} />
           <T size="xs" weight="bold" color={tone.deep}>{label}</T>
         </View>
-        <T size="xs" weight="semibold" color={tone.deep}>{n} {n === 1 ? 'item' : 'items'}</T>
+        <T size="xs" weight="semibold" color={tone.deep}>{t(n === 1 ? '{n} item' : '{n} items', { n })}</T>
       </View>
       <View style={{ gap: 8 }}>
         {items.map((it) => {
@@ -39,7 +41,7 @@ function Section({ label, icon, tone, items }: { label: string; icon: string; to
               onPress={() => setOpen(expanded ? null : it.id)}
               accessibilityRole="button"
               accessibilityState={{ expanded }}
-              accessibilityHint="Shows why it goes in this bin"
+              accessibilityHint={t('Shows why it goes in this bin')}
               style={styles.row}
             >
               <View style={styles.rowTop}>
@@ -48,7 +50,7 @@ function Section({ label, icon, tone, items }: { label: string; icon: string; to
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <T size="sm" weight="semibold">{it.name}</T>
-                  {!!it.detail && <T size="xs" color={colors.inkMuted}>{it.detail}</T>}
+                  {!!it.detail && <T size="xs" color={colors.inkMuted}>{it.detail === 'Needs verification' ? t('Needs verification') : it.detail}</T>}
                 </View>
                 {!!it.note && <Icon name={expanded ? 'expand-less' : 'expand-more'} size={20} color={colors.inkMuted} />}
               </View>
@@ -62,6 +64,7 @@ function Section({ label, icon, tone, items }: { label: string; icon: string; to
 }
 
 export function BinSections({ items }: { items: SortItem[] }) {
+  const { t } = useT();
   const unsure = items.filter((i) => i.bin === null);
   return (
     <>
@@ -69,9 +72,9 @@ export function BinSections({ items }: { items: SortItem[] }) {
         const inBin = items.filter((i) => i.bin === bin);
         if (!inBin.length) return null;
         const b = bins[bin];
-        return <Section key={bin} label={SECTION_LABEL[bin]} icon={b.icon} tone={b} items={inBin} />;
+        return <Section key={bin} label={t(SECTION_LABEL[bin])} icon={b.icon} tone={b} items={inBin} />;
       })}
-      {unsure.length > 0 && <Section label="Needs verification" icon={UNSURE.icon} tone={UNSURE} items={unsure} />}
+      {unsure.length > 0 && <Section label={t('Needs verification')} icon={UNSURE.icon} tone={UNSURE} items={unsure} />}
     </>
   );
 }

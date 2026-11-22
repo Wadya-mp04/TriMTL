@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { BrandMark, Glass, Icon, PrimaryButton, Screen, Segmented, Spring, T } from '../components/ui';
+import { TKey, useT } from '../i18n';
 import { useApp } from '../state/AppState';
 import { colors, fonts, radius } from '../theme';
 import { brand } from '../brand';
@@ -39,9 +40,16 @@ function Field({ label, ...input }: React.ComponentProps<typeof TextInput> & { l
   );
 }
 
+/** Messages the app itself writes (Supabase's own errors come back in English). */
+const APP_ERRORS: TKey[] = [
+  'That username is taken or invalid (3–24 letters, numbers, . _ -).',
+  'Check your email to confirm your account, then sign in.',
+];
+
 export default function AuthScreen() {
   const router = useRouter();
   const { signIn, signUp } = useApp();
+  const { t, lang } = useT();
   const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -70,40 +78,40 @@ export default function AuthScreen() {
             <BrandMark size={64} />
             <View style={{ alignItems: 'center' }}>
               <T size="4xl" display color={colors.ink} style={{ lineHeight: 45 }}>{brand.appName}</T>
-              <T size="sm" color={colors.inkMuted} style={{ marginTop: 4 }}>{brand.tagline}</T>
+              <T size="sm" color={colors.inkMuted} style={{ marginTop: 4 }}>{brand.tagline[lang]}</T>
             </View>
             {/* White-label partner line, from brand.ts: the client city and where its rules come from. */}
-            <View style={styles.partner} accessible accessibilityLabel={`Made for ${brand.partner.city}. Rules from ${brand.partner.rulesSource}`}>
+            <View style={styles.partner} accessible accessibilityLabel={t('Made for {city}. Rules from {source}.', { city: brand.partner.city, source: brand.partner.rulesSource })}>
               {brand.partner.logo ? (
                 <Image source={brand.partner.logo} style={styles.partnerLogo} resizeMode="contain" />
               ) : (
                 <Icon name="location-city" size={16} color={colors.forest} />
               )}
               <T size="xs" color={colors.inkMuted}>
-                Made for <T size="xs" weight="semibold" color={colors.ink}>{brand.partner.city}</T> · rules from {brand.partner.rulesSource}
+                {t('Made for')} <T size="xs" weight="semibold" color={colors.ink}>{brand.partner.city}</T> {t('· rules from {source}', { source: brand.partner.rulesSource })}
               </T>
             </View>
           </View>
 
           <Glass style={styles.card}>
             <Segmented
-              options={[{ key: 'signin', label: 'Sign in' }, { key: 'signup', label: 'Sign up' }]}
+              options={[{ key: 'signin', label: t('Sign in') }, { key: 'signup', label: t('Sign up') }]}
               value={mode}
               onChange={setMode}
             />
             <View style={{ gap: 12 }}>
               {mode === 'signup' && (
-                <Field label="Username" placeholder="EcoSorter" value={name} onChangeText={setName} autoCapitalize="none" />
+                <Field label={t('Username')} placeholder="EcoSorter" value={name} onChangeText={setName} autoCapitalize="none" />
               )}
-              <Field label="Email" placeholder="ecosorter@montreal.ca" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-              <Field label="Password" placeholder="••••••••" value={password} onChangeText={setPassword} secureTextEntry />
-              <PrimaryButton label={mode === 'signin' ? 'Sign in' : 'Create account'} onPress={enter} disabled={busy} style={{ marginTop: 8 }} />
-              {!!error && <T size="xs" accessibilityRole="alert" style={{ paddingLeft: 4 }}>{error}</T>}
+              <Field label={t('Email')} placeholder="ecosorter@montreal.ca" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+              <Field label={t('Password')} placeholder="••••••••" value={password} onChangeText={setPassword} secureTextEntry />
+              <PrimaryButton label={t(mode === 'signin' ? 'Sign in' : 'Create account')} onPress={enter} disabled={busy} style={{ marginTop: 8 }} />
+              {!!error && <T size="xs" accessibilityRole="alert" style={{ paddingLeft: 4 }}>{(APP_ERRORS as string[]).includes(error) ? t(error as TKey) : error}</T>}
             </View>
           </Glass>
 
           <Spring onPress={() => hideKeyboard().then(() => router.replace('/scan'))} style={styles.demo} accessibilityRole="link">
-            <T size="sm" weight="semibold" color={colors.ink}>Continue demo without account</T>
+            <T size="sm" weight="semibold" color={colors.ink}>{t('Continue demo without account')}</T>
             <Icon name="arrow-forward" size={18} color={colors.ink} />
           </Spring>
         </ScrollView>

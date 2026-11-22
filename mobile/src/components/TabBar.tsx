@@ -6,11 +6,12 @@ import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { TKey, useT } from '../i18n';
 import { colors, glass, radius, shadow } from '../theme';
 import { Icon, Spring, T } from './ui';
 import { useWorld } from './World';
 
-const TABS: Record<string, { label: string; icon: string }> = {
+const TABS: Record<string, { label: TKey; icon: string }> = {
   scan: { label: 'Scan', icon: 'qr-code-scanner' },
   play: { label: 'Play', icon: 'sports-esports' },
   community: { label: 'Community', icon: 'groups' },
@@ -24,6 +25,7 @@ const GAP = 4;
 
 export function FrostedTabBar({ state, navigateToTab, position }: MaterialTopTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useT();
   const [width, setWidth] = useState(0);
   // Share the slide position so Play's buildings (components/World) move in step with the Play page.
   const { setTabPosition } = useWorld();
@@ -57,7 +59,7 @@ export function FrostedTabBar({ state, navigateToTab, position }: MaterialTopTab
               style={styles.tab}
             >
               <Icon name={tab.icon} size={19} color={color} />
-              <T size="xs" weight="semibold" color={color}>{tab.label}</T>
+              <T size="xs" weight="semibold" color={color}>{t(tab.label)}</T>
             </Spring>
           );
         })}

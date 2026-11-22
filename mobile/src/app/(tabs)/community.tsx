@@ -20,6 +20,7 @@ import { CITY, Ranked } from '../../data/items';
 import { BOROUGHS } from '../../data/rules';
 import { motionMs } from '../../lib/motion';
 import { supabase } from '../../lib/supabase';
+import { useT } from '../../i18n';
 import { useApp } from '../../state/AppState';
 import { colors, radius, shadow } from '../../theme';
 import { brand } from '../../brand';
@@ -76,6 +77,9 @@ function FirstBlock() {
 export default function CommunityScreen() {
   const router = useRouter();
   const { initials, borough, userId, playTheme, dailyDone } = useApp();
+  const { t } = useT();
+  // Rows store the player as 'You'; show it in the player's language (borough rows keep their names).
+  const nameOf = (p: { name: string; you?: boolean }) => (p.you && p.name === 'You' ? t('You') : p.name);
   const [scope, setScope] = useState<Scope>('players');
   const [period, setPeriod] = useState<Period>('today');
   // Points = daily challenge scores (one attempt a day, out of 100); This week adds up the days. The backend
@@ -142,9 +146,11 @@ export default function CommunityScreen() {
   const hasDemo = scope === 'players' && ranking.some((r) => r.demo);
 
   const share = () => {
-    const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${p.name} ${p.xp} ${unit}`);
-    const what = scope === 'boroughs' ? 'borough podium' : 'player podium';
-    Share.share({ message: `${period === 'today' ? "Today's" : "This week's"} ${brand.appName} ${what} ♻️\n${lines.join('\n')}` });
+    const lines = ranking.slice(0, 3).map((p, i) => `${i + 1}. ${nameOf(p)} ${p.xp} ${unit}`);
+    const head = t(period === 'today'
+      ? scope === 'boroughs' ? "Today's {app} borough podium" : "Today's {app} player podium"
+      : scope === 'boroughs' ? "This week's {app} borough podium" : "This week's {app} player podium", { app: brand.appName });
+    Share.share({ message: `${head} ♻️\n${lines.join('\n')}` });
   };
 
   const listRow = (p: Row & { rank: number }) => (
@@ -153,8 +159,8 @@ export default function CommunityScreen() {
         <View style={[styles.listRank, p.you && { backgroundColor: colors.forest }]}>
           <T size="xs" weight="bold" color={p.you ? colors.white : colors.ink}>{p.rank}</T>
         </View>
-        <T size="sm" weight="semibold" numberOfLines={1} style={{ marginLeft: 4, flexShrink: 1 }}>{p.name}</T>
-        {p.demo && <T size="xs" color={colors.inkMuted}>demo</T>}
+        <T size="sm" weight="semibold" numberOfLines={1} style={{ marginLeft: 4, flexShrink: 1 }}>{nameOf(p)}</T>
+        {p.demo && <T size="xs" color={colors.inkMuted}>{t('demo')}</T>}
       </View>
       <T size="xs" weight="bold" color={p.you ? colors.forest : colors.inkMuted}>{p.xp} {unit}</T>
     </Glass>
@@ -166,9 +172,9 @@ export default function CommunityScreen() {
 
   return (
     <Screen edges={['top']} transparent>
-      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`${when} · ${brand.city}`} title="Community" right={
+      <ScreenHeader ink={skyInk(THEMES[playTheme])} eyebrow={`${t(when)} · ${brand.city}`} title={t('Community')} right={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <CircleButton icon="group-add" label="Friends" onPress={() => router.push('/friends')} />
+          <CircleButton icon="group-add" label={t('Friends')} onPress={() => router.push('/friends')} />
           <AvatarButton />
         </View>
       } />
@@ -178,27 +184,27 @@ export default function CommunityScreen() {
         <Glass style={styles.today}>
           <Icon name={dailyDone ? 'check-circle' : 'emoji-events'} size={22} color={colors.forest} />
           <View style={{ flex: 1 }}>
-            <T size="sm" weight="bold">{dailyDone ? "You did today's challenge" : "You haven't played today's challenge"}</T>
-            <T size="xs" color={colors.inkMuted}>{dailyDone ? 'Your score counts on the board' : 'Play it to get on the board'}</T>
+            <T size="sm" weight="bold">{t(dailyDone ? "You did today's challenge" : "You haven't played today's challenge")}</T>
+            <T size="xs" color={colors.inkMuted}>{t(dailyDone ? 'Your score counts on the board' : 'Play it to get on the board')}</T>
           </View>
           {dailyDone ? (
             <T size="lg" weight="bold" color={colors.forest} style={{ fontVariant: ['tabular-nums'] }}>{dailyDone.score}/100</T>
           ) : (
             <Spring onPress={() => router.navigate('/play')} accessibilityRole="button" style={[styles.playChip, { backgroundColor: colors.forest }]}>
-              <T size="sm" weight="semibold" color={colors.white}>Play</T>
+              <T size="sm" weight="semibold" color={colors.white}>{t('Play')}</T>
             </Spring>
           )}
         </Glass>
 
         <Segmented
-          options={[{ key: 'players', label: 'Players' }, { key: 'boroughs', label: 'Boroughs' }]}
+          options={[{ key: 'players', label: t('Players') }, { key: 'boroughs', label: t('Boroughs') }]}
           value={scope}
           onChange={setScope}
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.72)', borderColor: 'rgba(255, 255, 255, 0.88)', boxShadow: '0px 10px 30px -10px rgba(20, 92, 64, 0.12)' }}
         />
         <Segmented
           compact
-          options={[{ key: 'today', label: 'Today' }, { key: 'week', label: 'This week' }]}
+          options={[{ key: 'today', label: t('Today') }, { key: 'week', label: t('This week') }]}
           value={period}
           onChange={setPeriod}
           style={{ alignSelf: 'center', marginTop: -8 }}
@@ -209,12 +215,12 @@ export default function CommunityScreen() {
         {scope === 'boroughs' && mine === -1 && (
           <Spring onPress={() => router.push('/profile')} accessibilityRole="button" pressedScale={0.98} style={styles.cta}>
             <Icon name="location-city" size={18} color={colors.forest} />
-            <T size="sm" weight="semibold" style={{ flex: 1 }}>Pick your borough to sort for your neighbourhood</T>
+            <T size="sm" weight="semibold" style={{ flex: 1 }}>{t('Pick your borough to sort for your neighbourhood')}</T>
             <Icon name="chevron-right" size={18} color={colors.inkMuted} />
           </Spring>
         )}
 
-        <View accessibilityLabel={`Top 3 ${period === 'today' ? 'today' : 'this week'}`} style={styles.podium}>
+        <View accessibilityLabel={t(period === 'today' ? 'Top 3 today' : 'Top 3 this week')} style={styles.podium}>
           {/* 2nd */}
           <View style={styles.col}>
             <View>
@@ -222,7 +228,7 @@ export default function CommunityScreen() {
               <RankBadge n={2} bg={second.you ? colors.forest : colors.ink} />
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight={second.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{second.name}</T>
+              <T size="xs" weight={second.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{nameOf(second)}</T>
               <T weight="semibold" color={youTone(second, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{second.xp} {unit}</T>
             </View>
             {second.you ? (
@@ -241,7 +247,7 @@ export default function CommunityScreen() {
               </View>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight="bold" numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{first.name}</T>
+              <T size="xs" weight="bold" numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{nameOf(first)}</T>
               <T size="xs" weight="bold" color={colors.forest}>{first.xp} {unit}</T>
             </View>
             <FirstBlock />
@@ -254,7 +260,7 @@ export default function CommunityScreen() {
               <RankBadge n={3} bg={third.you ? colors.forest : colors.ink} />
             </View>
             <View style={{ alignItems: 'center' }}>
-              <T size="xs" weight={third.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{third.name}</T>
+              <T size="xs" weight={third.you ? 'bold' : 'semibold'} numberOfLines={2} color={ground.laneInk} style={styles.podiumName}>{nameOf(third)}</T>
               <T weight="semibold" color={youTone(third, ground.laneMuted)} style={{ fontSize: 11, lineHeight: 16 }}>{third.xp} {unit}</T>
             </View>
             {third.you ? (
@@ -268,8 +274,8 @@ export default function CommunityScreen() {
         {circle.length > 0 && (
           <View style={{ gap: 8 }}>
             <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-              <T size="xs" weight="semibold" color={ground.laneMuted} style={styles.sectionLabel}>You and friends</T>
-              <T size="xs" color={ground.laneMuted}>{period === 'today' ? 'Resets at midnight' : 'Resets Monday'}</T>
+              <T size="xs" weight="semibold" color={ground.laneMuted} style={styles.sectionLabel}>{t('You and friends')}</T>
+              <T size="xs" color={ground.laneMuted}>{t(period === 'today' ? 'Resets at midnight' : 'Resets Monday')}</T>
             </View>
             {circle.map(listRow)}
           </View>
@@ -278,8 +284,8 @@ export default function CommunityScreen() {
         {others.length > 0 && (
           <View style={{ gap: 8 }}>
             <View style={[styles.row, { justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-              <T size="xs" weight="semibold" color={ground.laneMuted} style={styles.sectionLabel}>{scope === 'boroughs' ? 'Other boroughs' : 'Also sorting'}</T>
-              {circle.length === 0 && <T size="xs" color={ground.laneMuted}>{period === 'today' ? 'Resets at midnight' : 'Resets Monday'}</T>}
+              <T size="xs" weight="semibold" color={ground.laneMuted} style={styles.sectionLabel}>{t(scope === 'boroughs' ? 'Other boroughs' : 'Also sorting')}</T>
+              {circle.length === 0 && <T size="xs" color={ground.laneMuted}>{t(period === 'today' ? 'Resets at midnight' : 'Resets Monday')}</T>}
             </View>
             {others.map(listRow)}
           </View>
@@ -287,13 +293,13 @@ export default function CommunityScreen() {
 
         {hasDemo && (
           <T size="xs" color={ground.laneMuted} style={{ textAlign: 'center', marginTop: -8 }}>
-            {userId ? `Demo players fill in until 3 people play ${period === 'today' ? 'today' : 'this week'}.` : 'Demo players. Sign in to see real scores.'}
+            {t(userId ? (period === 'today' ? 'Demo players fill in until 3 people play today.' : 'Demo players fill in until 3 people play this week.') : 'Demo players. Sign in to see real scores.')}
           </T>
         )}
 
         </Animated.View>
 
-        <PrimaryButton label={`Share ${period === 'today' ? "today's" : "this week's"} podium`} icon="ios-share" onPress={share} style={{ gap: 8 }} />
+        <PrimaryButton label={t(period === 'today' ? "Share today's podium" : "Share this week's podium")} icon="ios-share" onPress={share} style={{ gap: 8 }} />
       </ScrollView>
     </Screen>
   );

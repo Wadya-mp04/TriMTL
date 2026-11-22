@@ -31,10 +31,17 @@ export interface SortItem {
   kind?: string;
   /** Built-in sample content: shown and played, never saved to an account. */
   demo?: boolean;
+  /** Language `name` and `kind` were written in (the scan's). Unset = English: scans were English-only before FR. */
+  lang?: Lang;
+  /** The name as scanned (or the demo's own), kept so switching language back restores it. Set by resolveItem. */
+  origName?: string;
 }
 
 /** The player's area: which rule overrides apply (e.g. no brown bin -> food scraps go in the garbage). */
 export interface Area { borough: string | null; hasBrownBin: boolean }
+
+/** Language of rule and scan text (bins' explanations, drop-offs, tips). The app's own labels stay English. */
+export type Lang = 'fr' | 'en';
 
 /** Subset of server/src/types.ts ScanItem that the app reads. */
 export interface ScanItemDTO {
@@ -127,15 +134,27 @@ export function fromScanItem(it: ScanItemDTO, scanId: string): SortItem {
 }
 
 /**
- * Re-work an item's bin and texts for the player's area with the rules engine. Items without a rule
- * ("Needs verification") are returned unchanged: there is nothing to decide.
+ * Re-work an item's bin and texts for the player's area and language with the rules engine. Items without
+ * a rule ("Needs verification") are returned unchanged: there is nothing to decide.
+ * Scanned names stay in the language they were scanned in; demo items take the rule's name in French.
  */
-export function resolveItem(item: SortItem, area: Area): SortItem {
+export function resolveItem(item: SortItem, area: Area, lang: Lang = 'en'): SortItem {
   const rule = typeof item.ruleId === 'string' ? rules.getRule(item.ruleId) : null;
   if (!rule) return item;
-  const it = rules.toScanItem({ id: item.id, name: item.name, rule, confidence: 'high', lang: 'en', ctx: area });
+  const it = rules.toScanItem({ id: item.id, name: item.name, rule, confidence: 'high', lang, ctx: area });
   const tip = it.dropoffName ?? it.specialInstruction;
-  return { ...item, bin: it.correctBin, note: it.explanation ?? '', detail: [item.kind, tip].filter(Boolean).join(' • ') };
+  // A name in another language (a demo item, or a scan made before switching) becomes the rule's own name,
+  // so a deck never mixes French and English. shortcut: reloaded scans have no stored language and count as
+  // English; store the scan language in scanned_items if FR scans start showing rule names in English.
+  const foreign = item.demo ? lang === 'fr' : (item.lang ?? 'en') !== lang;
+  const original = item.origName ?? item.name;
+  return {
+    ...item,
+    origName: original,
+    name: foreign ? rule.name[lang] : original,
+    bin: it.correctBin, note: it.explanation ?? '',
+    detail: [foreign ? null : item.kind, tip].filter(Boolean).join(' • '),
+  };
 }
 
 /** A game item from a rule id: demo content, and saved scans loaded back from the account. */
