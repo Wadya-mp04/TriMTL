@@ -31,6 +31,12 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "TriMTL uses your location only when you tap Use my location, to show nearby drop-offs and your collection lane."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "TriMTL lets you choose photos of items to sort."

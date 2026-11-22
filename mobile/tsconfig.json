@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": ["node_modules", "shared/**/*.ts"]
+  "exclude": ["node_modules", "shared/**/*.ts", "src/**/*.test.ts", "scripts"]
 }

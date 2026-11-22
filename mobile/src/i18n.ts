@@ -112,6 +112,7 @@ const FR = {
   "Other boroughs": "Autres arrondissements",
   "Password": "Mot de passe",
   "Pick your borough to sort for your neighbourhood": "Choisissez votre arrondissement pour trier pour votre quartier",
+  "Map": "Carte",
   "Play": "Jouer",
   "Play it to get on the board": "Jouez-le pour entrer au classement",
   "Players": "Joueurs",
